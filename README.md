@@ -1,2 +1,4 @@
 # OpenDrone
-PX4 and ROS1
+基于ROS1的PX4无人机仿真
+
+## 1. 准备
