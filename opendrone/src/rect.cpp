@@ -35,7 +35,7 @@ void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& msg)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "offb_no_rc");
+    ros::init(argc, argv, "rect");
     ros::NodeHandle nh;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>

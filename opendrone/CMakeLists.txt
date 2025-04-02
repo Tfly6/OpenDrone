@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  controller_msgs
 )
 
 
@@ -39,6 +40,9 @@ target_link_libraries(rect ${catkin_LIBRARIES})
 
 add_executable(rect_other src/rect_other.cpp)
 target_link_libraries(rect_other ${catkin_LIBRARIES})
+
+add_executable(test1 src/test.cpp)
+target_link_libraries(test1 ${catkin_LIBRARIES})
 
 
 #############

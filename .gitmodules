@@ -1,0 +1,6 @@
+[submodule "utils/catkin_simple"]
+	path = utils/catkin_simple
+	url = https://github.com/catkin/catkin_simple
+[submodule "utils/mav_comm"]
+	path = utils/mav_comm
+	url = https://github.com/ethz-asl/mav_comm
