@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(opendrone)
 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../cmake/Modules)
+find_package(Glog REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(NLopt REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros_msgs
@@ -8,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   controller_msgs
+  mav_trajectory_generation
+  mav_trajectory_generation_ros
 )
 
 
@@ -21,28 +27,38 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
-
-add_executable(offb_node src/offb_node.cpp)
+# message(WARNING "INCLUDE_DIRS: ${catkin_LIBRARIES}")
+add_executable(offb_node src/basic_example/offb_node.cpp)
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 
-add_executable(off_node src/off_node.cpp)
+add_executable(off_node src/basic_example/off_node.cpp)
 target_link_libraries(off_node ${catkin_LIBRARIES})
 
-add_executable(off_node_rc src/off_node_rc.cpp)
+add_executable(off_node_rc src/basic_example/off_node_rc.cpp)
 target_link_libraries(off_node_rc ${catkin_LIBRARIES})
 
-add_executable(rect_rc src/rect_rc.cpp)
+add_executable(rect_rc src/basic_example/rect_rc.cpp)
 target_link_libraries(rect_rc ${catkin_LIBRARIES})
 
-add_executable(rect src/rect.cpp)
+add_executable(rect src/basic_example/rect.cpp)
 target_link_libraries(rect ${catkin_LIBRARIES})
 
-add_executable(rect_other src/rect_other.cpp)
+add_executable(rect_other src/basic_example/rect_other.cpp)
 target_link_libraries(rect_other ${catkin_LIBRARIES})
+
+add_executable(waypoint src/basic_example/waypoint.cpp)
+target_link_libraries(waypoint ${catkin_LIBRARIES})
 
 add_executable(test1 src/test.cpp)
 target_link_libraries(test1 ${catkin_LIBRARIES})
+
+
+
+add_executable(planner_node src/planner_node.cpp
+                            src/trajectory_generation.cpp)
+target_link_libraries(planner_node ${catkin_LIBRARIES} ${GLOG_LIBRARIES} ${NLOPT_LIBRARIES})
 
 
 #############
