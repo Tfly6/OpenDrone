@@ -32,7 +32,7 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
   nh_private_.param("dt", dt_, dt_);
 
   command_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-      mav_msgs::default_topics::COMMAND_TRAJECTORY, 1);
+      mav_msgs::default_topics::COMMAND_TRAJECTORY, 1); // command/trajectory
   trajectory_sub_ = nh_.subscribe(
       "path_segments", 10, &TrajectorySamplerNode::pathSegmentsCallback, this);
   trajectory4D_sub_ = nh_.subscribe(
@@ -96,11 +96,12 @@ void TrajectorySamplerNode::processTrajectory() {
 
   if (publish_whole_trajectory_) {
     // Publish the entire trajectory at once.
+    ROS_INFO("Publishing the whole trajectory.");
     mav_msgs::EigenTrajectoryPoint::Vector trajectory_points;
     mav_trajectory_generation::sampleWholeTrajectory(trajectory_, dt_,
                                                      &trajectory_points);
     trajectory_msgs::MultiDOFJointTrajectory msg_pub;
-    msgMultiDofJointTrajectoryFromEigen(trajectory_points, &msg_pub);
+    mav_msgs::msgMultiDofJointTrajectoryFromEigen(trajectory_points, &msg_pub);
     command_pub_.publish(msg_pub);
   } else {
     publish_timer_.start();

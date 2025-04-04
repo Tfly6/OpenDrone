@@ -63,6 +63,7 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   mavtwistSub_ = nh_.subscribe("mavros/local_position/velocity_local", 1, &geometricCtrl::mavtwistCallback, this,
                                ros::TransportHints().tcpNoDelay());
   ctrltriggerServ_ = nh_.advertiseService("trigger_rlcontroller", &geometricCtrl::ctrltriggerCallback, this);
+  
   cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &geometricCtrl::cmdloopCallback,
                                    this);  // Define timer for constant loop rate
   statusloop_timer_ = nh_.createTimer(ros::Duration(1), &geometricCtrl::statusloopCallback,
@@ -104,11 +105,12 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   nh_private_.param<double>("Kv_y", Kvel_y_, 1.5);
   nh_private_.param<double>("Kv_z", Kvel_z_, 3.3);
   nh_private_.param<int>("posehistory_window", posehistory_window_, 200);
-  nh_private_.param<double>("init_pos_x", initTargetPos_x_, 0.0);
-  nh_private_.param<double>("init_pos_y", initTargetPos_y_, 0.0);
-  nh_private_.param<double>("init_pos_z", initTargetPos_z_, 2.0);
+  nh_private_.param<double>("takeoff_height", takeoff_height_, 2.0);
+  // nh_private_.param<double>("init_pos_x", initTargetPos_x_, 0.0);
+  // nh_private_.param<double>("init_pos_y", initTargetPos_y_, 0.0);
+  // nh_private_.param<double>("init_pos_z", initTargetPos_z_, 2.0);
 
-  targetPos_ << initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;  // Initial Position
+  // targetPos_ << initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;  // Initial Position
   targetVel_ << 0.0, 0.0, 0.0;
   mavPos_ << 0.0, 0.0, 0.0;
   mavVel_ << 0.0, 0.0, 0.0;
@@ -239,8 +241,21 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     case WAITING_FOR_HOME_POSE:
       waitForPredicate(&received_home_pose, "Waiting for home pose...");
       ROS_INFO("Got pose! Drone Ready to be armed.");
-      node_state = MISSION_EXECUTION;
+      // node_state = MISSION_EXECUTION;
+      node_state = TAKEOFF;
       break;
+    
+    case TAKEOFF: {
+      geometry_msgs::PoseStamped takeoffmsg;
+      takeoffmsg.header.stamp = ros::Time::now();
+      takeoffmsg.pose = home_pose_;
+      takeoffmsg.pose.position.z = takeoff_height_;
+      target_pose_pub_.publish(takeoffmsg);
+      if(fabs(mavPos_(2) - takeoff_height_) < 0.02)
+        node_state = MISSION_EXECUTION;
+      ros::spinOnce();
+      break;
+    }
 
     case MISSION_EXECUTION: {
       Eigen::Vector3d desired_acc;
@@ -250,8 +265,8 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
         desired_acc = controlPosition(targetPos_, targetVel_, targetAcc_);
       }
       computeBodyRateCmd(cmdBodyRate_, desired_acc);
-      pubReferencePose(targetPos_, q_des);
-      pubRateCommands(cmdBodyRate_, q_des);
+      pubReferencePose(targetPos_, q_des); // reference/pose
+      pubRateCommands(cmdBodyRate_, q_des); // command/bodyrate_command
       appendPoseHistory();
       pubPoseHistory();
       break;
@@ -358,7 +373,7 @@ void geometricCtrl::pubSystemStatus() {
 
 void geometricCtrl::appendPoseHistory() {
   posehistory_vector_.insert(posehistory_vector_.begin(), vector3d2PoseStampedMsg(mavPos_, mavAtt_));
-  if (posehistory_vector_.size() > posehistory_window_) {
+  if (posehistory_window_ != 0 && posehistory_vector_.size() > posehistory_window_) {
     posehistory_vector_.pop_back();
   }
 }
