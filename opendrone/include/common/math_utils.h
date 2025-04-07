@@ -1,7 +1,7 @@
 /***************************************************************************************************************************
 * math_utils.h
-*
-* Author: ref to Qyp
+* ref to Qyp
+* Author: TFly
 ***************************************************************************************************************************/
 #ifndef MATH_UTILS_H
 #define MATH_UTILS_H
@@ -14,14 +14,14 @@
 
 
 // 四元数转欧拉角
-Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
+inline Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
 {
     // YPR - ZYX
     return q.toRotationMatrix().eulerAngles(2, 1, 0).reverse();
 }
 
 // 从(roll,pitch,yaw)创建四元数  by a 3-2-1 intrinsic Tait-Bryan rotation sequence
-Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
+inline Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 {
     // YPR - ZYX
     return Eigen::Quaterniond(
@@ -35,7 +35,7 @@ Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 // q0 q1 q2 q3
 // w x y z
-Eigen::Vector3d quaternion_to_euler(const Eigen::Quaterniond &q)
+inline Eigen::Vector3d quaternion_to_euler(const Eigen::Quaterniond &q)
 {
     float quat[4];
     quat[0] = q.w();
@@ -51,7 +51,7 @@ Eigen::Vector3d quaternion_to_euler(const Eigen::Quaterniond &q)
 }
 
 //旋转矩阵转欧拉角
-Eigen::Vector3d rotation_to_euler(Eigen::Matrix3d rotation)
+inline Eigen::Vector3d rotation_to_euler(Eigen::Matrix3d rotation)
 {
     Eigen::Vector3d euler_angle;
 
@@ -118,7 +118,7 @@ inline Eigen::Vector3d rad_to_deg(const Eigen::Vector3d &radians) {
 	return deg;
 }
 //constrain_function
-float constrain_function(float data, float Max)
+inline float constrain_function(float data, float Max)
 {
     if(abs(data)>Max)
     {
@@ -131,7 +131,7 @@ float constrain_function(float data, float Max)
 }
 
 //constrain_function2
-float constrain_function2(float data, float Min,float Max)
+inline float constrain_function2(float data, float Min,float Max)
 {
     if(data > Max)
     {
@@ -147,7 +147,7 @@ float constrain_function2(float data, float Min,float Max)
 }
 
 //sign_function
-float sign_function(float data)
+inline float sign_function(float data)
 {
     if(data>0)
     {
@@ -164,7 +164,7 @@ float sign_function(float data)
 }
 
 // min function
-float min(float data1,float data2)
+inline float min(float data1,float data2)
 {
     if(data1>=data2)
     {

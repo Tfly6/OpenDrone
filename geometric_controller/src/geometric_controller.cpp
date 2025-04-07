@@ -149,7 +149,8 @@ void geometricCtrl::targetCallback(const geometry_msgs::TwistStamped &msg) { // 
     targetAcc_ = Eigen::Vector3d::Zero();
 }
 
-void geometricCtrl::flattargetCallback(const controller_msgs::FlatTarget &msg) { // reference/flatsetpoint
+void geometricCtrl::flattargetCallback(const controller_msgs::FlatTarget &msg) { 
+  // reference/flatsetpoint
   reference_request_last_ = reference_request_now_;
 
   targetPos_prev_ = targetPos_;

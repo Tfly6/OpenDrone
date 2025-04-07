@@ -19,6 +19,7 @@ ros::Publisher pub_waypoints;
 ros::Publisher pub_vis;
 ros::Publisher pub3;
 string waypoint_type = string("manual");
+// bool auto_trigger;
 bool is_odom_ready;
 nav_msgs::Odometry odom;
 nav_msgs::Path waypoints;
@@ -244,7 +245,8 @@ void traj_start_trigger_callback(const geometry_msgs::PoseStamped& msg) {
 int main(int argc, char** argv) {
     ros::init(argc, argv, "waypoint_generator");
     ros::NodeHandle n("~");
-    n.param("waypoint_type", waypoint_type, string("manual"));
+    n.param<string>("waypoint_type", waypoint_type, "manual");
+    // n.param<bool>("autoTrigger", auto_trigger, false);
     ros::Subscriber odom_sub = n.subscribe("odom", 10, odom_callback);
     ros::Subscriber goal_sub = n.subscribe("goal", 10, goal_callback);
     ros::Subscriber traj_sub = n.subscribe("traj_start_trigger", 10, traj_start_trigger_callback);
