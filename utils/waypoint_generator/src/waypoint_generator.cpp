@@ -19,6 +19,7 @@ ros::Publisher pub_waypoints;
 ros::Publisher pub_vis;
 ros::Publisher pub3;
 string waypoint_type = string("manual");
+string frame;
 // bool auto_trigger;
 bool is_odom_ready;
 nav_msgs::Odometry odom;
@@ -85,7 +86,7 @@ void load_waypoints(ros::NodeHandle& nh, const ros::Time& time_base) {
 }
 
 void publish_waypoints() {
-    waypoints.header.frame_id = std::string("world");
+    waypoints.header.frame_id = frame;
     waypoints.header.stamp = ros::Time::now();
     pub_waypoints.publish(waypoints);
     geometry_msgs::PoseStamped init_pose;
@@ -99,7 +100,7 @@ void publish_waypoints() {
 void publish_waypoints_vis() {
     nav_msgs::Path wp_vis = waypoints;
     geometry_msgs::PoseArray poseArray;
-    poseArray.header.frame_id = std::string("world");
+    poseArray.header.frame_id = frame;
     poseArray.header.stamp = ros::Time::now();
 
     {
@@ -246,6 +247,7 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "waypoint_generator");
     ros::NodeHandle n("~");
     n.param<string>("waypoint_type", waypoint_type, "manual");
+    n.param<string>("frame", frame, "map");
     // n.param<bool>("autoTrigger", auto_trigger, false);
     ros::Subscriber odom_sub = n.subscribe("odom", 10, odom_callback);
     ros::Subscriber goal_sub = n.subscribe("goal", 10, goal_callback);

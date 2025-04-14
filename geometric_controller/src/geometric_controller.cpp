@@ -233,6 +233,7 @@ void geometricCtrl::mavtwistCallback(const geometry_msgs::TwistStamped &msg) {
 }
 
 bool geometricCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
+  ROS_INFO("trigger land!");
   node_state = LANDING;
   return true;
 }
@@ -252,9 +253,12 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       takeoffmsg.pose = home_pose_;
       takeoffmsg.pose.position.z = takeoff_height_;
       target_pose_pub_.publish(takeoffmsg);
-      if(fabs(mavPos_(2) - takeoff_height_) < 0.02)
+      if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
+        targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
         node_state = MISSION_EXECUTION;
-      ros::spinOnce();
+      }
+        
+      // ros::spinOnce();
       break;
     }
 
@@ -274,18 +278,26 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     }
 
     case LANDING: {
-      geometry_msgs::PoseStamped landingmsg;
-      landingmsg.header.stamp = ros::Time::now();
-      landingmsg.pose = home_pose_;
-      landingmsg.pose.position.z = landingmsg.pose.position.z + 1.0;
-      target_pose_pub_.publish(landingmsg);
+      // geometry_msgs::PoseStamped landingmsg;
+      // landingmsg.header.stamp = ros::Time::now();
+      // landingmsg.pose = home_pose_;
+      // // landingmsg.pose.position.z = landingmsg.pose.position.z + 1.0;
+      // target_pose_pub_.publish(landingmsg);
+      mavros_msgs::SetMode land_set_mode;
+      land_set_mode.request.custom_mode = "AUTO.LAND";
+      if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
+          ROS_INFO("land enabled");
+      }
       node_state = LANDED;
-      ros::spinOnce();
+      // ros::spinOnce();
       break;
     }
     case LANDED:
-      ROS_INFO("Landed. Please set to position control and disarm.");
-      cmdloop_timer_.stop();
+      if(!current_state_.armed){
+        ROS_INFO("Landed. Please set to position control and disarm.");
+        cmdloop_timer_.stop();
+      }
+      // ros::spinOnce();
       break;
   }
   std_msgs::Int8 msg;
@@ -296,7 +308,7 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
 void geometricCtrl::mavstateCallback(const mavros_msgs::State::ConstPtr &msg) { current_state_ = *msg; }
 
 void geometricCtrl::statusloopCallback(const ros::TimerEvent &event) {
-  if (sim_enable_) {
+  if (sim_enable_ && node_state != LANDED && node_state != LANDING) {
     // Enable OFFBoard mode and arm automatically
     // This will only run if the vehicle is simulated
     mavros_msgs::SetMode offb_set_mode;
