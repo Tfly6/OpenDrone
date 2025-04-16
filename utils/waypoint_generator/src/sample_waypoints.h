@@ -102,6 +102,8 @@ nav_msgs::Path circle()
         waypoints.poses.push_back(pt);
         pt = waypoints.poses[2];
         waypoints.poses.push_back(pt);
+        // pt = waypoints.poses[3];
+        // waypoints.poses.push_back(pt);
         // 飞回圆心
         pt.pose.position.y =  0.0 + center_x;
         pt.pose.position.x =  0.0 + center_y;

@@ -28,7 +28,7 @@ void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "off_node");
+    ros::init(argc, argv, "rect_rc");
     ros::NodeHandle nh;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>

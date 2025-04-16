@@ -25,7 +25,7 @@ void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "off_node");
+    ros::init(argc, argv, "off_node_rc");
     ros::NodeHandle nh;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -75,35 +75,24 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     int count = 0;  // 计时
-    bool flag = false;
+    bool landFlag = false;
 
     while(ros::ok()){
         if( current_state.mode == "OFFBOARD"){
-        // if( current_state.mode == "OFFBOARD" &&
-        //     (ros::Time::now() - last_request > ros::Duration(5.0))){
-            // if( set_mode_client.call(offb_set_mode) &&
-            //     offb_set_mode.response.mode_sent){
-            //     ROS_INFO("Offboard enabled");
-            // }
             if( !current_state.armed){
                 if( arming_client.call(arm_cmd) &&arm_cmd.response.success){
                     ROS_INFO("Vehicle armed");
                 }
             }
-            // if(!flag){
-            //     local_pos_pub.publish(aim_pos);
-            //     flag = true;
-            // }
             local_pos_pub.publish(aim_pos);
-            
-            //last_request = ros::Time::now();
         }
         if(current_state.mode == "OFFBOARD" && fabs(curr_pos.pose.position.z - aim_pos.pose.position.z) <= 0.3){
             count++;
-            cout <<GREEN << "count: "<< count<< endl;
+            // cout <<GREEN << "count: "<< count<< endl;
             if(count > 150) { // 15s
                 mavros_msgs::SetMode land_set_mode;
                 land_set_mode.request.custom_mode = "AUTO.LAND";  // 发送降落命令
+                landFlag = true;
                 if(set_mode_client.call(land_set_mode) && land_set_mode.response.mode_sent){
                     ROS_INFO("land enabled");
                 }
@@ -111,7 +100,7 @@ int main(int argc, char **argv)
                 ros::shutdown();
             }  
         }
-        if(current_state.mode != "OFFBOARD"){
+        if(current_state.mode != "OFFBOARD" && !landFlag){
             ROS_INFO("switch to Offboard");
         }
 

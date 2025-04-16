@@ -15,8 +15,14 @@ sudo apt-get install python-catkin-tools python-rosinstall-generator -y
 
 ```bash
 mkdir -p ~/catkin_ws/src
-cd catkin_ws && catkin init # 初始化工作空间
+cd ~/catkin_ws && catkin init # 初始化工作空间
 catkin build
+```
+
+- **依赖** 
+
+```bash
+sudo apt-get install libgoogle-glog-dev libgflags-dev libeigen3-dev
 ```
 
 - **安装 NLopt 库** 
@@ -31,12 +37,12 @@ make
 sudo make install
 ```
 
-## 2. 安装
+## 2. 编译
 
 ```bash
-cd catkin_ws/src
+cd ~/catkin_ws/src
 https://github.com/Tfly6/OpenDrone.git
-cd ..
+cd ~/catkin_ws
 catkin build
 ```
 ## 3. 运行
