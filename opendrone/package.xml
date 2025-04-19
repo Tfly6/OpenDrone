@@ -49,6 +49,10 @@
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
+  <depend>mav_trajectory_generation</depend>
+  <depend>mav_trajectory_generation_ros</depend>
+  <depend>geometric_controller</depend>
+  <depend>waypoint_generator</depend>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>mavros_msgs</build_depend>

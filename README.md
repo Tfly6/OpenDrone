@@ -22,7 +22,9 @@ catkin build
 - **依赖** 
 
 ```bash
-sudo apt-get install libgoogle-glog-dev libgflags-dev libeigen3-dev
+sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev -y
+sudo apt install libarmadillo-dev -y
+sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor0 -y
 ```
 
 - **安装 NLopt 库** 
