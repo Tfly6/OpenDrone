@@ -74,5 +74,10 @@ target_link_libraries(planner_node ${catkin_LIBRARIES} ${GLOG_LIBRARIES} ${NLOPT
 #   scripts/my_python_script
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
+catkin_install_python(PROGRAMS
+  scripts/camera_pose_publisher.py
+  scripts/trajectory_msg_converter.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 
