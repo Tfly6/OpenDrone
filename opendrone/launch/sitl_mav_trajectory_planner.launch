@@ -34,7 +34,7 @@
   </node> -->
 
   <!--- Trajectory planner -->
-  <node pkg="opendrone" type="planner_node" name="planner_node" output="screen">
+  <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen">
         <param name="max_acc" value="$(arg max_acc)" />
         <param name="max_vel" value="$(arg max_vel)" />
         <remap from="/trajectory_generation/waypoint" to="/waypoint_generator/waypoints" />

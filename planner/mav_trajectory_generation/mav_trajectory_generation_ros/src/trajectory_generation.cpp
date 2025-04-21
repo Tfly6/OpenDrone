@@ -7,7 +7,7 @@
  */
 
 
-#include "opendrone/trajectory_generation.h"
+#include "mav_trajectory_generation_ros/trajectory_generation.h"
 
 TrajectoryGeneration::TrajectoryGeneration(ros::NodeHandle& nh) :
     nh_(nh),
@@ -15,7 +15,7 @@ TrajectoryGeneration::TrajectoryGeneration(ros::NodeHandle& nh) :
     max_a_(2.0),
     dimension_(3),
     current_velocity_(Eigen::Vector3d::Zero()),
-    current_pose_(Eigen::Vector3d::Zero()) {
+    current_pose_(Eigen::Affine3d::Identity()) {
 
     nh.param("max_v", max_v_, 2.0);
     nh.param("max_a", max_a_, 2.0);
@@ -41,12 +41,11 @@ TrajectoryGeneration::TrajectoryGeneration(ros::NodeHandle& nh) :
 void TrajectoryGeneration::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
 
   // store current position in our planner
-  // tf::poseMsgToEigen(odom->pose.pose, current_pose_);
-  current_pose_ = toEigen(odom->pose.pose.position);
+  tf::poseMsgToEigen(odom->pose.pose, current_pose_);
+
 
   // store current vleocity
-  current_velocity_ = toEigen(odom->twist.twist.linear);
-  // tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
+  tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
     // std::cout << "current_velocity: " << current_velocity_ << std::endl;
 }
 
@@ -67,19 +66,23 @@ void TrajectoryGeneration::planTrajectory() {
   mav_trajectory_generation::Vertex start(dimension_), end(dimension_);
 
   start.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                        current_pose_);
+                        current_pose_.translation());
   start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
                       current_velocity_);
 
   vertices.push_back(start);
   for(int i = 0; i < waypoints_.size(); i++) {
     if(i == waypoints_.size()-1){
-      end.makeStartOrEnd(toEigen(waypoints_[i].position), derivative_to_optimize_);
+      end.makeStartOrEnd(Eigen::Vector3d(waypoints_[i].position.x, 
+                                        waypoints_[i].position.y,
+                                        waypoints_[i].position.z), derivative_to_optimize_);
     }
     else{
       mav_trajectory_generation::Vertex middle(dimension_);
       middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                        toEigen(waypoints_[i].position));
+                          Eigen::Vector3d(waypoints_[i].position.x, 
+                                          waypoints_[i].position.y,
+                                          waypoints_[i].position.z));
       vertices.push_back(middle);
     }
   }
@@ -133,7 +136,8 @@ bool TrajectoryGeneration::publishTrajectory(const mav_trajectory_generation::Tr
 void TrajectoryGeneration::triggerWaypoints() {
   geometry_msgs::PoseStamped pose;
   pose.header.stamp = ros::Time::now();
-  pose.pose.position = toGeometryMsg(current_pose_);
+  tf::poseEigenToMsg(current_pose_, pose.pose);
+  // pose.pose.position = toGeometryMsg(current_pose_);
   pub_trigger_.publish(pose);
 }
 

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <ros/ros.h>
 #include <std_msgs/Int8.h>
-#include "opendrone/trajectory_generation.h"
+#include "mav_trajectory_generation_ros/trajectory_generation.h"
 
 std_msgs::Int8 state;
 void state_cb(const std_msgs::Int8::ConstPtr &msg)

@@ -1,10 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(opendrone)
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../cmake/Modules)
-find_package(Glog REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(NLopt REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros_msgs
@@ -12,8 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   controller_msgs
-  mav_trajectory_generation
-  mav_trajectory_generation_ros
 )
 
 
@@ -53,12 +48,6 @@ target_link_libraries(waypoint ${catkin_LIBRARIES})
 
 add_executable(test1 src/test.cpp)
 target_link_libraries(test1 ${catkin_LIBRARIES})
-
-
-
-add_executable(planner_node src/planner_node.cpp
-                            src/trajectory_generation.cpp)
-target_link_libraries(planner_node ${catkin_LIBRARIES} ${GLOG_LIBRARIES} ${NLOPT_LIBRARIES})
 
 
 #############

@@ -19,7 +19,7 @@
 #include "mav_trajectory_generation/polynomial_optimization_linear.h"
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include "mav_trajectory_generation_ros/ros_conversions.h"
-#include "common/math_utils.h"
+
 
 class TrajectoryGeneration {
  public:
@@ -57,9 +57,9 @@ class TrajectoryGeneration {
   ros::Subscriber sub_waypoint_;
 
   ros::NodeHandle& nh_;
-  // Eigen::Affine3d current_pose_;
+  
   std::vector<geometry_msgs::Pose> waypoints_;
-  Eigen::Vector3d current_pose_;
+  Eigen::Affine3d current_pose_;
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;
   double max_v_; // m/s
