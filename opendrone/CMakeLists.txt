@@ -8,7 +8,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  controller_msgs
 )
 
 
@@ -46,8 +45,11 @@ target_link_libraries(rect_other ${catkin_LIBRARIES})
 add_executable(waypoint src/basic_example/waypoint.cpp)
 target_link_libraries(waypoint ${catkin_LIBRARIES})
 
-add_executable(test1 src/test.cpp)
-target_link_libraries(test1 ${catkin_LIBRARIES})
+add_executable(trigger_land src/trigger_land.cpp)
+target_link_libraries(trigger_land ${catkin_LIBRARIES})
+
+# add_executable(test1 src/test.cpp)
+# target_link_libraries(test1 ${catkin_LIBRARIES})
 
 
 #############
