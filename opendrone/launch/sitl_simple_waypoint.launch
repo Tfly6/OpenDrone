@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="opendrone" type="waypoint" name="waypoint" output="screen" />
+    <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
+        <param name="waypoint_type" value="eight"/>
+        <remap from="~odom" to="/mavros/local_position/odom"/>
+    </node>
+</launch>

@@ -1,6 +1,6 @@
 # OpenDrone
 基于ROS1的PX4无人机仿真
-> 支持 Ubuntu 18.04 ROS Melodic、Ubuntu 20.04 ROS Noetic
+> 支持 Ubuntu 18.04 ROS Melodic PX4 v1.13.2 、Ubuntu 20.04 ROS Noetic
 ## 1. 准备
 - **使用之前必须搭建** [PX4无人机仿真环境](https://blog.csdn.net/weixin_55944949/article/details/130895608?spm=1001.2014.3001.5501)
 
@@ -15,14 +15,34 @@ sudo apt-get install python-catkin-tools python-rosinstall-generator -y
 
 ```bash
 mkdir -p ~/catkin_ws/src
-cd catkin_ws && catkin init # 初始化工作空间
+cd ~/catkin_ws && catkin init # 初始化工作空间
 catkin build
 ```
 
-## 2. 安装
+- **依赖** 
+
 ```bash
-cd catkin_ws/src
+sudo apt-get install libgoogle-glog-dev libgflags-dev libeigen3-dev
+```
+
+- **安装 NLopt 库** 
+
+```bash
+git clone -b v2.7.1 https://github.com/stevengj/nlopt.git
+cd nlopt
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+```
+
+## 2. 编译
+
+```bash
+cd ~/catkin_ws/src
 https://github.com/Tfly6/OpenDrone.git
+cd ~/catkin_ws
 catkin build
 ```
 ## 3. 运行
