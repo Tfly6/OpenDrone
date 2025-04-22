@@ -155,7 +155,7 @@ void goal_callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
     //ROS_ASSERT(trigged_time > ros::Time(0));
 
     ros::NodeHandle n("~");
-    n.param("waypoint_type", waypoint_type, string("manual"));
+    // n.param("waypoint_type", waypoint_type, string("manual"));
     
     if (waypoint_type == string("circle")) {
         waypoints = circle();

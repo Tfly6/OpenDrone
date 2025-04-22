@@ -7,7 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 set(CMAKE_MACOSX_RPATH 0)
 add_definitions(-std=c++11)
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake/Modules)
 find_package(Glog REQUIRED)
 find_package(NLopt REQUIRED)
 ############

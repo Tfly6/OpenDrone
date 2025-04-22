@@ -7,7 +7,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 set(CMAKE_MACOSX_RPATH 0)
 add_definitions(-std=c++11)
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake/Modules)
 find_package(Glog REQUIRED)
 find_package(NLopt REQUIRED)
 # message(WARNING "${NLOPT_INCLUDE_DIRS}, ${NLOPT_LIBRARIES}")
@@ -49,6 +49,9 @@ cs_add_executable(time_evaluation_node
 )
 target_link_libraries(time_evaluation_node ${PROJECT_NAME} ${GLOG_LIBRARIES} ${NLOPT_LIBRARIES})
 
+cs_add_executable(planner_node src/planner_node.cpp
+                            src/trajectory_generation.cpp)
+target_link_libraries(planner_node ${PROJECT_NAME} ${GLOG_LIBRARIES} ${NLOPT_LIBRARIES})
 #########
 # TESTS #
 #########
