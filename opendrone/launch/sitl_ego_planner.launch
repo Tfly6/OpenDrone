@@ -1,0 +1,30 @@
+<launch>
+    <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
+    <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/>
+
+    <include file="$(find ego_planner)/launch/single_run_in_sim.launch">
+        <arg name="camera_pose_topic" value="/camera/pose"/>
+        <arg name="depth_topic" default="/camera/depth/image_raw"/>
+        <!-- <arg name="depth_topic" default="/iris/camera/depth/image_raw"/> -->
+        <arg name="odom_topic" value="/mavros/local_position/odom"/>
+        <arg name="max_vel" value="2.0" />
+        <arg name="max_acc" value="3.0" />
+    </include>
+
+    <!-- Camera pose publisher -->
+    <!-- This node publishes tf from parent_frame to child_frame-->
+    <node pkg="opendrone" name="camera_pose_publisher" type="camera_pose_publisher.py" output="screen">
+        <param name="parent_frame" value="world" />
+        <param name="child_frame" value="camera_link" />
+        <param name="pose_topic" value="camera/pose" />
+    </node>
+
+    <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
+        <param name="fast_planner_traj_topic" value="/drone_0_planning/pos_cmd"/>
+        <param name="traj_pub_topic" value="/command/trajectory"/>
+    </node>
+    
+    <!-- rviz -->
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find opendrone)/rviz/rviz_ego.rviz" required="true" /> -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find opendrone)/rviz/ego_planner.rviz" required="true" />
+</launch>

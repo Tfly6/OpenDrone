@@ -3,13 +3,17 @@
     <arg name="obj_num" value="10" />
     <arg name="drone_id" value="0"/>
 
-    <arg name="map_size_x" value="50.0"/>
-    <arg name="map_size_y" value="25.0"/>
-    <arg name="map_size_z" value=" 2.0"/>
-    <arg name="odom_topic" value="visual_slam/odom" />
+    <arg name="map_size_x" value="110.0"/>
+    <arg name="map_size_y" value="100.0"/>
+    <arg name="map_size_z" value=" 3.0"/>
+    <arg name="max_vel" default="2.0" />
+    <arg name="max_acc" default="6.0" />
+    <arg name="odom_topic" default="visual_slam/odom" />
+    <arg name="camera_pose_topic" default="/camera/pose"/>
+    <arg name="depth_topic" default="/camera/depth/image_raw"/>
     
     <!-- map -->
-    <node pkg ="map_generator" name ="random_forest" type ="random_forest" output = "screen">
+    <!-- <node pkg ="map_generator" name ="random_forest" type ="random_forest" output = "screen">
         <param name="map/x_size" value="26" />
         <param name="map/y_size" value="20" />
         <param name="map/z_size" value="3" />
@@ -28,7 +32,7 @@
         <param name="ObstacleShape/theta" value="0.5"/>
         <param name="pub_rate" value="1.0"/>
         <param name="min_distance" value="0.8"/>
-    </node>
+    </node> -->
 
     <!-- main algorithm params -->
     <include file="$(find ego_planner)/launch/advanced_param.xml">
@@ -41,41 +45,41 @@
         <!-- camera pose: transform of camera frame in the world frame -->
         <!-- depth topic: depth image, 640x480 by default -->
         <!-- don't set cloud_topic if you already set these ones! -->
-        <arg name="camera_pose_topic" value="pcl_render_node/camera_pose"/>
-        <arg name="depth_topic" value="pcl_render_node/depth"/>
+        <arg name="camera_pose_topic" value="$(arg camera_pose_topic)"/>
+        <arg name="depth_topic" value="$(arg depth_topic)"/>
         <!-- topic of point cloud measurement, such as from LIDAR  -->
         <!-- don't set camera pose and depth, if you already set this one! -->
         <arg name="cloud_topic" value="pcl_render_node/cloud"/>
         <!-- intrinsic params of the depth camera -->
-        <arg name="cx" value="321.04638671875"/>
-        <arg name="cy" value="243.44969177246094"/>
-        <arg name="fx" value="387.229248046875"/>
-        <arg name="fy" value="387.229248046875"/>
+        <arg name="cx" value="320"/>
+        <arg name="cy" value="240"/>
+        <arg name="fx" value="319.9348449707031"/>
+        <arg name="fy" value="319.9348449707031"/>
         <!-- maximum velocity and acceleration the drone will reach -->
-        <arg name="max_vel" value="2.0" />
-        <arg name="max_acc" value="6.0" />
+        <arg name="max_vel" value="$(arg max_vel)" />
+        <arg name="max_acc" value="$(arg max_acc)" />
         <!--always set to 1.5 times grater than sensing horizen-->
         <arg name="planning_horizon" value="7.5" />
         <arg name="use_distinctive_trajs" value="true" />
         <!-- 1: use 2D Nav Goal to select goal  -->
         <!-- 2: use global waypoints below  -->
-        <arg name="flight_type" value="2" />
+        <arg name="flight_type" value="1" />
         <!-- global waypoints -->
         <!-- It generates a piecewise min-snap traj passing all waypoints -->
-        <arg name="point_num" value="4" />
-        <arg name="point0_x" value="15" />
-        <arg name="point0_y" value="0" />
+        <arg name="point_num" value="1" />
+        <arg name="point0_x" value="2" />
+        <arg name="point0_y" value="2" />
         <arg name="point0_z" value="1" />
-        <arg name="point1_x" value="-15.0" />
+        <arg name="point1_x" value="-5.0" />
         <arg name="point1_y" value="0.0" />
         <arg name="point1_z" value="1.0" />
-        <arg name="point2_x" value="15.0" />
+        <arg name="point2_x" value="6.0" />
         <arg name="point2_y" value="0.0" />
         <arg name="point2_z" value="1.0" />
-        <arg name="point3_x" value="-15.0" />
+        <arg name="point3_x" value="-7.0" />
         <arg name="point3_y" value="0.0" />
         <arg name="point3_z" value="1.0" />
-        <arg name="point4_x" value="15.0" />
+        <arg name="point4_x" value="6.0" />
         <arg name="point4_y" value="0.0" />
         <arg name="point4_z" value="1.0" />
     </include>
@@ -86,7 +90,7 @@
         <param name="traj_server/time_forward" value="1.0" type="double"/>
     </node>
     <!-- use simulator -->
-    <include file="$(find ego_planner)/launch/simulator.xml">
+    <!-- <include file="$(find ego_planner)/launch/simulator.xml">
         <arg name="drone_id" value="$(arg drone_id)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
@@ -95,5 +99,5 @@
         <arg name="init_y_" value="0"/>
         <arg name="init_z_" value="0.1"/>
         <arg name="odometry_topic" value="$(arg odom_topic)" />
-    </include>
+    </include> -->
 </launch>
