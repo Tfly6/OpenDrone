@@ -109,7 +109,7 @@ void GridMap::initMap(ros::NodeHandle &nh)
   extrinsic_sub_ = node_.subscribe<nav_msgs::Odometry>(
       "/vins_estimator/extrinsic", 10, &GridMap::extrinsicCallback, this); //sub
 
-  if (mp_.pose_type_ == POSE_STAMPED)
+  if (mp_.pose_type_ == POSE_STAMPED) //
   {
     pose_sub_.reset(
         new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "grid_map/pose", 25));
@@ -251,7 +251,7 @@ void GridMap::projectDepthImage()
     }
   }
   /* use depth filter */
-  else
+  else //
   {
 
     if (!md_.has_first_depth_)

@@ -239,6 +239,9 @@ namespace ego_planner
     odom_orient_.y() = msg->pose.pose.orientation.y;
     odom_orient_.z() = msg->pose.pose.orientation.z;
 
+    if(!planner_manager_->grid_map_->isInMap(odom_pos_)){
+      ROS_ERROR("out of Map Size");
+    }
     have_odom_ = true;
   }
 
