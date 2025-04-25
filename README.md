@@ -25,7 +25,7 @@ catkin build
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
 ```
 
-- **安装 NLopt 库** 
+**安装 NLopt 库** 
 
 ```bash
 git clone -b v2.7.1 https://github.com/stevengj/nlopt.git
@@ -46,7 +46,7 @@ cd ~/catkin_ws
 catkin build
 ```
 ## 3. 运行
-以官方案例为例（更多例子可以查看 `src` 目录下的源文件）
+以官方案例为例（更多例子可以查看 `opendrone/src` 目录下的源文件）
 - 终端一：启动gazebo仿真
 ```bash
 roslaunch px4 mavros_posix_sitl.launch
@@ -57,3 +57,13 @@ cd ~/catkin_ws
 source ./devel/setup.bash
 rosrun opendrone offb_node
 ```
+
+## 参考
+
+[1] Lee, Taeyoung, Melvin Leoky, and N. Harris McClamroch. "Geometric tracking control of a quadrotor UAV on SE (3)." Decision and Control (CDC), 2010 49th IEEE Conference on. IEEE, 2010.
+
+[2] Faessler, Matthias, Antonio Franchi, and Davide Scaramuzza. "Differential flatness of quadrotor dynamics subject to rotor drag for accurate tracking of high-speed trajectories." IEEE Robot. Autom. Lett 3.2 (2018): 620-626.
+
+[3] D. Mellinger and V. Kumar, “Minimum snap trajectory generation and control for quadrotors,” in Proc. of the IEEE Intl. Conf. on Robot. and Autom. (ICRA), Shanghai, China, May 2011, pp. 2520–2525.
+
+[4] X. Zhou, Z. Wang, H. Ye, C. Xu, and F. Gao, “EGO-Planner: An ESDFfree gradient-based local planner for quadrotors,” IEEE Robotics and Automation Letters, vol. 6, no. 2, pp. 478–485, 2021.

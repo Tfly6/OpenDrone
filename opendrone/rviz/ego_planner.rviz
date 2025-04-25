@@ -39,7 +39,7 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
-      Length: 2
+      Length: 1.5
       Name: Axes
       Radius: 0.10000000149011612
       Reference Frame: <Fixed Frame>
@@ -231,7 +231,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 24.583850860595703
+      Distance: 16.230165481567383
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
