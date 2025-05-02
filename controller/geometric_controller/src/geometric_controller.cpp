@@ -185,7 +185,7 @@ void geometricCtrl::flattargetCallback(const controller_msgs::FlatTarget &msg) {
 }
 
 void geometricCtrl::yawtargetCallback(const std_msgs::Float32 &msg) { // reference/yaw
-  if (!velocity_yaw_) mavYaw_ = double(msg.data);
+  if (!velocity_yaw_) mavYaw_ = double(msg.data); // false
 }
 
 void geometricCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) {
@@ -206,7 +206,7 @@ void geometricCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTr
   targetJerk_ = Eigen::Vector3d::Zero();
   targetSnap_ = Eigen::Vector3d::Zero();
 
-  if (!velocity_yaw_) {
+  if (!velocity_yaw_) { // false
     Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
                          pt.transforms[0].rotation.z);
     Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
@@ -424,7 +424,7 @@ Eigen::Vector3d geometricCtrl::controlPosition(const Eigen::Vector3d &target_pos
   /// Compute BodyRate commands using differential flatness
   /// Controller based on Faessler 2017
   const Eigen::Vector3d a_ref = target_acc;
-  if (velocity_yaw_) {
+  if (velocity_yaw_) { //false
     mavYaw_ = getVelocityYaw(mavVel_);
   }
 
