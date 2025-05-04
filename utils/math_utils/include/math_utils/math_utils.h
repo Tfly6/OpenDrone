@@ -12,6 +12,7 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Vector3.h>
 
+using namespace std;
 
 // 四元数转欧拉角
 inline Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
@@ -30,6 +31,8 @@ inline Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
                 Eigen::AngleAxisd(rpy.x(), Eigen::Vector3d::UnitX())
                 );
 }
+
+
 
 // 将四元数转换至(roll,pitch,yaw)  by a 3-2-1 intrinsic Tait-Bryan rotation sequence
 // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
@@ -76,6 +79,38 @@ inline Eigen::Vector3d rotation_to_euler(Eigen::Matrix3d rotation)
     return euler_angle;
 }
 
+//旋转矩阵转四元数
+inline Eigen::Vector4d rot2Quaternion(const Eigen::Matrix3d &R) {
+    Eigen::Vector4d quat;
+    double tr = R.trace();
+    if (tr > 0.0) {
+      double S = sqrt(tr + 1.0) * 2.0;  // S=4*qw
+      quat(0) = 0.25 * S;
+      quat(1) = (R(2, 1) - R(1, 2)) / S;
+      quat(2) = (R(0, 2) - R(2, 0)) / S;
+      quat(3) = (R(1, 0) - R(0, 1)) / S;
+    } else if ((R(0, 0) > R(1, 1)) & (R(0, 0) > R(2, 2))) {
+      double S = sqrt(1.0 + R(0, 0) - R(1, 1) - R(2, 2)) * 2.0;  // S=4*qx
+      quat(0) = (R(2, 1) - R(1, 2)) / S;
+      quat(1) = 0.25 * S;
+      quat(2) = (R(0, 1) + R(1, 0)) / S;
+      quat(3) = (R(0, 2) + R(2, 0)) / S;
+    } else if (R(1, 1) > R(2, 2)) {
+      double S = sqrt(1.0 + R(1, 1) - R(0, 0) - R(2, 2)) * 2.0;  // S=4*qy
+      quat(0) = (R(0, 2) - R(2, 0)) / S;
+      quat(1) = (R(0, 1) + R(1, 0)) / S;
+      quat(2) = 0.25 * S;
+      quat(3) = (R(1, 2) + R(2, 1)) / S;
+    } else {
+      double S = sqrt(1.0 + R(2, 2) - R(0, 0) - R(1, 1)) * 2.0;  // S=4*qz
+      quat(0) = (R(1, 0) - R(0, 1)) / S;
+      quat(1) = (R(0, 2) + R(2, 0)) / S;
+      quat(2) = (R(1, 2) + R(2, 1)) / S;
+      quat(3) = 0.25 * S;
+    }
+    return quat;
+}
+
 // geometry_msgs to Eigen
 inline Eigen::Vector3d toEigen(const geometry_msgs::Point &p) {
 
@@ -88,6 +123,7 @@ inline Eigen::Vector3d toEigen(const geometry_msgs::Vector3 &v3) {
     return ev3;
 }
 
+//  Eigen to geometry_msgs
 inline geometry_msgs::Point toGeometryMsg(const Eigen::Vector3d &v3) {
     geometry_msgs::Point p;
     p.x = v3(0);
@@ -130,8 +166,8 @@ inline float constrain_function(float data, float Max)
     }
 }
 
-//constrain_function2
-inline float constrain_function2(float data, float Min,float Max)
+
+inline float satura(float data, float Min,float Max)
 {
     if(data > Max)
     {
@@ -147,7 +183,7 @@ inline float constrain_function2(float data, float Min,float Max)
 }
 
 //sign_function
-inline float sign_function(float data)
+inline float sign(float data)
 {
     if(data>0)
     {
@@ -164,17 +200,17 @@ inline float sign_function(float data)
 }
 
 // min function
-inline float min(float data1,float data2)
-{
-    if(data1>=data2)
-    {
-        return data2;
-    }
-    else
-    {
-        return data1;
-    }
-}
+// inline float min(float data1,float data2)
+// {
+//     if(data1>=data2)
+//     {
+//         return data2;
+//     }
+//     else
+//     {
+//         return data1;
+//     }
+// }
 
 #endif
 
