@@ -1,0 +1,15 @@
+pidCtrl:
+  Pos_pid:
+    Kp_x: 5.0
+    Kp_y: 5.0
+    Kp_z: 2.5
+    Ki_x: 0.3
+    Ki_y: 0.3
+    Ki_z: 0.3
+    Kd_x: 0.1
+    Kd_y: 0.1
+    Kd_z: 0.0
+    # 误差项限幅
+    px_error_max: 0.6
+    py_error_max: 0.6
+    pz_error_max: 1.0
