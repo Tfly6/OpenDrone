@@ -17,6 +17,7 @@
 
   <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
         <param name="waypoint_type" value="circle"/>
+        <param name="autoTrigger" value="true" />
         <remap from="~odom" to="/mavros/local_position/odom"/>
   </node>
 
