@@ -9,7 +9,7 @@
 #include <Eigen/Eigen>
 #include <math.h>
 
-#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Vector3.h>
 
 using namespace std;
@@ -154,7 +154,7 @@ inline Eigen::Vector3d rad_to_deg(const Eigen::Vector3d &radians) {
 	return deg;
 }
 //constrain_function
-inline float constrain_function(float data, float Max)
+inline double constrain_function(double data, double Max)
 {
     if(abs(data)>Max)
     {
@@ -167,7 +167,7 @@ inline float constrain_function(float data, float Max)
 }
 
 
-inline float satura(float data, float Min,float Max)
+inline double satura(double data, double Min,double Max)
 {
     if(data > Max)
     {
@@ -183,7 +183,7 @@ inline float satura(float data, float Min,float Max)
 }
 
 //sign_function
-inline float sign(float data)
+inline double sign(double data)
 {
     if(data>0)
     {
@@ -199,6 +199,23 @@ inline float sign(float data)
     }
 }
 
+inline bool is_arrive(const geometry_msgs::PoseStamped &pos1, const geometry_msgs::PoseStamped &pos2){
+    double distance_threshold = 0.13;  // 到达阈值
+    double dx = pos1.pose.position.x - pos2.pose.position.x;
+    double dy = pos1.pose.position.y - pos2.pose.position.y;
+    double dz = pos1.pose.position.z - pos2.pose.position.z;
+    double distance = sqrt(dx*dx + dy*dy + dz*dz);
+    return distance < distance_threshold;
+}
+
+inline bool is_arrive(const Eigen::Vector3d &pos1, const Eigen::Vector3d &pos2){
+    double distance_threshold = 0.13;  // 到达阈值
+    double dx = pos1[0] - pos2[0];
+    double dy = pos1[1] - pos2[1];
+    double dz = pos1[2] - pos2[2];
+    double distance = sqrt(dx*dx + dy*dy + dz*dz);
+    return distance < distance_threshold;
+}
 // min function
 // inline float min(float data1,float data2)
 // {

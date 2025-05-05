@@ -16,11 +16,12 @@ using namespace std;
 using bfmt = boost::format;
 
 ros::Publisher pub_waypoints;
+ros::Publisher pub_autoTrigger;
 ros::Publisher pub_vis;
 ros::Publisher pub3;
 string waypoint_type = string("manual");
 string frame;
-// bool auto_trigger;
+bool auto_trigger;
 bool is_odom_ready;
 nav_msgs::Odometry odom;
 nav_msgs::Path waypoints;
@@ -120,6 +121,18 @@ void publish_waypoints_vis() {
 void odom_callback(const nav_msgs::Odometry::ConstPtr& msg) {
     is_odom_ready = true;
     odom = *msg;
+
+    // auto_trigger
+    if(auto_trigger){
+        geometry_msgs::PoseStamped msg;
+        msg.header.stamp = ros::Time::now();
+        msg.header.frame_id = "map";
+        msg.pose.position.x = 0.0;
+        msg.pose.position.y = 0.0;
+        msg.pose.position.z = 0.5;
+        pub_autoTrigger.publish(msg);
+        auto_trigger = false;
+    }
 
     if (waypointSegments.size()) {
         ros::Time expected_time = waypointSegments.front().header.stamp;
@@ -248,10 +261,11 @@ int main(int argc, char** argv) {
     ros::NodeHandle n("~");
     n.param<string>("waypoint_type", waypoint_type, "manual");
     n.param<string>("frame", frame, "map");
-    // n.param<bool>("autoTrigger", auto_trigger, false);
+    n.param<bool>("autoTrigger", auto_trigger, false);
     ros::Subscriber odom_sub = n.subscribe("odom", 10, odom_callback);
     ros::Subscriber goal_sub = n.subscribe("goal", 10, goal_callback);
     ros::Subscriber traj_sub = n.subscribe("traj_start_trigger", 10, traj_start_trigger_callback);
+    pub_autoTrigger = n.advertise<geometry_msgs::PoseStamped>("traj_start_trigger", 10);
     pub_waypoints = n.advertise<nav_msgs::Path>("waypoints", 50);
     pub_vis = n.advertise<geometry_msgs::PoseArray>("waypoints_vis", 10);
 
