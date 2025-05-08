@@ -166,6 +166,12 @@ inline double constrain_function(double data, double Max)
     }
 }
 
+inline void satura(Eigen::Vector3d &err, double low, double upper){
+    err(0) = std::max(std::min(err(0), upper), low);
+    err(1) = std::max(std::min(err(1), upper), low);
+    err(2) = std::max(std::min(err(2), upper), low);
+}
+
 
 inline double satura(double data, double Min,double Max)
 {
