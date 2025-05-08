@@ -15,17 +15,26 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     multiDOFJoint_sub_ = nh_.subscribe("/command/trajectory", 10, &pidCtrl::multiDOFJointCallback, this);
 
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+    vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 10);
     setpoint_raw_local_pub_ = nh_.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     setpoint_raw_attitude_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
+
+    land_service_ = nh_.advertiseService("/land", &pidCtrl::landCallback, this);
 
     cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &pidCtrl::controlLoop,this);
 
     arm_triggered_ = false;
     offboard_triggered_ = false;
     
+    int type;
     // double error_max_x, error_max_x, error_max_x
     nh_.param<bool>("enable_sim", sim_enable_, false);
     nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
+    nh_.param<int>("pid_type", type, 0);
+    nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
+    nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
+    nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
+
     // nh_.param<double>("mass", uavMass_, 1.0);
     // limit
     // nh_.param<double>("ff_gain", ff_gain_, 0.5);
@@ -47,7 +56,7 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
 
     node_state_ = WAITING_FOR_CONNECTED;
-    pid_type_ = SIMPLE_PID;
+    pid_type_ = static_cast<ControlType>(type);
     targetVel_ << 0.0, 0.0, 0.0;
     targetPos_ << 0, 0, takeoff_height_;
 
@@ -64,6 +73,12 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
 void pidCtrl::controlLoop(const ros::TimerEvent &event)
 {
+    for(int i = 0;i<3;i++){
+        if(currPose_[i] > geo_fence_[i]){
+            node_state_ = EMERGENCY;
+            break;
+        }
+    }
     double dt = event.current_real.toSec() - event.last_real.toSec();
     switch (node_state_)
     {
@@ -72,12 +87,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
             ros::spinOnce();
         }
         
-        //send a few setpoints before starting
-        // for(int i = 100; ros::ok() && i > 0; --i){
-        //     // cout << "check"<<endl;
-        //     pubLocalPose(init_pose_);
-        //     ros::spinOnce();
-        // }
         ROS_INFO("connected!");
         node_state_ = WAITING_FOR_OFFBOARD;
         break;
@@ -96,6 +105,9 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         break;
     }
     case TAKEOFF:{
+        // if(pid_type_ == CASCADE_PID){
+        //     targetVel_ = cascadeController.computeTakeOffVel(currPose_, takeoff_height_);
+        // }
         computeTarget(dt);
         if(is_arrive(currPose_, targetPos_)){
             ROS_INFO("TakeOff Complete");
@@ -119,12 +131,16 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         break;
       }
     case LANDED:
-    if(!currState_.armed){
-        ROS_INFO("Landed. Please set to position control and disarm.");
-        cmdloop_timer_.stop();
-    }
-    // ros::spinOnce();
-    break;
+        if(!currState_.armed){
+            ROS_INFO("Landed. Please set to position control and disarm.");
+            cmdloop_timer_.stop();
+        }
+        // ros::spinOnce();
+        break;
+    case EMERGENCY:
+        pubLocalPose(Eigen::Vector3d(0.0, 0.0, 2.0));
+        ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
+        break;
     default:
         break;
     }
@@ -137,6 +153,13 @@ void pidCtrl::computeTarget(const double dt)
         // simpleController.printf_param();
         Eigen::Vector3d pose = simpleController.compute(currPose_, targetPos_, dt);
         pubLocalPose(pose);
+    }
+    else if (pid_type_ == CASCADE_PID){
+        cascadeController.printf_param();
+        // Eigen::Vector3d vel = cascadeController.computeVelocity(currPose_, currVel_, targetPos_, targetVel_, dt);
+        // pubVel(vel);
+        targetAtt_ = cascadeController.compute(currPose_, currVel_, targetPos_, yaw_ref_, dt);
+        pubAttitudeTarget(targetAtt_, cascadeController.getDesiredThrust());
     }
 }
 
@@ -169,9 +192,7 @@ void pidCtrl::trigger_arm()
     // mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
     if( currState_.mode == "OFFBOARD"){
-        
         if( !currState_.armed && !arm_triggered_){
-            
             if( arming_client_.call(arm_cmd) &&arm_cmd.response.success){
                 arm_triggered_ = true;
                 ROS_INFO("Vehicle armed");
@@ -179,6 +200,16 @@ void pidCtrl::trigger_arm()
             // cout << "check1"<< arming_client_.call(arm_cmd)<<endl;
         }
     }
+}
+
+void pidCtrl::pubVel(const Eigen::Vector3d &vel)
+{
+    geometry_msgs::Twist msg;
+    msg.linear.x = vel[0];
+    msg.linear.y = vel[1];
+    msg.linear.z = vel[2];
+
+    vel_pub_.publish(msg);
 }
 
 void pidCtrl::pubLocalPose(const Eigen::Vector3d &pose) 
@@ -199,7 +230,7 @@ void pidCtrl::pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const do
   
     msg.header.stamp = ros::Time::now();
     msg.header.frame_id = "map";
-    msg.type_mask = 0b00000111;  // Ignore orientation messages
+    msg.type_mask = 0b00000111;
     msg.orientation.w = target_attitude(0);
     msg.orientation.x = target_attitude(1);
     msg.orientation.y = target_attitude(2);
@@ -207,6 +238,12 @@ void pidCtrl::pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const do
     msg.thrust = std::max(0.0, std::min(1.0, thrust_des));
   
     setpoint_raw_attitude_pub_.publish(msg);
+}
+
+bool pidCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
+    ROS_INFO("trigger land!");
+    node_state_ = LANDING;
+    return true;
 }
 
 void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){

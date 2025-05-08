@@ -29,8 +29,8 @@ class simplePID {
             integral_ <<0, 0, 0;
             pre_error_ <<0, 0, 0;
 
-
         }
+
         Eigen::Vector3d compute(const Eigen::Vector3d &currPose, Eigen::Vector3d &targetPose, double dt){
             // 计算误差项
             Eigen::Vector3d pos_error = targetPose - currPose;
@@ -50,9 +50,9 @@ class simplePID {
             Eigen::Vector3d pose_des;
             pose_des = kp_.asDiagonal() * pos_error + ki_.asDiagonal() * integral_ + kd_.asDiagonal() * derivative;
             
-            for(int i = 0;i<3;i++){
-                pose_des[i] = constrain_function(pose_des[i], targetPose[i]+0.5);
-            }
+            // for(int i = 0;i<3;i++){
+            //     pose_des[i] = constrain_function(pose_des[i], targetPose[i]+0.5);
+            // }
 
             return pose_des;
         }

@@ -1,8 +1,8 @@
-pidCtrl:
+pid_controller:
   Pos_pid:
     Kp_x: 5.0
     Kp_y: 5.0
-    Kp_z: 2.5
+    Kp_z: 2.0
     Ki_x: 0.3
     Ki_y: 0.3
     Ki_z: 0.3
@@ -13,3 +13,35 @@ pidCtrl:
     px_error_max: 0.6
     py_error_max: 0.6
     pz_error_max: 1.0
+
+  cascade_pid:
+    Kp_px: 1.5
+    Kp_py: 1.5
+    Kp_pz: 3.0
+    # Ki_px: 0.0
+    # Ki_py: 0.0
+    # Ki_pz: 0.0
+    # Kd_px: 0.0
+    # Kd_py: 0.0
+    # Kd_pz: 0.0
+
+    Kp_vx: 1.6
+    Kp_vy: 1.6
+    Kp_vz: 2.8
+    Ki_vx: 0.0
+    Ki_vy: 0.0
+    Ki_vz: 0.3
+    Kd_vx: 0.0
+    Kd_vy: 0.0
+    Kd_vz: 0.0
+
+    pos_err_max: 0.6
+    pos_integral_max: 0.6
+    vel_err_max: 0.6
+    vel_integral_max: 0.6
+    maxVel: 2.0
+
+geo_fence:
+  x: 10.0
+  y: 10.8
+  z: 5.5

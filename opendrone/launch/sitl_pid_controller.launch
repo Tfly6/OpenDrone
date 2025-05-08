@@ -14,10 +14,7 @@
             <!-- <param name="max_acc" value="10.0" /> -->
             <!-- <param name="max_acc" value="3.0" /> -->
             <param name="takeoff_height" value="$(arg takeoff_height)" />
-            <!--Params specific for Iris copter-->
-            <!-- <param name="attctrl_constant" value="0.3"/>
-            <param name="normalizedthrust_constant" value="0.06"/>
-            <param name="normalizedthrust_offset" value="0.1"/> -->
+            <param name="pid_type" value="1" />
             <!-- <param name="ff_gain" value="0"/> -->
             <!-- <param name="Pos_pid/Kp_x" value="5.0" />
             <param name="Pos_pid/Kp_y" value="5.0" />
