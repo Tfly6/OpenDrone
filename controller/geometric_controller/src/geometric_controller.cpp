@@ -106,6 +106,9 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   nh_private_.param<double>("Kv_z", Kvel_z_, 3.3);
   nh_private_.param<int>("posehistory_window", posehistory_window_, 200);
   nh_private_.param<double>("takeoff_height", takeoff_height_, 2.0);
+  nh_private_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
+  nh_private_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
+  nh_private_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
   // nh_private_.param<double>("init_pos_x", initTargetPos_x_, 0.0);
   // nh_private_.param<double>("init_pos_y", initTargetPos_y_, 0.0);
   // nh_private_.param<double>("init_pos_z", initTargetPos_z_, 2.0);
@@ -221,6 +224,12 @@ void geometricCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
     ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
   }
   mavPos_ = toEigen(msg.pose.position);
+  for(int i = 0;i<3;i++){
+    if(mavPos_[i] > geo_fence_[i]){
+        node_state = EMERGENCY;
+        break;
+    }
+  }
   mavAtt_(0) = msg.pose.orientation.w;
   mavAtt_(1) = msg.pose.orientation.x;
   mavAtt_(2) = msg.pose.orientation.y;
@@ -300,6 +309,15 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       }
       // ros::spinOnce();
       break;
+    case EMERGENCY:{
+      geometry_msgs::PoseStamped msg;
+      msg.header.stamp = ros::Time::now();
+      msg.pose = home_pose_;
+      msg.pose.position.z = takeoff_height_;
+      target_pose_pub_.publish(msg);
+      ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
+      break;
+    }
   }
   std_msgs::Int8 msg;
   msg.data = node_state;

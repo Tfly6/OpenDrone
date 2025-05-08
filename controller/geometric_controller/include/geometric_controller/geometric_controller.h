@@ -137,6 +137,7 @@ class geometricCtrl {
 
   // double initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;
   double takeoff_height_;
+  Eigen::Vector3d geo_fence_;
   Eigen::Vector3d targetPos_, targetVel_, targetAcc_, targetJerk_, targetSnap_, targetPos_prev_, targetVel_prev_;
   Eigen::Vector3d mavPos_, mavVel_, mavRate_;
   double mavYaw_;
@@ -174,7 +175,7 @@ class geometricCtrl {
   Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
                                 Eigen::Vector4d &curr_att);
 
-  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF } node_state;
+  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } node_state;
 
   template <class T>
   void waitForPredicate(const T *pred, const std::string &msg, double hz = 2.0) {
