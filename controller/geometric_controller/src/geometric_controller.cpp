@@ -76,7 +76,7 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
-  land_service_ = nh_.advertiseService("land", &geometricCtrl::landCallback, this);
+  land_service_ = nh_.advertiseService("/land", &geometricCtrl::landCallback, this);
 
   // add
   nodeStatePub_ = nh_.advertise<std_msgs::Int8>("geometric_controller/state", 1);

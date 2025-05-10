@@ -60,23 +60,18 @@ class pidCtrl {
         Eigen::Vector3d currPose_, currVel_, currAcc_;
         // Eigen::Vector3d kp_, ki_, kd_;
         // double Kp_x_, Kp_y_, Kp_z_, Ki_x_, Ki_y_, Ki_z_, Kd_x_, Kd_y_, Kd_z_;
-        // double ff_gain_;
-        // Eigen::Vector3d integral_, pre_error_, pos_error_max_;
+        
         Eigen::Vector3d geo_fence_;
         Eigen::Vector3d targetPos_, targetVel_, targetAcc_;
         Eigen::Vector4d targetAtt_;
         double targetThrust_;
-        double gravity_ = 9.8;
+        // double gravity_ = 9.8;
 
         enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } node_state_;
         enum ControlType {SIMPLE_PID, CASCADE_PID, NONE} pid_type_;
 
         void computeTarget(const double dt);
-        // void compute(Eigen::Vector4d &targetAtt, double dt);
-        // Eigen::Vector3d accelToThrust(const Eigen::Vector3d& accel_sp, double mass, double tilt_max);
-        // Eigen::Vector3d thrustToThrottle(const Eigen::Vector3d& thrust_sp);
-        // Eigen::Vector4d ThrottleToAttitude(const Eigen::Vector3d& thr_sp, double yaw_sp);
-
+       
         void pubVel(const Eigen::Vector3d &vel); 
         void pubLocalPose(const Eigen::Vector3d &pose); 
         void pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const double thrust_des);
