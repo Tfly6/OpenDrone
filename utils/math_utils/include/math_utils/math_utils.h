@@ -124,13 +124,29 @@ inline Eigen::Vector3d toEigen(const geometry_msgs::Vector3 &v3) {
 }
 
 //  Eigen to geometry_msgs
-inline geometry_msgs::Point toGeometryMsg(const Eigen::Vector3d &v3) {
-    geometry_msgs::Point p;
-    p.x = v3(0);
-    p.y = v3(1);
-    p.z = v3(2);
-    return p;
+template <typename T>
+T toGeometryMsg(const Eigen::Vector3d &v3) {
+    T res;
+    res.x = v3(0);
+    res.y = v3(1);
+    res.z = v3(2);
+    return res;
 }
+// inline geometry_msgs::Point toGeometryMsg(const Eigen::Vector3d &v3) {
+//     geometry_msgs::Point p;
+//     p.x = v3(0);
+//     p.y = v3(1);
+//     p.z = v3(2);
+//     return p;
+// }
+
+// inline geometry_msgs::Vector3 toGeometryMsg(const Eigen::Vector3d &v3) {
+//     geometry_msgs::Vector3 p;
+//     p.x = v3(0);
+//     p.y = v3(1);
+//     p.z = v3(2);
+//     return p;
+// }
 
 inline double deg_to_rad(const double degrees) {
     return degrees * M_PI / 180.0;

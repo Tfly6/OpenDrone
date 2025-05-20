@@ -27,6 +27,10 @@
             <param name="Kv_x" value="5.0"/>
             <param name="Kv_y" value="5.0"/>
             <param name="Kv_z" value="2"/>
+
+            <param name="geo_fence/x" value="100"/>
+            <param name="geo_fence/y" value="100"/>
+            <param name="geo_fence/z" value="100"/>
     </node>
 
     <!-- Launch rqt_reconfigure -->

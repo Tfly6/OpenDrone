@@ -53,10 +53,10 @@ target_link_libraries(se3_controller_node
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(${PROJECT_NAME}_example_node 
-  src/se3_example.cpp
-)
+# add_executable(${PROJECT_NAME}_example_node 
+#   src/se3_example.cpp
+# )
 
-target_link_libraries(${PROJECT_NAME}_example_node
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(${PROJECT_NAME}_example_node
+#   ${catkin_LIBRARIES}
+# )
