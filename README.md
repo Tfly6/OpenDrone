@@ -23,6 +23,7 @@ catkin build
 
 ```bash
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
+sudo apt-get install ros-`rosversion -d`-ompl
 ```
 
 **安装 NLopt 库** 
