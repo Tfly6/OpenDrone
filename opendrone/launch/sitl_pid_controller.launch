@@ -10,13 +10,9 @@
             <param name="pid_type" value="1" />
     </node>
 
-    <rosparam command="load" file="$(find pid_controller)/config/control.yaml" />
+    <rosparam command="load" file="$(find opendrone)/config/pidcontrol.yaml" />
 
     <!-- Launch rqt_reconfigure -->
-    <!-- <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" /> -->
-  
-    <!-- <group if="$(arg visualization)">
-        <node type="rviz" name="rviz" pkg="rviz" args="-d $(find geometric_controller)/launch/config_file.rviz" />
-    </group> -->
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
   
   </launch>

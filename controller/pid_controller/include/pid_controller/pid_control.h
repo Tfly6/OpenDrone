@@ -14,17 +14,20 @@
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Path.h>
 #include <std_srvs/SetBool.h>
+#include <dynamic_reconfigure/server.h>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
 #include "pid_controller/simple_pid.h"
 #include "pid_controller/cascade_pid.h"
+#include "pid_controller/PidControllerConfig.h"
 #include "math_utils/math_utils.h"
 
 class pidCtrl {
     public:
         pidCtrl(const ros::NodeHandle &nh);
 
+        void dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level);
         void trigger_offboard();
         void trigger_arm();
 

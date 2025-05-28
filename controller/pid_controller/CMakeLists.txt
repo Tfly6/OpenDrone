@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  dynamic_reconfigure
   math_utils
 )
 
@@ -91,10 +92,9 @@ find_package(catkin REQUIRED COMPONENTS
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/PidController.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -106,9 +106,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES pid_controller
-#  CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp rospy std_msgs
+ INCLUDE_DIRS include
+ LIBRARIES pid_controller
+ CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
 
@@ -118,7 +118,7 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-message(WARNING "test: ${catkin_INCLUDE_DIRS} ")
+# message(WARNING "test: ${catkin_INCLUDE_DIRS} ")
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
