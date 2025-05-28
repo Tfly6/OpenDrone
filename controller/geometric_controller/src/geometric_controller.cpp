@@ -85,7 +85,8 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   nh_private_.param<int>("ctrl_mode", ctrl_mode_, ERROR_QUATERNION);
   nh_private_.param<bool>("enable_sim", sim_enable_, true);
   nh_private_.param<bool>("velocity_yaw", velocity_yaw_, false);
-  nh_private_.param<double>("max_acc", max_fb_acc_, 9.0);
+  nh_private_.param<double>("max_acc", max_fb_acc_, 4.0);
+  nh_private_.param<double>("max_vel", max_vel_, 2.0);
   nh_private_.param<double>("yaw_heading", mavYaw_, 0.0);
 
   double dx, dy, dz;
@@ -252,27 +253,42 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     case WAITING_FOR_HOME_POSE:
       waitForPredicate(&received_home_pose, "Waiting for home pose...");
       ROS_INFO("Got pose! Drone Ready to be armed.");
-      // node_state = MISSION_EXECUTION;
-      node_state = TAKEOFF;
+      ROS_INFO("Drone will takeoff to %lf[m]", takeoff_height_);
+      // cout << takeoff_height_ <<std::endl;
+      if(!takeoffFlag_){
+        double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
+        double takeoffVel = max_fb_acc_ * t;
+        // targetVel_[0] = mavVel_[0];
+        // targetVel_[1] = mavVel_[1];
+        // ROS_INFO("vel:%lf", takeoffVel);
+        targetVel_[2] = min(takeoffVel, max_vel_);
+        targetAcc_[2] = max_fb_acc_;
+      }
+      node_state = MISSION_EXECUTION;
+      // node_state = TAKEOFF;
       break;
     
-    case TAKEOFF: {
-      geometry_msgs::PoseStamped takeoffmsg;
-      takeoffmsg.header.stamp = ros::Time::now();
-      takeoffmsg.pose = home_pose_;
-      takeoffmsg.pose.position.z = takeoff_height_;
-      target_pose_pub_.publish(takeoffmsg);
-      if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
-        ROS_INFO("takeoff completed");
-        targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
-        node_state = MISSION_EXECUTION;
-      }
+    // case TAKEOFF: {
+    //   geometry_msgs::PoseStamped takeoffmsg;
+    //   takeoffmsg.header.stamp = ros::Time::now();
+    //   takeoffmsg.pose = home_pose_;
+    //   takeoffmsg.pose.position.z = takeoff_height_;
+    //   target_pose_pub_.publish(takeoffmsg);
+    //   if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
+    //     ROS_INFO("takeoff completed");
+    //     targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
+    //     node_state = MISSION_EXECUTION;
+    //   }
         
-      // ros::spinOnce();
-      break;
-    }
+    //   // ros::spinOnce();
+    //   break;
+    // }
 
     case MISSION_EXECUTION: {
+      if(fabs(mavPos_(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
+        ROS_INFO("takeoff completed");
+        takeoffFlag_ = true;
+      }      
       Eigen::Vector3d desired_acc;
       if (feedthrough_enable_) {
         desired_acc = targetAcc_;

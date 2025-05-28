@@ -93,9 +93,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         break;
     }
     case TAKEOFF:{
-        // if(pid_type_ == CASCADE_PID){
-        //     targetVel_ = cascadeController.computeTakeOffVel(currPose_, takeoff_height_);
-        // }
         computeTarget(dt);
         if(is_arrive(currPose_, targetPos_)){
             ROS_INFO("TakeOff Complete");
@@ -142,7 +139,7 @@ void pidCtrl::computeTarget(const double dt)
         pubLocalPose(pose);
     }
     else if (pid_type_ == CASCADE_PID){
-        cascadeController.printf_param();
+        // cascadeController.printf_param();
         targetAtt_ = cascadeController.compute(currPose_, currVel_, targetPos_, yaw_ref_, dt);
         pubAttitudeTarget(targetAtt_, cascadeController.getDesiredThrust());
     }
@@ -286,4 +283,22 @@ void pidCtrl::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
     currAcc_ << msg->linear_acceleration.x,
                 msg->linear_acceleration.y,
                 msg->linear_acceleration.z;
+}
+
+void pidCtrl::dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level){
+    Eigen::Vector3d kp_p, kp_v, ki_v, kd_v;
+    double pos_error_max, vel_error_max, vel_integral_max;
+
+    kp_p << config.kp_px, config.kp_py, config.kp_pz;
+    kp_v << config.kp_vx, config.kp_vy, config.kp_vz;
+    ki_v << config.ki_vx, config.ki_vy, config.ki_vz;
+    kd_v << config.kd_vx, config.kd_vy, config.kd_vz;
+
+    pos_error_max = config.pos_error_max;
+    vel_error_max = config.vel_error_max;
+    vel_integral_max = config.vel_integral_max;
+
+    cascadeController.setParam(kp_p, kp_v, ki_v, kd_v,
+                        pos_error_max, vel_error_max, vel_integral_max);
+    cascadeController.printf_param();
 }

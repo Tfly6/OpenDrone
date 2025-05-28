@@ -125,39 +125,52 @@ class cascadePID {
             return quat;
           }
 
-        Eigen::Vector3d computeVelocity(const Eigen::Vector3d &currPose, const Eigen::Vector3d &currVel, 
-            const Eigen::Vector3d &targetPose, const Eigen::Vector3d &targetVel, double dt) {
+        // Eigen::Vector3d computeVelocity(const Eigen::Vector3d &currPose, const Eigen::Vector3d &currVel, 
+        //     const Eigen::Vector3d &targetPose, const Eigen::Vector3d &targetVel, double dt) {
             
-            Eigen::Vector3d pos_error = targetPose - currPose;
-            Eigen::Vector3d vel_error = targetVel - currVel;
+        //     Eigen::Vector3d pos_error = targetPose - currPose;
+        //     Eigen::Vector3d vel_error = targetVel - currVel;
 
-            Eigen::Vector3d acc_des = kp_p_.asDiagonal() * pos_error + kd_p_.asDiagonal() * vel_error;
-            Eigen::Vector3d vel_des = targetVel + acc_des * dt;  // 简单积分加速度得到速度指令
+        //     Eigen::Vector3d acc_des = kp_p_.asDiagonal() * pos_error + kd_p_.asDiagonal() * vel_error;
+        //     Eigen::Vector3d vel_des = targetVel + acc_des * dt;  // 简单积分加速度得到速度指令
 
-            if(vel_des.norm() > maxVel_){
-                vel_des = (maxVel_ / vel_des.norm()) * vel_des;
-            }
-            return vel_des;
-        }
+        //     if(vel_des.norm() > maxVel_){
+        //         vel_des = (maxVel_ / vel_des.norm()) * vel_des;
+        //     }
+        //     return vel_des;
+        // }
 
-        Eigen::Vector3d computeTakeOffVel(const Eigen::Vector3d &currPose, const double takeoff_height) {
-            // 示例：梯形速度曲线生成目标速度
-            Eigen::Vector3d targetVel;
-            double acc_time = 1.2;   // 加速时间
-            double current_height = currPose[2];
+        // Eigen::Vector3d computeTakeOffVel(const Eigen::Vector3d &currPose, const double takeoff_height) {
+        //     // 示例：梯形速度曲线生成目标速度
+        //     Eigen::Vector3d targetVel;
+        //     double acc_time = 1.2;   // 加速时间
+        //     double current_height = currPose[2];
 
-            double error_z = takeoff_height - current_height;
-            if (error_z > 0) {
-                // 根据误差动态调整目标速度
-                targetVel.z() = min(maxVel_, error_z / acc_time);
-            } else {
-                targetVel.z() = 0;
-            }
-            return targetVel;
-        }
+        //     double error_z = takeoff_height - current_height;
+        //     if (error_z > 0) {
+        //         // 根据误差动态调整目标速度
+        //         targetVel.z() = min(maxVel_, error_z / acc_time);
+        //     } else {
+        //         targetVel.z() = 0;
+        //     }
+        //     return targetVel;
+        // }
 
         double getDesiredThrust(){
             return thrust_des_;
+        }
+
+        void setParam(const Eigen::Vector3d &kp_p, const Eigen::Vector3d &kp_v, 
+                      const Eigen::Vector3d &ki_v, const Eigen::Vector3d &kd_v,
+                      const double &pos_error_max, const double &vel_error_max,
+                      const double &vel_integral_max){
+            kp_p_ = kp_p;
+            kp_v_ = kp_v;
+            ki_v_ = ki_v; 
+            kd_v_ = kd_v;
+            pos_error_max_ = pos_error_max;
+            vel_error_max_ = vel_error_max; 
+            vel_integral_max_ = vel_integral_max;
         }
 
         void printf_param(){
@@ -166,12 +179,12 @@ class cascadePID {
             cout <<"Kp_px : "<< kp_p_[0] << endl;
             cout <<"Kp_py : "<< kp_p_[1] << endl;
             cout <<"Kp_pz : "<< kp_p_[2] << endl;
-            cout <<"Kd_px : "<< kd_p_[0] << endl;
-            cout <<"Kd_py : "<< kd_p_[1] << endl;
-            cout <<"Kd_pz : "<< kd_p_[2] << endl;
-            cout <<"Ki_px : "<< ki_p_[0] << endl;
-            cout <<"Ki_py : "<< ki_p_[1] << endl;
-            cout <<"Ki_pz : "<< ki_p_[2] << endl;
+            // cout <<"Kd_px : "<< kd_p_[0] << endl;
+            // cout <<"Kd_py : "<< kd_p_[1] << endl;
+            // cout <<"Kd_pz : "<< kd_p_[2] << endl;
+            // cout <<"Ki_px : "<< ki_p_[0] << endl;
+            // cout <<"Ki_py : "<< ki_p_[1] << endl;
+            // cout <<"Ki_pz : "<< ki_p_[2] << endl;
 
             cout <<"Kp_vx : "<< kp_v_[0] << endl;
             cout <<"Kp_vy : "<< kp_v_[1] << endl;
@@ -187,7 +200,7 @@ class cascadePID {
             cout <<"maxVel : "<< maxVel_ << endl;
             cout <<"macAcc : "<< maxAcc_ << endl;
             cout <<"pos_error_max : "<< pos_error_max_ << endl;
-            cout <<"pos_integral_max :  "<< pos_integral_max_ << endl;
+            // cout <<"pos_integral_max :  "<< pos_integral_max_ << endl;
             cout <<"vel_error_max : "<< vel_error_max_ << endl;
             cout <<"vel_integral_max :  "<< vel_integral_max_ << endl;
         }
@@ -195,7 +208,7 @@ class cascadePID {
     private:
         ros::NodeHandle nh_;
 
-        Eigen::Vector3d kp_p_, ki_p_ ,kd_p_, kp_v_, ki_v_ ,kd_v_;
+        Eigen::Vector3d kp_p_, ki_p_, kd_p_, kp_v_, ki_v_, kd_v_;
         
         double maxVel_, maxAcc_, thrust_des_;
         const double GRAVITY = 9.81;

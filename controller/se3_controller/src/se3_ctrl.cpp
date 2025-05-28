@@ -30,8 +30,8 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 
     enu_frame_ = true;
     vel_in_body_ = true;
-    arm_triggered_ = false;
-    offboard_triggered_ = false;
+    // arm_triggered_ = false;
+    // offboard_triggered_ = false;
 
     init_pose_ << 0, 0, 0.5;
     node_state_ = WAITING_FOR_CONNECTED;
@@ -118,6 +118,10 @@ void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
     // }
         
     case MISSION_EXECUTION:{
+        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
+            ROS_INFO("takeoff completed");
+            takeoffFlag_ = true;
+        } 
         Controller_Output_t output;
         if(se3_controller_.calControl(odom_data_, imu_data_, desired_state_, output)){
             send_cmd(output, true);
