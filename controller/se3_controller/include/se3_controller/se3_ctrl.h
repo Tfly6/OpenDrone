@@ -37,7 +37,7 @@ private:
     Desired_State_t desired_state_;
     SE3_CONTROLLER se3_controller_;
 
-    bool sim_enable_, arm_triggered_, offboard_triggered_;
+    bool sim_enable_, arm_triggered_{false}, offboard_triggered_{false}, takeoffFlag_{false};
     double takeoff_height_;
     Eigen::Vector3d init_pose_, geo_fence_;;
 

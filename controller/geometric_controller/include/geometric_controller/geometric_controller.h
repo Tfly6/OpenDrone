@@ -123,12 +123,12 @@ class geometricCtrl {
   bool ctrl_enable_{true};
   int ctrl_mode_;
   bool landing_commanded_{false};
-  bool sim_enable_;
+  bool sim_enable_, takeoffFlag_{false};
   bool velocity_yaw_;
   double kp_rot_, kd_rot_;
   double reference_request_dt_;
   double norm_thrust_const_, norm_thrust_offset_;
-  double max_fb_acc_;
+  double max_fb_acc_, max_vel_;
 
   mavros_msgs::State current_state_;
   mavros_msgs::CommandBool arm_cmd_;

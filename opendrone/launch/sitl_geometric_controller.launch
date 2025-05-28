@@ -16,6 +16,7 @@
             <param name="posehistory_window" value="0" />
             <!-- <param name="max_acc" value="10.0" /> -->
             <param name="max_acc" value="3.0" />
+            <param name="max_vel" value="1.5" />
             <param name="takeoff_height" value="$(arg takeoff_height)" />
             <!--Params specific for Iris copter-->
             <param name="attctrl_constant" value="0.3"/>
@@ -26,7 +27,7 @@
             <param name="Kp_z" value="5.0" />
             <param name="Kv_x" value="5.0"/>
             <param name="Kv_y" value="5.0"/>
-            <param name="Kv_z" value="2"/>
+            <param name="Kv_z" value="5.0"/>
 
             <param name="geo_fence/x" value="100"/>
             <param name="geo_fence/y" value="100"/>

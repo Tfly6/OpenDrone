@@ -25,8 +25,8 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
  INCLUDE_DIRS include
-#  LIBRARIES se3_controller
-#  CATKIN_DEPENDS geometry_msgs nav_msgs quadrotor_msgs roscpp rospy std_msgs tf airsim_ros_pkgs
+ LIBRARIES se3_controller
+ CATKIN_DEPENDS geometry_msgs nav_msgs mavros_msgs roscpp rospy std_msgs tf
 #  DEPENDS system_lib
 )
 
