@@ -1,6 +1,62 @@
 # OpenDrone
-基于ROS1的PX4无人机仿真
-> 支持 Ubuntu 18.04 ROS Melodic PX4 v1.13.2 、Ubuntu 20.04 ROS Noetic
+基于ROS1的PX4无人机仿真，参考了多个开源项目，并把他们集成在PX4 SITL中，其中：
+
+**控制器（controller文件夹）**
+
+- **geometric_controller**：参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，包含了多个方法。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_geometric_controller.launch # 默认Nonlinear GeometricControl
+  # 降落
+  # ./shell/trigger_land.sh
+  ```
+
+- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，包含了多个方法。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_se3_controller.launch # 默认 Hopf Fibration on SO(3)
+  # 降落
+  # ./shell/trigger_land.sh
+  ```
+
+- **pid_controller**：里面包含了简单pid（仅供学习）和级联pid。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_pid_controller.launch # 默认 cascade pid
+  # 降落
+  # ./shell/trigger_land.sh
+  ```
+  
+  
+
+**规划器（planner）**
+
+- **polynomial trajectory generation**：参考了[ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation) 项目，是一个基于优化方法的多项式轨迹生成，并不能实时规划与避障。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_mav_trajectory_planner.launch
+  ```
+
+- **ego_planner**：参考了[ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) 项目，需要带深度相机的无人机。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_camera.launch # 相机坐标转换
+  roslaunch opendrone sitl_ego_planner.launch
+  ```
+
+  
+
+> 支持 Ubuntu 18.04 ROS Melodic、Ubuntu 20.04 ROS Noetic
 ## 1. 准备
 - **使用之前必须搭建** [PX4无人机仿真环境](https://blog.csdn.net/weixin_55944949/article/details/130895608?spm=1001.2014.3001.5501)
 
@@ -23,7 +79,7 @@ catkin build
 
 ```bash
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
-sudo apt-get install ros-`rosversion -d`-ompl
+sudo apt install ros-$ROS_DISTRO-pcl-ros
 ```
 
 **安装 NLopt 库** 
@@ -47,7 +103,7 @@ cd ~/catkin_ws
 catkin build
 ```
 ## 3. 运行
-以官方案例为例（更多例子可以查看 `opendrone/src` 目录下的源文件）
+以官方案例为例（ `opendrone/src/basic_example` 目录下是一些基础案例，不包含控制器和规划器）
 - 终端一：启动gazebo仿真
 ```bash
 roslaunch px4 mavros_posix_sitl.launch
