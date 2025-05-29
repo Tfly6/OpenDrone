@@ -127,6 +127,8 @@ include_directories(
 
 add_executable(pid_controller_node src/pid_control_node.cpp
                                    src/pid_control.cpp)
+
+add_dependencies(pid_controller_node ${PROJECT_NAME}_gencfg)
 target_link_libraries(pid_controller_node ${catkin_LIBRARIES})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
