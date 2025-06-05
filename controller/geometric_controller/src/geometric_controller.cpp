@@ -326,12 +326,17 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       // ros::spinOnce();
       break;
     case EMERGENCY:{
+      ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
+      if(!current_state_.armed){
+        ROS_WARN("Not arm, nothing to do");
+        node_state = LANDED;
+        break;
+      } 
       geometry_msgs::PoseStamped msg;
       msg.header.stamp = ros::Time::now();
       msg.pose = home_pose_;
       msg.pose.position.z = takeoff_height_;
       target_pose_pub_.publish(msg);
-      ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
       break;
     }
   }

@@ -41,6 +41,8 @@ add_executable(se3_controller_node
   src/se3_ctrl.cpp
 )
 
+add_dependencies(se3_controller_node ${PROJECT_NAME}_gencfg)
+
 target_link_libraries(se3_controller_node
   ${catkin_LIBRARIES}
 )
