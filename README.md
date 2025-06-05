@@ -98,7 +98,7 @@ sudo make install
 
 ```bash
 cd ~/catkin_ws/src
-https://github.com/Tfly6/OpenDrone.git
+git clone https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
 catkin build
 ```
@@ -141,7 +141,7 @@ roslaunch opendrone sitl_mav_trajectory_planner.launch
 ```
 演示视频 👇
 
-<video src="https://github.com/Tfly6/myImage/raw/refs/heads/main/mav.mp4" controls></video>
+[bilibili](https://www.bilibili.com/video/BV1EZTszKEtJ/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
 
 
 ### 实例三：geometric_controller + ego_planner
@@ -190,10 +190,8 @@ source ./devel/setup.bash
 roslaunch opendrone sitl_ego_planner.launch
 ```
 演示视频 👇
-<video src="https://github.com/Tfly6/myImage/raw/refs/heads/main/ego.mp4" controls></video>
 
-
-
+[bilibili](https://www.bilibili.com/video/BV17ZTszKEea/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
 
 
 ## 参考
