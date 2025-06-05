@@ -103,7 +103,11 @@ cd ~/catkin_ws
 catkin build
 ```
 ## 3. 运行
-以官方案例为例（ `opendrone/src/basic_example` 目录下是一些基础案例，不包含控制器和规划器）
+
+### 实例一：以官方案例为例
+
+（ `opendrone/src/basic_example` 目录下是一些基础案例，不包含控制器和规划器）。
+
 - 终端一：启动gazebo仿真
 ```bash
 roslaunch px4 mavros_posix_sitl.launch
@@ -114,6 +118,83 @@ cd ~/catkin_ws
 source ./devel/setup.bash
 rosrun opendrone offb_node
 ```
+
+### 实例二：geometric_controller + polynomial trajectory generation
+
+飞圆形。
+
+- 终端一：启动gazebo仿真
+```bash
+roslaunch px4 mavros_posix_sitl.launch
+```
+- 终端二：启动 geometric_controller
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_geometric_controller.launch
+```
+- 终端三：启动 polynomial trajectory generation
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_mav_trajectory_planner.launch
+```
+演示视频 👇
+
+<video src="https://github.com/Tfly6/myImage/raw/refs/heads/main/mav.mp4" controls></video>
+
+
+### 实例三：geometric_controller + ego_planner
+实时规划与避障
+
+- 配置仿真（可选）：如果没有可用的带深度相机的无人机，可以参考
+```bash
+# model
+# PX4 v1.14之前
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_village.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
+
+# PX4 v1.14 之后
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_village.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
+
+```
+```bash
+# launch
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_depth_camera.launch ${YOUR_PX4_PATH}/launch/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
+```
+
+- 终端一：启动gazebo仿真
+```bash
+roslaunch px4 outdoor_depth_camera.launch # 用自己的也行
+```
+- 终端二：启动 geometric_controller
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_geometric_controller.launch
+```
+- 终端三：启动相机坐标转换
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_camera.launch
+```
+- 终端四：启动 ego-planner
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_ego_planner.launch
+```
+演示视频 👇
+<video src="https://github.com/Tfly6/myImage/raw/refs/heads/main/ego.mp4" controls></video>
+
+
+
+
 
 ## 参考
 
