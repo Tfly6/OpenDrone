@@ -1,4 +1,8 @@
-// ref: se3_example.cpp
+/**
+ * ref: se3_example.cpp
+ * @author tfly
+ */
+
 #include "se3_controller/se3_ctrl.h"
 
 se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
@@ -30,8 +34,6 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 
     enu_frame_ = true;
     vel_in_body_ = true;
-    // arm_triggered_ = false;
-    // offboard_triggered_ = false;
 
     init_pose_ << 0, 0, 0.5;
     node_state_ = WAITING_FOR_CONNECTED;
@@ -72,18 +74,6 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 
 
 void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
-    // exec_timer_.stop();
-
-    // Controller_Output_t output;
-    // if(se3_controller_.calControl(odom_data_, imu_data_, desired_state_, output)){
-    //     send_cmd(output, true);
-    //     desire_odom_pub_.publish(desire_odom_);
-    //     if(state_.mode == mavros_msgs::State::MODE_PX4_OFFBOARD && state_.armed == true){
-    //         se3_controller_.estimateTa(imu_data_.a);
-    //     }
-    // }
-    
-    // exec_timer_.start();
     switch (node_state_)
     {
     case WAITING_FOR_CONNECTED:{
@@ -96,8 +86,6 @@ void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
         break;
     }
     case WAITING_FOR_OFFBOARD:{
-        // cout <<"check: " <<currState_.mode <<endl;
-        
         pubLocalPose(init_pose_);
         trigger_offboard();
         trigger_arm();
@@ -107,16 +95,7 @@ void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
             // last_ = ros::Time::now();
         }
         break;
-    }
-    // case TAKEOFF:{
-        
-    //     if(is_arrive(currPose_, targetPos_)){
-    //         ROS_INFO("TakeOff Complete");
-    //         node_state_ = MISSION_EXECUTION;
-    //     }
-    //     break;
-    // }
-        
+    } 
     case MISSION_EXECUTION:{
         if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
             ROS_INFO("takeoff completed");
@@ -261,18 +240,4 @@ void se3Ctrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajecto
 
     desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
     desired_state_.yaw_rate = 0.0;
-    // reference_request_last_ = reference_request_now_;
-  
-    // reference_request_now_ = ros::Time::now();
-    // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
-  
-    // targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
-    // targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
-  
-    // targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
-
-    // Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
-    //     pt.transforms[0].rotation.z);
-    // Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
-    // yaw_ref_ = rpy(2);
 }

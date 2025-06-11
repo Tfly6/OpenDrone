@@ -1,4 +1,8 @@
-// ref: se3_example.cpp
+/**
+ * ref: se3_example.cpp
+ * @author tfly
+ */
+
 #ifndef SE3_CTRL_H
 #define SE3_CTRL_H
 #include <ros/ros.h>
@@ -12,7 +16,6 @@
 
 #include "se3_controller/se3_controller.hpp"
 #include "se3_controller/se3_dynamic_tuneConfig.h"
-// #include "math_utils/math_utils.h"
 #include <std_msgs/Float64.h>
 #include <std_srvs/SetBool.h>
 
@@ -183,7 +186,6 @@ public:
                     arm_triggered_ = true;
                     ROS_INFO("Vehicle armed");
                 }
-                // cout << "check1"<< arming_client_.call(arm_cmd)<<endl;
             }
         }
     }

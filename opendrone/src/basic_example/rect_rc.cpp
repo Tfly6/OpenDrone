@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -20,10 +24,8 @@ bool flag = false;
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
     //cout <<GREEN <<(*msg).pose.position.z<<endl;
-    // if(fabs((*msg).pose.position.z - aim_pos.pose.position.z) <= 0.3){
     cout <<GREEN <<fabs((*msg).pose.position.z - aim_pos.pose.position.z) <<endl; 
-    //     flag = true;
-    // }
+
 }
 
 int main(int argc, char **argv)
@@ -59,9 +61,6 @@ int main(int argc, char **argv)
     aim_pos.pose.position.y = 0;
     aim_pos.pose.position.z = 2;
 
-    
-    
-
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
         local_pos_pub.publish(aim_pos);
@@ -81,12 +80,6 @@ int main(int argc, char **argv)
 
     while(ros::ok()){
         if( current_state.mode == "OFFBOARD"){
-        // if( current_state.mode == "OFFBOARD" &&
-        //     (ros::Time::now() - last_request > ros::Duration(5.0))){
-            // if( set_mode_client.call(offb_set_mode) &&
-            //     offb_set_mode.response.mode_sent){
-            //     ROS_INFO("Offboard enabled");
-            // }
             if( !current_state.armed &&
                 (ros::Time::now() - last_request > ros::Duration(5.0))){
                 if( arming_client.call(arm_cmd) &&arm_cmd.response.success){
@@ -98,13 +91,6 @@ int main(int argc, char **argv)
                 count++;
                 if(count == 300)  // 15s
                 {
-                    // mavros_msgs::SetMode land_set_mode;
-                    // land_set_mode.request.custom_mode = "AUTO.LAND";  // 发送降落命令
-                    // if(set_mode_client.call(land_set_mode) && land_set_mode.response.mode_sent){
-                    //     ROS_INFO("land enabled");
-                    // }
-                    // //任务结束,关闭该节点
-                    // ros::shutdown();
                     aim_pos.pose.position.x = 5;
                     aim_pos.pose.position.y = 0;
                     aim_pos.pose.position.z = 2;
@@ -138,25 +124,11 @@ int main(int argc, char **argv)
                     ros::shutdown();
                 }  
             }
-            //last_request = ros::Time::now();
         } else {
-            // if( current_state.mode == "OFFBOARD" &&
-            // (ros::Time::now() - last_request > ros::Duration(5.0))){
-            //     cout << GREEN << "Offboard enabled" <<endl;
-            // }
             ROS_INFO("switch to Offboard enabled");
-            // if( !current_state.armed &&
-            //     (ros::Time::now() - last_request > ros::Duration(5.0))){
-            //     if( arming_client.call(arm_cmd) &&
-            //         arm_cmd.response.success){
-            //         ROS_INFO("Vehicle armed");
-            //     }
-            //last_request = ros::Time::now();
         }
 
         local_pos_pub.publish(aim_pos);
-
-        
 
         ros::spinOnce();
         rate.sleep();
