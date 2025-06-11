@@ -79,7 +79,7 @@ catkin build
 
 ```bash
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
-sudo apt install ros-$ROS_DISTRO-pcl-ros
+sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs
 ```
 
 **安装 NLopt 库** 
@@ -98,7 +98,7 @@ sudo make install
 
 ```bash
 cd ~/catkin_ws/src
-git clone https://github.com/Tfly6/OpenDrone.git
+git clone --recursive https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
 catkin build
 ```
