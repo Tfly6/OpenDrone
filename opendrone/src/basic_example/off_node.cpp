@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     int count = 0;  // 计时
-
+    
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&
             (ros::Time::now() - last_request > ros::Duration(5.0))){
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
         if(fabs(curr_pos.pose.position.z - pose.pose.position.z) <= 0.3){
             count++;
-            if(count >= 600)  // 30s
+            if(count >= 300)  // 15s
             {
                 mavros_msgs::SetMode land_set_mode;
                 land_set_mode.request.custom_mode = "AUTO.LAND";
