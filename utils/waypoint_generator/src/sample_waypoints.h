@@ -101,7 +101,7 @@ nav_msgs::Path circle()
         pt = waypoints.poses[1];
         waypoints.poses.push_back(pt);
         pt = waypoints.poses[2];
-        waypoints.poses.push_back(pt);
+        // waypoints.poses.push_back(pt);
         // pt = waypoints.poses[3];
         // waypoints.poses.push_back(pt);
         // 飞回圆心
@@ -122,27 +122,26 @@ nav_msgs::Path eight()
     double r = 10.0;        // 半径
     double h = 2.0;         // 高度
     int num_points = 30;   // 循环的采样点数
-    double omega = 0.1;     // 角速度参数
 
     nav_msgs::Path waypoints;
     geometry_msgs::PoseStamped pt;
 
     // 生成一个8字循环（逆时针）
     // 8字轨迹参数方程
-    // x(t)=rcos(ωt)
-    // y(t)=rsin(2ωt)
+    // x(t)=rcos(t)
+    // y(t)=rsin(2t)
     for (int i = 0; i < num_points; ++i) {
         double t = i * 2 * M_PI / num_points;  // 时间参数
-        double x = r * cos(omega * t) + offset_x;
-        double y = r * sin(2 * omega * t) + offset_y;
+        double x = r * cos(t) + offset_x;
+        double y = r * sin(2 * t) + offset_y;
         double z = h;
 
         pt.pose.position.x = x;
         pt.pose.position.y = y;
         pt.pose.position.z = z;
         // 计算航向角（示例：沿轨迹切线方向）
-        double dx_dt = -r * omega * sin(omega * t);
-        double dy_dt = 2 * r * omega * cos(2 * omega * t);
+        double dx_dt = -r * sin(t);
+        double dy_dt = 2 * r * cos(2 * t);
         double yaw = atan2(dy_dt, dx_dt);
         pt.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
         waypoints.poses.push_back(pt);
