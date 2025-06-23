@@ -39,6 +39,9 @@ target_link_libraries(rect_rc ${catkin_LIBRARIES})
 add_executable(rect src/basic_example/rect.cpp)
 target_link_libraries(rect ${catkin_LIBRARIES})
 
+add_executable(rect_with_yaw src/basic_example/rect_with_yaw.cpp)
+target_link_libraries(rect_with_yaw ${catkin_LIBRARIES})
+
 add_executable(rect_other src/basic_example/rect_other.cpp)
 target_link_libraries(rect_other ${catkin_LIBRARIES})
 

@@ -32,7 +32,7 @@ void waypoint_cb(const nav_msgs::Path::ConstPtr& msg){
 }
 
 bool is_arrive(geometry_msgs::PoseStamped pos1, geometry_msgs::PoseStamped pos2){
-    double distance_threshold = 0.13;  // 到达阈值
+    double distance_threshold = 0.10;  // 到达阈值
     double dx = pos1.pose.position.x - pos2.pose.position.x;
     double dy = pos1.pose.position.y - pos2.pose.position.y;
     double dz = pos1.pose.position.z - pos2.pose.position.z;
@@ -59,8 +59,6 @@ int main(int argc, char **argv)
     
     ros::Subscriber waypoint_sub = nh.subscribe<nav_msgs::Path>
         ("/waypoint_generator/waypoints",10,waypoint_cb);
-    ros::Publisher traj_trigger = nh.advertise<geometry_msgs::PoseStamped>
-        ("/waypoint_generator/traj_start_trigger", 10);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
@@ -92,7 +90,6 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     int count = 0;  // 计时
-    traj_trigger.publish(curr_pos);
 
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&
@@ -118,7 +115,8 @@ int main(int argc, char **argv)
                 waypoints.erase(waypoints.begin());
             }
             if(waypoints.size() == 0 && current_state.armed){
-                traj_trigger.publish(curr_pos);
+                ROS_INFO("waypoint completed!");
+
             }   
         }
         
