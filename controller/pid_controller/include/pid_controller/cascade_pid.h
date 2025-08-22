@@ -77,16 +77,21 @@ class cascadePID {
             target_acc = pid(target_vel, currVel, kp_v_, ki_v_, kd_v_, integral_v_, pre_error_v_,
                                 vel_integral_max_ ,vel_error_max_, dt);
             // target_acc = kp_v_.asDiagonal() * vel_error + ki_v_.asDiagonal() * integral_v_ + kd_v_.asDiagonal() * derivative_v;
-            target_acc[2] += GRAVITY;
             
+            if(target_acc.norm() > maxAcc_){
+                target_acc = (maxAcc_ / target_acc.norm()) * target_acc;
+            }
+
+            target_acc[2] += GRAVITY;
 
             Eigen::Vector4d target_att = acc2quaternion(target_acc, yaw_ref);
 
             // 推力计算
-            // if(target_acc.norm() > maxAcc_){
-            //     target_acc = (maxAcc_ / target_acc.norm()) * target_acc;
-            // }
-            thrust_des_ = (target_acc[2] * 0.70) / GRAVITY; // 归一化
+            
+            Eigen::Matrix3d R = quat2RotMatrix(target_att);
+            thrust_des_ = target_acc.dot(R.col(2));
+
+            thrust_des_ = (thrust_des_ * 0.70) / GRAVITY; // 归一化
 
             return target_att; 
         }

@@ -111,6 +111,20 @@ inline Eigen::Vector4d rot2Quaternion(const Eigen::Matrix3d &R) {
     return quat;
 }
 
+// 四元数转旋转矩阵
+inline Eigen::Matrix3d quat2RotMatrix(const Eigen::Vector4d &q) {
+  Eigen::Matrix3d rotmat;
+  rotmat << q(0) * q(0) + q(1) * q(1) - q(2) * q(2) - q(3) * q(3), 2 * q(1) * q(2) - 2 * q(0) * q(3),
+      2 * q(0) * q(2) + 2 * q(1) * q(3),
+
+      2 * q(0) * q(3) + 2 * q(1) * q(2), q(0) * q(0) - q(1) * q(1) + q(2) * q(2) - q(3) * q(3),
+      2 * q(2) * q(3) - 2 * q(0) * q(1),
+
+      2 * q(1) * q(3) - 2 * q(0) * q(2), 2 * q(0) * q(1) + 2 * q(2) * q(3),
+      q(0) * q(0) - q(1) * q(1) - q(2) * q(2) + q(3) * q(3);
+  return rotmat;
+}
+
 // geometry_msgs to Eigen
 inline Eigen::Vector3d toEigen(const geometry_msgs::Point &p) {
 
