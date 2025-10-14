@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -25,7 +29,6 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
 
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
-    //cout <<GREEN <<fabs((*msg).pose.position.z - aim_pos.pose.position.z) <<endl; 
 }
 
 void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& msg)

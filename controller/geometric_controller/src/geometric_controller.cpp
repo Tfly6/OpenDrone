@@ -258,31 +258,11 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       if(!takeoffFlag_){
         double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
         double takeoffVel = max_fb_acc_ * t;
-        // targetVel_[0] = mavVel_[0];
-        // targetVel_[1] = mavVel_[1];
-        // ROS_INFO("vel:%lf", takeoffVel);
         targetVel_[2] = min(takeoffVel, max_vel_);
         targetAcc_[2] = max_fb_acc_;
       }
       node_state = MISSION_EXECUTION;
-      // node_state = TAKEOFF;
       break;
-    
-    // case TAKEOFF: {
-    //   geometry_msgs::PoseStamped takeoffmsg;
-    //   takeoffmsg.header.stamp = ros::Time::now();
-    //   takeoffmsg.pose = home_pose_;
-    //   takeoffmsg.pose.position.z = takeoff_height_;
-    //   target_pose_pub_.publish(takeoffmsg);
-    //   if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
-    //     ROS_INFO("takeoff completed");
-    //     targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
-    //     node_state = MISSION_EXECUTION;
-    //   }
-        
-    //   // ros::spinOnce();
-    //   break;
-    // }
 
     case MISSION_EXECUTION: {
       if(fabs(mavPos_(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
@@ -304,11 +284,6 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     }
 
     case LANDING: {
-      // geometry_msgs::PoseStamped landingmsg;
-      // landingmsg.header.stamp = ros::Time::now();
-      // landingmsg.pose = home_pose_;
-      // // landingmsg.pose.position.z = landingmsg.pose.position.z + 1.0;
-      // target_pose_pub_.publish(landingmsg);
       mavros_msgs::SetMode land_set_mode;
       land_set_mode.request.custom_mode = "AUTO.LAND";
       if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){

@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -19,7 +23,6 @@ geometry_msgs::PoseStamped curr_pos;
 
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
-    // cout <<GREEN <<"distance: "<<fabs((*msg).pose.position.z - aim_pos.pose.position.z) <<endl; 
 }
 
 
@@ -56,18 +59,12 @@ int main(int argc, char **argv)
     aim_pos.pose.position.y = 0;
     aim_pos.pose.position.z = 2;
 
-    
-    
-
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
         local_pos_pub.publish(aim_pos);
         ros::spinOnce();
         rate.sleep();
     }
-
-    // mavros_msgs::SetMode offb_set_mode;
-    // offb_set_mode.request.custom_mode = "OFFBOARD";
 
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
@@ -103,8 +100,6 @@ int main(int argc, char **argv)
         if(current_state.mode != "OFFBOARD" && !landFlag){
             ROS_INFO("switch to Offboard");
         }
-
-        
 
         ros::spinOnce();
         rate.sleep();

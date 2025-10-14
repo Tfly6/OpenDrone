@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #include "pid_controller/pid_control.h"
 
 using namespace std;
@@ -34,32 +38,10 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
     nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
-    // nh_.param<double>("mass", uavMass_, 1.0);
-    // limit
-
-    // nh_.param<double>("Kp_x", Kp_x_, 1.0);
-    // nh_.param<double>("Kp_y", Kp_y_, 1.0);
-    // nh_.param<double>("Kp_z", Kp_z_, 2.0);
-    // nh_.param<double>("Ki_x", Ki_x_, 0.2);
-    // nh_.param<double>("Ki_y", Ki_y_, 0.2);
-    // nh_.param<double>("Ki_z", Ki_z_, 0.2);
-    // nh_.param<double>("Kd_x", Kd_x_, 0.5);
-    // nh_.param<double>("Kd_y", Kd_y_, 0.5);
-    // nh_.param<double>("Kd_z", Kd_z_, 0.5);
-
-
-
     node_state_ = WAITING_FOR_CONNECTED;
     pid_type_ = static_cast<ControlType>(type);
     targetVel_ << 0.0, 0.0, 0.0;
     targetPos_ << 0, 0, takeoff_height_;
-
-    // kp_ << Kp_x_, Kp_y_, Kp_z_;
-    // ki_ << Ki_x_, Ki_y_, Ki_z_;
-    // kd_ << Kd_x_, Kd_y_, Kd_z_;
-    // pre_error_ << 0.0, 0.0, 0.0;
-    // integral_ << 0.0, 0.0, 0.0;
-
     
     yaw_ref_ = 0.0;
     init_pose_ << 0, 0, 0.5;
@@ -179,7 +161,6 @@ void pidCtrl::trigger_arm()
                 arm_triggered_ = true;
                 ROS_INFO("Vehicle armed");
             }
-            // cout << "check1"<< arming_client_.call(arm_cmd)<<endl;
         }
     }
 }
@@ -240,10 +221,6 @@ void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajecto
 {
     // command/trajectory
     trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg.points[0];
-    // reference_request_last_ = reference_request_now_;
-  
-    // reference_request_now_ = ros::Time::now();
-    // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
   
     targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
     targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;

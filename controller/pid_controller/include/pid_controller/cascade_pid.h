@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #ifndef CASCADE_PID_H
 #define CASCADE_PID_H
 
@@ -54,24 +58,10 @@ class cascadePID {
             Eigen::Vector3d pos_error = targetPose - currPose;
             satura(pos_error, -pos_error_max_, pos_error_max_);
 
-            // integral_p_ += pos_error * dt;
-            // satura(integral_p_, -pos_integral_max_, pos_integral_max_);
-
-            // Eigen::Vector3d derivative_p = (pos_error - pre_error_p_) / dt;
-            // pre_error_p_ = pos_error;
-
             Eigen::Vector3d target_vel;
             target_vel = kp_p_.asDiagonal() * pos_error;
-            // target_vel = pid(targetPose, currPose, kd_p_, ki_p_, kd_p_, integral_p_, pre_error_p_,
-            //                     pos_integral_max_, pos_error_max_, dt);
-            
-            // target_vel = kp_p_.asDiagonal() * pos_error + ki_p_.asDiagonal() * integral_ + kd_p_.asDiagonal() * derivative_p;
 
             // 速度环输出为加速度指令
-            // Eigen::Vector3d vel_error = target_vel - currVel;
-            // integral_v_ += vel_error * dt;
-            // Eigen::Vector3d derivative_v = (vel_error - pre_error_v_) / dt;
-            // pre_error_v_ = vel_error;
 
             Eigen::Vector3d target_acc;
             target_acc = pid(target_vel, currVel, kp_v_, ki_v_, kd_v_, integral_v_, pre_error_v_,
@@ -130,37 +120,6 @@ class cascadePID {
             return quat;
           }
 
-        // Eigen::Vector3d computeVelocity(const Eigen::Vector3d &currPose, const Eigen::Vector3d &currVel, 
-        //     const Eigen::Vector3d &targetPose, const Eigen::Vector3d &targetVel, double dt) {
-            
-        //     Eigen::Vector3d pos_error = targetPose - currPose;
-        //     Eigen::Vector3d vel_error = targetVel - currVel;
-
-        //     Eigen::Vector3d acc_des = kp_p_.asDiagonal() * pos_error + kd_p_.asDiagonal() * vel_error;
-        //     Eigen::Vector3d vel_des = targetVel + acc_des * dt;  // 简单积分加速度得到速度指令
-
-        //     if(vel_des.norm() > maxVel_){
-        //         vel_des = (maxVel_ / vel_des.norm()) * vel_des;
-        //     }
-        //     return vel_des;
-        // }
-
-        // Eigen::Vector3d computeTakeOffVel(const Eigen::Vector3d &currPose, const double takeoff_height) {
-        //     // 示例：梯形速度曲线生成目标速度
-        //     Eigen::Vector3d targetVel;
-        //     double acc_time = 1.2;   // 加速时间
-        //     double current_height = currPose[2];
-
-        //     double error_z = takeoff_height - current_height;
-        //     if (error_z > 0) {
-        //         // 根据误差动态调整目标速度
-        //         targetVel.z() = min(maxVel_, error_z / acc_time);
-        //     } else {
-        //         targetVel.z() = 0;
-        //     }
-        //     return targetVel;
-        // }
-
         double getDesiredThrust(){
             return thrust_des_;
         }
@@ -217,7 +176,6 @@ class cascadePID {
         
         double maxVel_, maxAcc_, thrust_des_;
         const double GRAVITY = 9.81;
-        // double Kp_x_, Kp_y_, Kp_z_, Ki_x_, Ki_y_, Ki_z_, Kd_x_, Kd_y_, Kd_z_;
         Eigen::Vector3d integral_p_, pre_error_p_, integral_v_, pre_error_v_;
         double pos_error_max_, pos_integral_max_, vel_error_max_, vel_integral_max_;
 };

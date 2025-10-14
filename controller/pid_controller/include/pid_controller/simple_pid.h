@@ -1,3 +1,6 @@
+/**
+ * @author tfly
+ */
 #ifndef SIMPLE_PID_H
 #define SIMPLE_PID_H
 
@@ -78,7 +81,6 @@ class simplePID {
         ros::NodeHandle nh_;
 
         Eigen::Vector3d kp_, ki_, kd_;
-        // double Kp_x_, Kp_y_, Kp_z_, Ki_x_, Ki_y_, Ki_z_, Kd_x_, Kd_y_, Kd_z_;
         Eigen::Vector3d integral_, pre_error_, pos_error_max_;
 };
 
