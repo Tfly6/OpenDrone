@@ -1,4 +1,14 @@
 <launch>
+    <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
+    <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/>
+
+    <!-- Camera pose publisher -->
+    <!-- This node publishes tf from parent_frame to child_frame-->
+    <node pkg="opendrone" name="camera_pose_publisher" type="camera_pose_publisher.py" output="screen">
+        <param name="parent_frame" value="world" />
+        <param name="child_frame" value="camera_link" />
+        <param name="pose_topic" value="camera/pose" />
+    </node>
 
     <include file="$(find ego_planner)/launch/single_run_in_sim.launch">
         <arg name="camera_pose_topic" value="/camera/pose"/>

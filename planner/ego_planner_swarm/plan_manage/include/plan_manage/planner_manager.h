@@ -64,6 +64,9 @@ namespace ego_planner
 
     int continous_failures_count_{0};
 
+  bool debug_planner_{false};
+  double debug_planner_interval_{1.0};
+
     void updateTrajInfo(const UniformBspline &position_traj, const ros::Time time_now);
 
     void reparamBspline(UniformBspline &bspline, vector<Eigen::Vector3d> &start_end_derivative, double ratio, Eigen::MatrixXd &ctrl_pts, double &dt,

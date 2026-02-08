@@ -7,7 +7,10 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   roscpp
   rospy
+  sensor_msgs
   std_msgs
+  tf2_ros
+  tf2_sensor_msgs
 )
 
 
@@ -70,6 +73,7 @@ target_link_libraries(trigger_land ${catkin_LIBRARIES})
 # )
 catkin_install_python(PROGRAMS
   scripts/camera_pose_publisher.py
+  scripts/pointcloud_to_world.py
   scripts/trajectory_msg_converter.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

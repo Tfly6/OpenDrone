@@ -115,9 +115,14 @@ struct MappingData {
   bool flag_depth_odom_timeout_;
   bool flag_use_depth_fusion;
 
+  size_t last_cloud_points_{0};
+  int last_inflated_voxels_{0};
+
   // depth image projected point cloud
 
   vector<Eigen::Vector3d> proj_points_;
+  
+  vector<Eigen::Vector3d> my_cloud_points_;
   int proj_points_cnt;
 
   // flag buffers for speeding up raycasting
@@ -144,7 +149,7 @@ public:
   GridMap() {}
   ~GridMap() {}
 
-  enum { POSE_STAMPED = 1, ODOMETRY = 2, INVALID_IDX = -10000 };
+  enum { POSE_STAMPED = 1, ODOMETRY = 2, POINTCLOUD = 3, INVALID_IDX = -10000 };
 
   // occupancy map management
   void resetBuffer();
@@ -183,6 +188,8 @@ public:
   Eigen::Vector3d getOrigin();
   int getVoxelNum();
   bool getOdomDepthTimeout() { return md_.flag_depth_odom_timeout_; }
+  int getLastInflatedVoxelCount() const { return md_.last_inflated_voxels_; }
+  size_t getLastCloudPointCount() const { return md_.last_cloud_points_; }
 
   typedef std::shared_ptr<GridMap> Ptr;
 
@@ -199,7 +206,10 @@ private:
   void depthOdomCallback(const sensor_msgs::ImageConstPtr& img, const nav_msgs::OdometryConstPtr& odom);
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& img);
   void odomCallback(const nav_msgs::OdometryConstPtr& odom);
-
+  
+  void cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &cloud,
+                                  const nav_msgs::OdometryConstPtr &odom);
+  
   // update occupancy by raycasting
   void updateOccupancyCallback(const ros::TimerEvent& /*event*/);
   void visCallback(const ros::TimerEvent& /*event*/);
@@ -219,21 +229,33 @@ private:
   // geometry_msgs::PoseStamped> SyncPolicyImagePose;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry>
       SyncPolicyImageOdom;
+
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry>
+      SyncPolicyPointCloudOdom;
+   
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
       SyncPolicyImagePose;
+      
   typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImagePose>> SynchronizerImagePose;
   typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImageOdom>> SynchronizerImageOdom;
+  typedef shared_ptr<message_filters::Synchronizer<SyncPolicyPointCloudOdom>> SynchronizerPointCloudOdom;
 
   ros::NodeHandle node_;
   shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depth_sub_;
+  shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> pointcloud_sub_;
   shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> pose_sub_;
   shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odom_sub_;
+
   SynchronizerImagePose sync_image_pose_;
   SynchronizerImageOdom sync_image_odom_;
+  SynchronizerPointCloudOdom sync_pointcloud_odom_;
 
   ros::Subscriber indep_cloud_sub_, indep_odom_sub_, extrinsic_sub_;
   ros::Publisher map_pub_, map_inf_pub_;
   ros::Timer occ_timer_, vis_timer_;
+
+  bool debug_map_{false};
+  double debug_map_interval_{1.0};
 
   //
   uniform_real_distribution<double> rand_noise_;

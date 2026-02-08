@@ -22,6 +22,15 @@ namespace ego_planner
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
 
+  nh.param("fsm/map_ready_min_inflated", map_ready_min_inflated_, 2000);
+  nh.param("fsm/map_ready_min_cloud", map_ready_min_cloud_, 500);
+  nh.param("fsm/map_ready_hold_time", map_ready_hold_time_, 2.0);
+  nh.param("fsm/odom_jump_thresh", odom_jump_thresh_, 2.0);
+  nh.param("fsm/odom_jump_time_thresh", odom_jump_time_thresh_, 0.25);
+
+  nh.param("debug/fsm", debug_fsm_, false);
+  nh.param("debug/fsm_interval", debug_fsm_interval_, 1.0);
+
     have_trigger_ = !flag_realworld_experiment_;
 
     nh.param("fsm/waypoint_num", waypoint_num_, -1);
@@ -217,20 +226,33 @@ namespace ego_planner
     // trigger_ = true;
     init_pt_ = odom_pos_;
 
-    Eigen::Vector3d end_wp(msg->pose.position.x, msg->pose.position.y, 1);
+    Eigen::Vector3d end_wp(msg->pose.position.x, msg->pose.position.y, 2);
 
     planNextWaypoint(end_wp);
   }
 
   void EGOReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr &msg)
   {
-    odom_pos_(0) = msg->pose.pose.position.x;
-    odom_pos_(1) = msg->pose.pose.position.y;
-    odom_pos_(2) = msg->pose.pose.position.z;
+    Eigen::Vector3d new_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
+    Eigen::Vector3d new_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
 
-    odom_vel_(0) = msg->twist.twist.linear.x;
-    odom_vel_(1) = msg->twist.twist.linear.y;
-    odom_vel_(2) = msg->twist.twist.linear.z;
+    if (has_last_odom_ && odom_jump_thresh_ > 0.0)
+    {
+      const double dt = (msg->header.stamp - last_odom_time_).toSec();
+      const double dist = (new_pos - last_odom_pos_).norm();
+      if (dt > 0.0 && dt < odom_jump_time_thresh_ && dist > odom_jump_thresh_)
+      {
+        ROS_WARN_THROTTLE(1.0,
+                          "[FSM] odom jump detected dist=%.2f dt=%.3f pos=(%.2f,%.2f,%.2f) prev=(%.2f,%.2f,%.2f), ignore",
+                          dist, dt, new_pos.x(), new_pos.y(), new_pos.z(), last_odom_pos_.x(), last_odom_pos_.y(),
+                          last_odom_pos_.z());
+        last_odom_time_ = msg->header.stamp;
+        return;
+      }
+    }
+
+    odom_pos_ = new_pos;
+    odom_vel_ = new_vel;
 
     //odom_acc_ = estimateAcc( msg );
 
@@ -239,8 +261,16 @@ namespace ego_planner
     odom_orient_.y() = msg->pose.pose.orientation.y;
     odom_orient_.z() = msg->pose.pose.orientation.z;
 
+    last_odom_pos_ = new_pos;
+    last_odom_time_ = msg->header.stamp;
+    has_last_odom_ = true;
+
     if(!planner_manager_->grid_map_->isInMap(odom_pos_)){
-      ROS_ERROR("out of Map Size");
+      Eigen::Vector3d map_ori, map_size;
+      planner_manager_->grid_map_->getRegion(map_ori, map_size);
+      ROS_ERROR_THROTTLE(1.0, "[FSM] out of Map Size odom=(%.2f,%.2f,%.2f) map_origin=(%.2f,%.2f,%.2f) map_size=(%.2f,%.2f,%.2f)",
+                         odom_pos_.x(), odom_pos_.y(), odom_pos_.z(), map_ori.x(), map_ori.y(), map_ori.z(), map_size.x(),
+                         map_size.y(), map_size.z());
     }
     have_odom_ = true;
   }
@@ -435,6 +465,15 @@ namespace ego_planner
   {
     exec_timer_.stop(); // To avoid blockage
 
+    if (debug_fsm_)
+    {
+      static string state_str[8] = {"INIT", "WAIT_TARGET", "GEN_NEW_TRAJ", "REPLAN_TRAJ", "EXEC_TRAJ", "EMERGENCY_STOP", "SEQUENTIAL_START"};
+      ROS_INFO_THROTTLE(debug_fsm_interval_,
+                        "[FSM] state=%s odom=%d target=%d trigger=%d odom_pos=(%.2f,%.2f,%.2f)",
+                        state_str[int(exec_state_)].c_str(), have_odom_, have_target_, have_trigger_,
+                        odom_pos_(0), odom_pos_(1), odom_pos_(2));
+    }
+
     static int fsm_num = 0;
     fsm_num++;
     if (fsm_num == 100)
@@ -486,6 +525,8 @@ namespace ego_planner
       {
         if (have_odom_ && have_target_ && have_trigger_)
         {
+          if (!isMapReady())
+            goto force_return;
           bool success = planFromGlobalTraj(10); // zx-todo
           if (success)
           {
@@ -515,6 +556,8 @@ namespace ego_planner
       // start_yaw_(0)         = atan2(rot_x(1), rot_x(0));
       // start_yaw_(1) = start_yaw_(2) = 0.0;
 
+      if (!isMapReady())
+        goto force_return;
       bool success = planFromGlobalTraj(10); // zx-todo
       if (success)
       {
@@ -618,6 +661,41 @@ namespace ego_planner
     exec_timer_.start();
   }
 
+  bool EGOReplanFSM::isMapReady()
+  {
+    auto map = planner_manager_->grid_map_;
+    if (!map)
+      return false;
+
+    const int inflated = map->getLastInflatedVoxelCount();
+    const size_t cloud_pts = map->getLastCloudPointCount();
+    const bool ready_now = inflated >= map_ready_min_inflated_ && static_cast<int>(cloud_pts) >= map_ready_min_cloud_;
+
+    if (ready_now)
+    {
+      if (map_ready_start_time_.isZero())
+        map_ready_start_time_ = ros::Time::now();
+    }
+    else
+    {
+      map_ready_start_time_ = ros::Time(0);
+    }
+
+    const bool ready = !map_ready_start_time_.isZero() &&
+                       (ros::Time::now() - map_ready_start_time_).toSec() >= map_ready_hold_time_;
+
+    if (debug_fsm_)
+    {
+      ROS_INFO_THROTTLE(debug_fsm_interval_,
+                        "[FSM] map_ready=%d inflated=%d cloud=%zu hold=%.1f/%.1f",
+                        ready, inflated, cloud_pts,
+                        map_ready_start_time_.isZero() ? 0.0 : (ros::Time::now() - map_ready_start_time_).toSec(),
+                        map_ready_hold_time_);
+    }
+
+    return ready;
+  }
+
   bool EGOReplanFSM::planFromGlobalTraj(const int trial_times /*=1*/) //zx-todo
   {
     start_pt_ = odom_pos_;
@@ -634,9 +712,13 @@ namespace ego_planner
     {
       if (callReboundReplan(true, flag_random_poly_init))
       {
+        if (debug_fsm_)
+          ROS_INFO_THROTTLE(debug_fsm_interval_, "[FSM] planFromGlobalTraj success trial=%d", i + 1);
         return true;
       }
     }
+    if (debug_fsm_)
+      ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromGlobalTraj failed trials=%d", trial_times);
     return false;
   }
 
@@ -669,10 +751,15 @@ namespace ego_planner
         }
         if (!success)
         {
+          if (debug_fsm_)
+            ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromCurrentTraj failed trials=%d", trial_times);
           return false;
         }
       }
     }
+
+    if (debug_fsm_)
+      ROS_INFO_THROTTLE(debug_fsm_interval_, "[FSM] planFromCurrentTraj success");
 
     return true;
   }
@@ -690,6 +777,8 @@ namespace ego_planner
     if (map->getOdomDepthTimeout())
     {
       ROS_ERROR("Depth Lost! EMERGENCY_STOP");
+      if (debug_fsm_)
+        ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] depth timeout -> emergency stop");
       enable_fail_safe_ = false;
       changeFSMExecState(EMERGENCY_STOP, "SAFETY");
     }
@@ -729,6 +818,12 @@ namespace ego_planner
 
       if (occ)
       {
+        if (debug_fsm_)
+        {
+          ROS_INFO_THROTTLE(debug_fsm_interval_,
+                            "[FSM] collision predicted t=%.2f pos=(%.2f,%.2f,%.2f) emergency_time=%.2f",
+                            t, p_cur(0), p_cur(1), p_cur(2), emergency_time_);
+        }
 
         if (planFromCurrentTraj()) // Make a chance
         {

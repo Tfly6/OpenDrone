@@ -1,0 +1,60 @@
+<launch>
+    <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
+    <node pkg="tf" type="static_transform_publisher" name="tf_lidar" args="0.07 0 0.072 0 0.3925 0 base_link livox_link 50"/>
+
+    <node pkg="opendrone" name="pointcloud_to_world" type="pointcloud_to_world.py" output="screen">
+        <param name="source_topic" value="/livox/lidar" />
+        <param name="output_topic" value="/livox/lidar_world" />
+        <param name="source_frame" value="livox_link" />
+        <param name="target_frame" value="world" />
+        <param name="lookup_timeout" value="0.1" />
+        <param name="use_latest_on_extrapolation" value="false" />
+        <param name="cloud_timeout" value="1.0" />
+        <param name="log_interval" value="2.0" />
+        <!-- filter -->
+        <param name="filter_enable" value="true" />
+        <param name="voxel_leaf_size" value="0.1" />
+        <param name="min_range" value="0.1" />
+        <param name="max_range" value="50.0" />
+        <param name="min_z" value="-20.0" />
+        <param name="max_z" value="20.0" />
+        <param name="max_points" value="80000" />
+    </node>
+
+    <include file="$(find ego_planner)/launch/single_run_in_sim.launch">
+        <arg name="pose_type" value="3"/>
+        <arg name="cloud_topic" value="/livox/lidar_world"/>
+        <arg name="odom_topic" value="/mavros/local_position/odom"/>
+        <arg name="max_vel" value="1.2" />
+        <arg name="max_acc" value="2.5" />
+        <arg name="local_update_range_x" value="8.0" />
+        <arg name="local_update_range_y" value="8.0" />
+        <arg name="local_update_range_z" value="5.0" />
+        <arg name="local_map_margin" value="20" />
+        <arg name="p_occ" value="0.65" />
+        <arg name="p_hit" value="0.75" />
+        <arg name="max_ray_length" value="12.0" />
+        <arg name="obstacles_inflation" value="0.099" />
+        <arg name="ground_height" value="-0.3" />
+        <!-- <param name="debug/map" value="true" />
+        <param name="debug/map_interval" value="1.0" />
+
+        <param name="debug/fsm" value="true" />
+        <param name="debug/fsm_interval" value="1.0" />
+
+        <param name="debug/planner" value="true" />
+        <param name="debug/planner_interval" value="1.0" />
+
+        <param name="debug/astar" value="true" />
+        <param name="debug/astar_interval" value="1.0" /> -->
+    </include>
+
+    <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
+        <param name="fast_planner_traj_topic" value="/drone_0_planning/pos_cmd"/>
+        <param name="traj_pub_topic" value="/command/trajectory"/>
+    </node>
+
+    <!-- rviz -->
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find opendrone)/rviz/rviz_ego.rviz" required="true" /> -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find opendrone)/rviz/ego_planner.rviz" required="true" />
+</launch>
