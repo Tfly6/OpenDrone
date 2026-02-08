@@ -1,3 +1,7 @@
+/**
+ * @author tfly
+ */
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -56,19 +60,6 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
-/*
-    geometry_msgs::PoseStamped pose;
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
-
-    //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i){
-        local_pos_pub.publish(pose);
-        ros::spinOnce();
-        rate.sleep();
-    }
-*/
     ros::Time last_request = ros::Time::now();
 
     while(ros::ok()){

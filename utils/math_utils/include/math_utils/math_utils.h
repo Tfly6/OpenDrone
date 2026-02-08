@@ -1,6 +1,5 @@
 /***************************************************************************************************************************
 * math_utils.h
-* ref to Qyp
 * Author: TFly
 ***************************************************************************************************************************/
 #ifndef MATH_UTILS_H
@@ -146,21 +145,6 @@ T toGeometryMsg(const Eigen::Vector3d &v3) {
     res.z = v3(2);
     return res;
 }
-// inline geometry_msgs::Point toGeometryMsg(const Eigen::Vector3d &v3) {
-//     geometry_msgs::Point p;
-//     p.x = v3(0);
-//     p.y = v3(1);
-//     p.z = v3(2);
-//     return p;
-// }
-
-// inline geometry_msgs::Vector3 toGeometryMsg(const Eigen::Vector3d &v3) {
-//     geometry_msgs::Vector3 p;
-//     p.x = v3(0);
-//     p.y = v3(1);
-//     p.z = v3(2);
-//     return p;
-// }
 
 inline double deg_to_rad(const double degrees) {
     return degrees * M_PI / 180.0;
@@ -252,18 +236,6 @@ inline bool is_arrive(const Eigen::Vector3d &pos1, const Eigen::Vector3d &pos2){
     double distance = sqrt(dx*dx + dy*dy + dz*dz);
     return distance < distance_threshold;
 }
-// min function
-// inline float min(float data1,float data2)
-// {
-//     if(data1>=data2)
-//     {
-//         return data2;
-//     }
-//     else
-//     {
-//         return data1;
-//     }
-// }
 
 #endif
 
