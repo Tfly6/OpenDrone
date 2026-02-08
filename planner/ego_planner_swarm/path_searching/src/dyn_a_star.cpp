@@ -31,6 +31,9 @@ void AStar::initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size)
     }
 
     grid_map_ = occ_map;
+
+    ros::param::param("debug/astar", debug_astar_, false);
+    ros::param::param("debug/astar_interval", debug_astar_interval_, 1.0);
 }
 
 double AStar::getDiagHeu(GridNodePtr node1, GridNodePtr node2)
@@ -131,6 +134,9 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
     if (!ConvertToIndexAndAdjustStartEndPoints(start_pt, end_pt, start_idx, end_idx))
     {
         ROS_ERROR("Unable to handle the initial or end point, force return!");
+                if (debug_astar_)
+                    ROS_WARN_THROTTLE(debug_astar_interval_, "[A*] invalid start/end: start=(%.2f,%.2f,%.2f) end=(%.2f,%.2f,%.2f)",
+                                                        start_pt(0), start_pt(1), start_pt(2), end_pt(0), end_pt(1), end_pt(2));
         return false;
     }
 
@@ -175,6 +181,11 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
             // if((time_2 - time_1).toSec() > 0.1)
             //     ROS_WARN("Time consume in A star path finding is %f", (time_2 - time_1).toSec() );
             gridPath_ = retrievePath(current);
+            if (debug_astar_)
+            {
+                ros::Time time_2 = ros::Time::now();
+                ROS_INFO_THROTTLE(debug_astar_interval_, "[A*] success time=%.3f iter=%d path=%zu", (time_2 - time_1).toSec(), num_iter, gridPath_.size());
+            }
             return true;
         }
         current->state = GridNode::CLOSEDSET; //move current node from open set to closed set.

@@ -70,6 +70,9 @@ namespace ego_planner
 
     Eigen::Vector3d odom_pos_, odom_vel_, odom_acc_; // odometry state
     Eigen::Quaterniond odom_orient_;
+    Eigen::Vector3d last_odom_pos_;
+    ros::Time last_odom_time_;
+    bool has_last_odom_{false};
 
     Eigen::Vector3d init_pt_, start_pt_, start_vel_, start_acc_, start_yaw_; // start state
     Eigen::Vector3d end_pt_, end_vel_;                                       // goal state
@@ -79,11 +82,22 @@ namespace ego_planner
 
     bool flag_escape_emergency_;
 
+    int map_ready_min_inflated_{2000};
+    int map_ready_min_cloud_{500};
+    double map_ready_hold_time_{2.0};
+    ros::Time map_ready_start_time_;
+
+    double odom_jump_thresh_{2.0};
+    double odom_jump_time_thresh_{0.25};
+
     /* ROS utils */
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
     ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
+
+  bool debug_fsm_{false};
+  double debug_fsm_interval_{1.0};
 
     /* helper functions */
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj); // front-end and back-end method
@@ -111,6 +125,7 @@ namespace ego_planner
 
     bool checkCollision();
     void publishSwarmTrajs(bool startup_pub);
+  bool isMapReady();
 
   public:
     EGOReplanFSM(/* args */)

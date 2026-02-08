@@ -25,9 +25,21 @@ namespace ego_planner
     nh.param("manager/use_distinctive_trajs", pp_.use_distinctive_trajs, false);
     nh.param("manager/drone_id", pp_.drone_id, -1);
 
+    nh.param("debug/planner", debug_planner_, false);
+    nh.param("debug/planner_interval", debug_planner_interval_, 1.0);
+
+    int astar_pool_size_x = 100;
+    int astar_pool_size_y = 100;
+    int astar_pool_size_z = 100;
+    nh.param("astar/pool_size_x", astar_pool_size_x, 100);
+    nh.param("astar/pool_size_y", astar_pool_size_y, 100);
+    nh.param("astar/pool_size_z", astar_pool_size_z, 100);
+      
+    ROS_INFO_STREAM("init grid_map");
     local_data_.traj_id_ = 0;
     grid_map_.reset(new GridMap);
     grid_map_->initMap(nh);
+    ROS_INFO_STREAM("grid_map init complete");
 
     // obj_predictor_.reset(new fast_planner::ObjPredictor(nh));
     // obj_predictor_->init();
@@ -37,7 +49,7 @@ namespace ego_planner
     bspline_optimizer_->setParam(nh);
     bspline_optimizer_->setEnvironment(grid_map_, obj_predictor_);
     bspline_optimizer_->a_star_.reset(new AStar);
-    bspline_optimizer_->a_star_->initGridMap(grid_map_, Eigen::Vector3i(100, 100, 100));
+  bspline_optimizer_->a_star_->initGridMap(grid_map_, Eigen::Vector3i(astar_pool_size_x, astar_pool_size_y, astar_pool_size_z));
 
     visualization_ = vis;
   }
@@ -60,8 +72,13 @@ namespace ego_planner
     {
       cout << "Close to goal" << endl;
       continous_failures_count_++;
+      if (debug_planner_)
+        ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] replan skipped: close to goal dist=%.3f", (start_pt - local_target_pt).norm());
       return false;
     }
+
+    if (debug_planner_)
+      ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] replan start dist=%.3f failures=%d", (start_pt - local_target_pt).norm(), continous_failures_count_);
 
     bspline_optimizer_->setLocalTargetPt(local_target_pt);
 
@@ -336,6 +353,8 @@ namespace ego_planner
 
     // success. YoY
     continous_failures_count_ = 0;
+    if (debug_planner_)
+      ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] replan success time=%.3f", (t_init + t_opt + t_refine).toSec());
     return true;
   }
 
@@ -367,6 +386,8 @@ namespace ego_planner
     {
       if ((local_data_.position_traj_.evaluateDeBoorT(t - my_traj_start_time) - swarm_trajs_buf_[drone_id].position_traj_.evaluateDeBoorT(t - other_traj_start_time)).norm() < bspline_optimizer_->getSwarmClearance())
       {
+        if (debug_planner_)
+          ROS_WARN_THROTTLE(debug_planner_interval_, "[planner] swarm collision predicted t=%.2f clearance=%.2f", t, bspline_optimizer_->getSwarmClearance());
         return true;
       }
     }
@@ -451,6 +472,9 @@ namespace ego_planner
     auto time_now = ros::Time::now();
     global_data_.setGlobalTraj(gl_traj, time_now);
 
+    if (debug_planner_)
+      ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] global traj (waypoints) set, points=%d", pt_num);
+
     return true;
   }
 
@@ -514,6 +538,9 @@ namespace ego_planner
 
     auto time_now = ros::Time::now();
     global_data_.setGlobalTraj(gl_traj, time_now);
+
+    if (debug_planner_)
+      ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] global traj set, points=%d", pt_num);
 
     return true;
   }

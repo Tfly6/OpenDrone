@@ -35,12 +35,25 @@
   <arg name="point4_z"/>
 
   <arg name="flight_type"/>
+  <arg name="pose_type"/>
   <arg name="use_distinctive_trajs"/>
+  <arg name="obstacles_inflation"/>
+  <arg name="local_update_range_x"/>
+  <arg name="local_update_range_y"/>
+  <arg name="local_update_range_z"/>
+  <arg name="local_map_margin"/>
+  <arg name="p_occ"/>
+  <arg name="p_hit"/>
+  <arg name="max_ray_length"/>
+  <arg name="ground_height"/>
+  <arg name="debug_map"/>
+  <arg name="debug_fsm"/>
+  <arg name="debug_planner"/>
+  <arg name="debug_astar"/>
 
   <arg name="obj_num_set"/>
 
   <arg name="drone_id"/>
-
 
   <!-- main node -->
   <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
@@ -55,15 +68,33 @@
 
     <!-- <remap from="~grid_map/odom" to="/drone_$(arg drone_id)_$(arg odometry_topic)"/> -->
     <remap from="~grid_map/odom" to="$(arg odometry_topic)"/>
-    <remap from="~grid_map/cloud" to="/drone_$(arg drone_id)_$(arg cloud_topic)"/>
-    <!-- <remap from="~grid_map/cloud" to="$(arg cloud_topic)"/> -->
+    <!-- <remap from="~grid_map/cloud" to="/drone_$(arg drone_id)_$(arg cloud_topic)"/> -->
+    <remap from="~grid_map/cloud" to="$(arg cloud_topic)"/>
     <!-- <remap from="~grid_map/pose"   to = "/drone_$(arg drone_id)_$(arg camera_pose_topic)"/> 
     <remap from="~grid_map/depth" to = "/drone_$(arg drone_id)_$(arg depth_topic)"/> -->
     <remap from="~grid_map/pose"   to = "$(arg camera_pose_topic)"/> 
     <remap from="~grid_map/depth" to = "$(arg depth_topic)"/>
+
+    <param name="debug/map" value="$(arg debug_map)" />
+    <param name="debug/map_interval" value="1.0" />
+
+    <param name="debug/fsm" value="$(arg debug_fsm)" />
+    <param name="debug/fsm_interval" value="1.0" />
+
+    <param name="debug/planner" value="$(arg debug_planner)" />
+    <param name="debug/planner_interval" value="1.0" />
+
+    <param name="debug/astar" value="$(debug_astar)" />
+    <param name="debug/astar_interval" value="1.0" />
     
 
     <!-- planning fsm -->
+    <param name="fsm/map_ready_min_inflated" value="300" />
+    <param name="fsm/map_ready_min_cloud" value="50" />
+    <param name="fsm/map_ready_hold_time" value="0.2" />
+    <param name="fsm/odom_jump_thresh" value="2.0" />
+    <param name="fsm/odom_jump_time_thresh" value="0.25" />
+    
     <param name="fsm/flight_type" value="$(arg flight_type)" type="int"/>
     <param name="fsm/thresh_replan_time" value="1.0" type="double"/>
     <param name="fsm/thresh_no_replan_meter" value="1.0" type="double"/>
@@ -94,12 +125,12 @@
     <param name="grid_map/map_size_x"   value="$(arg map_size_x_)" /> 
     <param name="grid_map/map_size_y"   value="$(arg map_size_y_)" /> 
     <param name="grid_map/map_size_z"   value="$(arg map_size_z_)" /> 
-    <param name="grid_map/local_update_range_x"  value="5.5" /> 
-    <param name="grid_map/local_update_range_y"  value="5.5" /> 
-    <param name="grid_map/local_update_range_z"  value="4.5" /> 
-    <param name="grid_map/obstacles_inflation"     value="0.099" /> 
-    <param name="grid_map/local_map_margin" value="10"/>
-    <param name="grid_map/ground_height"        value="-0.01"/>
+    <param name="grid_map/local_update_range_x"  value="$(arg local_update_range_x)" /> 
+    <param name="grid_map/local_update_range_y"  value="$(arg local_update_range_y)" /> 
+    <param name="grid_map/local_update_range_z"  value="$(arg local_update_range_z)" /> 
+    <param name="grid_map/obstacles_inflation"     value="$(arg obstacles_inflation)" /> 
+    <param name="grid_map/local_map_margin" value="$(arg local_map_margin)"/>
+    <param name="grid_map/ground_height"        value="$(arg ground_height)"/>
     <!-- camera parameter -->
     <param name="grid_map/cx" value="$(arg cx)"/>
     <param name="grid_map/cy" value="$(arg cy)"/>
@@ -114,18 +145,18 @@
     <param name="grid_map/k_depth_scaling_factor" value="1000.0"/>
     <param name="grid_map/skip_pixel" value="2"/>
     <!-- local fusion -->
-    <param name="grid_map/p_hit"  value="0.65"/>
+    <param name="grid_map/p_hit"  value="$(arg p_hit)"/>
     <param name="grid_map/p_miss" value="0.35"/>
     <param name="grid_map/p_min"  value="0.12"/>
     <param name="grid_map/p_max"  value="0.90"/>
-    <param name="grid_map/p_occ"  value="0.80"/>
+    <param name="grid_map/p_occ"  value="$(arg p_occ)"/>
     <param name="grid_map/min_ray_length" value="0.1"/>
-    <param name="grid_map/max_ray_length" value="4.5"/>
+    <param name="grid_map/max_ray_length" value="$(arg max_ray_length)"/>
 
     <param name="grid_map/virtual_ceil_height"   value="2.9"/>
     <param name="grid_map/visualization_truncate_height"   value="1.8"/>
     <param name="grid_map/show_occ_time"  value="false"/>
-    <param name="grid_map/pose_type"     value="1"/>  
+    <param name="grid_map/pose_type"     value="$(arg pose_type)"/>  
     <param name="grid_map/frame_id"      value="world"/>
 
   <!-- planner manager -->
@@ -137,6 +168,11 @@
     <param name="manager/planning_horizon" value="$(arg planning_horizon)" type="double"/>
     <param name="manager/use_distinctive_trajs" value="$(arg use_distinctive_trajs)" type="bool"/>
     <param name="manager/drone_id" value="$(arg drone_id)"/>
+
+  <!-- A* pool size (increase if Ran out of pool appears) -->
+    <param name="astar/pool_size_x" value="200" />
+    <param name="astar/pool_size_y" value="200" />
+    <param name="astar/pool_size_z" value="120" />
 
   <!-- trajectory optimization -->
     <param name="optimization/lambda_smooth" value="1.0" type="double"/>

@@ -76,6 +76,9 @@ private:
 
 	int rounds_{0};
 
+	bool debug_astar_{false};
+	double debug_astar_interval_{1.0};
+
 public:
 	typedef std::shared_ptr<AStar> Ptr;
 

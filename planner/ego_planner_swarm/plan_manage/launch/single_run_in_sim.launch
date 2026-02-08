@@ -5,12 +5,27 @@
 
     <arg name="map_size_x" value="110.0"/>
     <arg name="map_size_y" value="100.0"/>
-    <arg name="map_size_z" value=" 3.0"/>
+    <arg name="map_size_z" value="6.0"/>
     <arg name="max_vel" default="2.0" />
     <arg name="max_acc" default="6.0" />
     <arg name="odom_topic" default="visual_slam/odom" />
     <arg name="camera_pose_topic" default="/camera/pose"/>
     <arg name="depth_topic" default="/camera/depth/image_raw"/>
+    <arg name="cloud_topic" default="pcl_render_node/cloud"/>
+    <arg name="pose_type" default="1"/>
+    <arg name="obstacles_inflation" default="0.099"/>
+    <arg name="local_update_range_x" default="5.5" />
+    <arg name="local_update_range_y" default="5.5" />
+    <arg name="local_update_range_z" default="4.5" />
+    <arg name="local_map_margin" default="10" />
+    <arg name="p_occ" default="0.80" />
+    <arg name="p_hit" default="0.65" />
+    <arg name="max_ray_length" default="4.5" />
+    <arg name="ground_height" default="-0.15" />
+    <arg name="debug_map" default="false"/>
+    <arg name="debug_fsm" default="false"/>
+    <arg name="debug_planner" default="false"/>
+    <arg name="debug_astar" default="false"/>
     
     <!-- map -->
     <!-- <node pkg ="map_generator" name ="random_forest" type ="random_forest" output = "screen">
@@ -44,12 +59,13 @@
         <arg name="obj_num_set" value="$(arg obj_num)" />
         <!-- camera pose: transform of camera frame in the world frame -->
         <!-- depth topic: depth image, 640x480 by default -->
+        <arg name="pose_type" value="$(arg pose_type)"/>
         <!-- don't set cloud_topic if you already set these ones! -->
         <arg name="camera_pose_topic" value="$(arg camera_pose_topic)"/>
         <arg name="depth_topic" value="$(arg depth_topic)"/>
         <!-- topic of point cloud measurement, such as from LIDAR  -->
         <!-- don't set camera pose and depth, if you already set this one! -->
-        <arg name="cloud_topic" value="pcl_render_node/cloud"/>
+        <arg name="cloud_topic" value="$(arg cloud_topic)"/>
         <!-- intrinsic params of the depth camera -->
         <arg name="cx" value="320"/>
         <arg name="cy" value="240"/>
@@ -61,6 +77,19 @@
         <!--always set to 1.5 times grater than sensing horizen-->
         <arg name="planning_horizon" value="7.5" />
         <arg name="use_distinctive_trajs" value="true" />
+        <arg name="obstacles_inflation" value="$(arg obstacles_inflation)" />
+        <arg name="local_update_range_x" value="$(arg local_update_range_x)" />
+        <arg name="local_update_range_y" value="$(arg local_update_range_y)" />
+        <arg name="local_update_range_z" value="$(arg local_update_range_z)" />
+        <arg name="local_map_margin" value="$(arg local_map_margin)" />
+        <arg name="ground_height" value="$(arg ground_height)" />  
+        <arg name="p_occ" value="$(arg p_occ)" />
+        <arg name="p_hit" value="$(arg p_hit)" />
+        <arg name="max_ray_length" value="$(arg max_ray_length)" />
+        <arg name="debug_map" value="$(arg debug_map)"/>
+        <arg name="debug_fsm" value="$(arg debug_fsm)"/>
+        <arg name="debug_planner" value="$(arg debug_planner)"/>
+        <arg name="debug_astar" value="$(arg debug_astar)"/>
         <!-- 1: use 2D Nav Goal to select goal  -->
         <!-- 2: use global waypoints below  -->
         <arg name="flight_type" value="1" />
