@@ -45,13 +45,13 @@
   roslaunch opendrone sitl_mav_trajectory_planner.launch
   ```
 
-- **ego_planner**：参考了[ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) 项目，需要带深度相机的无人机。
+- **ego_planner**：参考了[ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) 项目，需要带深度相机或3D激光雷达的无人机。
 
   启动：
 
   ```bash
-  roslaunch opendrone sitl_camera.launch # 相机坐标转换
-  roslaunch opendrone sitl_ego_planner.launch
+  roslaunch opendrone sitl_ego_planner.launch # 深度相机
+  roslaunch opendrone sitl_ego_planner_mid360.launch # 激光雷达
   ```
 
   
@@ -79,7 +79,7 @@ catkin build
 
 ```bash
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
-sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs
+sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs ros-$ROS_DISTRO-laser-geometry ros-$ROS_DISTRO-tf2-sensor-msgs
 ```
 
 **安装 NLopt 库** 
@@ -144,23 +144,24 @@ roslaunch opendrone sitl_mav_trajectory_planner.launch
 [bilibili](https://www.bilibili.com/video/BV1EZTszKEtJ/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
 
 
-### 实例三：geometric_controller + ego_planner
+### 实例三：geometric_controller + ego_planner+深度相机
 实时规划与避障
 
 - 配置仿真（可选）：如果没有可用的带深度相机的无人机，可以参考
+
 ```bash
 # model
 # PX4 v1.14之前
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_village.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/outdoor_village.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
 
 # PX4 v1.14 之后
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_village.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
-
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/outdoor_village.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
 ```
+
 ```bash
 # launch
 cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_depth_camera.launch ${YOUR_PX4_PATH}/launch/
@@ -168,6 +169,7 @@ cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PA
 ```
 
 - 终端一：启动gazebo仿真
+
 ```bash
 roslaunch px4 outdoor_depth_camera.launch # 用自己的也行
 ```
@@ -177,13 +179,7 @@ cd ~/catkin_ws
 source ./devel/setup.bash
 roslaunch opendrone sitl_geometric_controller.launch
 ```
-- 终端三：启动相机坐标转换
-```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch opendrone sitl_camera.launch
-```
-- 终端四：启动 ego-planner
+- 终端三：启动 ego-planner
 ```bash
 cd ~/catkin_ws
 source ./devel/setup.bash
@@ -192,6 +188,59 @@ roslaunch opendrone sitl_ego_planner.launch
 演示视频 👇
 
 [bilibili](https://www.bilibili.com/video/BV17ZTszKEea/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
+
+### 实例四：geometric_controller + ego_planner+Mid360
+
+实时规划与避障
+
+- 根据下面仓库配置Mid360仿真 👇
+
+[Tfly6/Mid360_px4_sim_plugin: Plugin for the simulation of the Livox Mid-360 in Gazebo](https://github.com/Tfly6/Mid360_px4_sim_plugin)
+
+- 复制必要文件
+
+```bash
+# model
+# PX4 v1.14之前
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/ego_swarm.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
+
+# PX4 v1.14 之后
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/ego_swarm.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
+```
+
+```bash
+# launch
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_mid360.launch ${YOUR_PX4_PATH}/launch/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
+```
+
+- 终端一：启动gazebo仿真
+
+```bash
+roslaunch px4 outdoor_mid360.launch # 用自己的也行
+```
+
+- 终端二：启动 geometric_controller
+
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_geometric_controller.launch
+```
+
+- 终端三：启动 ego-planner
+
+```bash
+cd ~/catkin_ws
+source ./devel/setup.bash
+roslaunch opendrone sitl_ego_planner_mid360.launch
+```
+
+演示视频 👇
+
+[Mid360 + ego-planner PX4无人机Gazebo仿真demo_哔哩哔哩_bilibili](https://www.bilibili.com/video/BV1dHFsz5EEh/?spm_id_from=333.1387.homepage.video_card.click&vd_source=d59e7d5891b69289e548bcfb7a4948a0)
+
+
 
 
 ## 参考
