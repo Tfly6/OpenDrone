@@ -264,7 +264,10 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
         targetVel_[2] = min(takeoffVel, max_vel_);
         targetAcc_[2] = max_fb_acc_;
       }
-      node_state = MISSION_EXECUTION;
+      if(received_home_pose){
+        node_state = MISSION_EXECUTION;
+      }
+      
       // node_state = TAKEOFF;
       break;
     
