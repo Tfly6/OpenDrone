@@ -84,7 +84,7 @@
     <param name="debug/planner" value="$(arg debug_planner)" />
     <param name="debug/planner_interval" value="1.0" />
 
-    <param name="debug/astar" value="$(debug_astar)" />
+    <param name="debug/astar" value="$(arg debug_astar)" />
     <param name="debug/astar_interval" value="1.0" />
     
 
