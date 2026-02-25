@@ -62,6 +62,13 @@ namespace ego_planner
     double emergency_time_;
     bool flag_realworld_experiment_;
     bool enable_fail_safe_;
+    int replan_fail_global_traj_count_;
+    int replan_fail_global_traj_interval_;
+    int replan_fail_lateral_escape_count_;
+    int replan_fail_lateral_escape_interval_;
+    int replan_fail_stop_count_;
+    double lateral_escape_dist_;
+    double lateral_escape_up_dist_;
 
     /* planning data */
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_;
@@ -80,7 +87,7 @@ namespace ego_planner
     std::vector<Eigen::Vector3d> wps_;
     int current_wp_;
 
-    bool flag_escape_emergency_;
+    bool flag_escape_emergency_{false};
 
     int map_ready_min_inflated_{2000};
     int map_ready_min_cloud_{500};
@@ -102,6 +109,8 @@ namespace ego_planner
     /* helper functions */
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj); // front-end and back-end method
     bool callEmergencyStop(Eigen::Vector3d stop_pos);                          // front-end and back-end method
+    bool tryLateralEscapeReplan();
+    void publishCurrentTraj();
     bool planFromGlobalTraj(const int trial_times = 1);
     bool planFromCurrentTraj(const int trial_times = 1);
 

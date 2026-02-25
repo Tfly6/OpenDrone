@@ -21,6 +21,31 @@ namespace ego_planner
     nh.param("fsm/emergency_time", emergency_time_, 1.0);
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
+    nh.param("fsm/replan_fail_global_traj_count", replan_fail_global_traj_count_, 20);
+    nh.param("fsm/replan_fail_global_traj_interval", replan_fail_global_traj_interval_, 20);
+    nh.param("fsm/replan_fail_lateral_escape_count", replan_fail_lateral_escape_count_, 40);
+    nh.param("fsm/replan_fail_lateral_escape_interval", replan_fail_lateral_escape_interval_, 20);
+    nh.param("fsm/replan_fail_stop_count", replan_fail_stop_count_, 120);
+    nh.param("fsm/lateral_escape_dist", lateral_escape_dist_, 2.0);
+    nh.param("fsm/lateral_escape_up_dist", lateral_escape_up_dist_, 0.8);
+
+    if (replan_fail_global_traj_count_ < 1)
+      replan_fail_global_traj_count_ = 1;
+    if (replan_fail_global_traj_interval_ < 1)
+      replan_fail_global_traj_interval_ = 1;
+    if (replan_fail_lateral_escape_count_ < 1)
+      replan_fail_lateral_escape_count_ = 1;
+    if (replan_fail_lateral_escape_interval_ < 1)
+      replan_fail_lateral_escape_interval_ = 1;
+
+    if (replan_fail_stop_count_ < 1)
+      replan_fail_stop_count_ = 1;
+    if (lateral_escape_dist_ < 0.1)
+      lateral_escape_dist_ = 0.1;
+    if (lateral_escape_up_dist_ < 0.0)
+      lateral_escape_up_dist_ = 0.0;
+
+    flag_escape_emergency_ = false;
 
   nh.param("fsm/map_ready_min_inflated", map_ready_min_inflated_, 2000);
   nh.param("fsm/map_ready_min_cloud", map_ready_min_cloud_, 500);
@@ -582,7 +607,46 @@ namespace ego_planner
       }
       else
       {
-        changeFSMExecState(REPLAN_TRAJ, "FSM");
+        const int replan_fail_times = timesOfConsecutiveStateCalls().first;
+        bool recovered_by_global = false;
+        bool recovered_by_escape = false;
+        if (isMapReady() &&
+            replan_fail_times >= replan_fail_global_traj_count_ &&
+            (replan_fail_times - replan_fail_global_traj_count_) % replan_fail_global_traj_interval_ == 0)
+        {
+          ROS_WARN("Replan failed %d times, try fallback planFromGlobalTraj", replan_fail_times);
+          recovered_by_global = planFromGlobalTraj(5);
+        }
+
+        if (!recovered_by_global && isMapReady() &&
+            replan_fail_times >= replan_fail_lateral_escape_count_ &&
+            (replan_fail_times - replan_fail_lateral_escape_count_) % replan_fail_lateral_escape_interval_ == 0)
+        {
+          ROS_WARN("Replan failed %d times, try lateral-escape fallback", replan_fail_times);
+          recovered_by_escape = tryLateralEscapeReplan();
+        }
+
+        if (recovered_by_global)
+        {
+          ROS_WARN("Recovered by fallback global trajectory after %d replan failures", replan_fail_times);
+          changeFSMExecState(EXEC_TRAJ, "FSM");
+          publishSwarmTrajs(false);
+        }
+        else if (recovered_by_escape)
+        {
+          ROS_WARN("Recovered by lateral-escape trajectory after %d replan failures", replan_fail_times);
+          changeFSMExecState(EXEC_TRAJ, "FSM");
+          publishSwarmTrajs(false);
+        }
+        else if (enable_fail_safe_ && replan_fail_times >= replan_fail_stop_count_)
+        {
+          ROS_WARN("Replan failed %d times continuously, force EMERGENCY_STOP", replan_fail_times);
+          changeFSMExecState(EMERGENCY_STOP, "FSM");
+        }
+        else
+        {
+          changeFSMExecState(REPLAN_TRAJ, "FSM");
+        }
       }
 
       break;
@@ -669,7 +733,10 @@ namespace ego_planner
 
     const int inflated = map->getLastInflatedVoxelCount();
     const size_t cloud_pts = map->getLastCloudPointCount();
-    const bool ready_now = inflated >= map_ready_min_inflated_ && static_cast<int>(cloud_pts) >= map_ready_min_cloud_;
+    const bool has_depth = map->hasDepthObservation();
+    const bool cloud_ready = static_cast<int>(cloud_pts) >= map_ready_min_cloud_;
+    const bool depth_ready = has_depth;
+    const bool ready_now = inflated >= map_ready_min_inflated_ && (cloud_ready || depth_ready);
 
     if (ready_now)
     {
@@ -687,8 +754,8 @@ namespace ego_planner
     if (debug_fsm_)
     {
       ROS_INFO_THROTTLE(debug_fsm_interval_,
-                        "[FSM] map_ready=%d inflated=%d cloud=%zu hold=%.1f/%.1f",
-                        ready, inflated, cloud_pts,
+                        "[FSM] map_ready=%d inflated=%d cloud=%zu depth=%d hold=%.1f/%.1f",
+                        ready, inflated, cloud_pts, has_depth,
                         map_ready_start_time_.isZero() ? 0.0 : (ros::Time::now() - map_ready_start_time_).toSec(),
                         map_ready_hold_time_);
     }
@@ -900,6 +967,94 @@ namespace ego_planner
     }
 
     return plan_and_refine_success;
+  }
+
+  void EGOReplanFSM::publishCurrentTraj()
+  {
+    auto info = &planner_manager_->local_data_;
+
+    traj_utils::Bspline bspline;
+    bspline.order = 3;
+    bspline.start_time = info->start_time_;
+    bspline.traj_id = info->traj_id_;
+
+    Eigen::MatrixXd pos_pts = info->position_traj_.getControlPoint();
+    bspline.pos_pts.reserve(pos_pts.cols());
+    for (int i = 0; i < pos_pts.cols(); ++i)
+    {
+      geometry_msgs::Point pt;
+      pt.x = pos_pts(0, i);
+      pt.y = pos_pts(1, i);
+      pt.z = pos_pts(2, i);
+      bspline.pos_pts.push_back(pt);
+    }
+
+    Eigen::VectorXd knots = info->position_traj_.getKnot();
+    bspline.knots.reserve(knots.rows());
+    for (int i = 0; i < knots.rows(); ++i)
+    {
+      bspline.knots.push_back(knots(i));
+    }
+
+    bspline_pub_.publish(bspline);
+    visualization_->displayOptimalList(info->position_traj_.get_control_points(), 0);
+  }
+
+  bool EGOReplanFSM::tryLateralEscapeReplan()
+  {
+    auto map = planner_manager_->grid_map_;
+    if (!map)
+      return false;
+
+    Eigen::Vector3d lateral = odom_vel_.cross(Eigen::Vector3d::UnitZ());
+    if (lateral.norm() < 1e-3)
+      lateral = (end_pt_ - odom_pos_).cross(Eigen::Vector3d::UnitZ());
+    if (lateral.norm() < 1e-3)
+      lateral = Eigen::Vector3d(0, 1, 0);
+    lateral.normalize();
+
+    std::vector<Eigen::Vector3d> candidate_targets;
+    candidate_targets.push_back(odom_pos_ + lateral * lateral_escape_dist_);
+    candidate_targets.push_back(odom_pos_ - lateral * lateral_escape_dist_);
+    if (lateral_escape_up_dist_ > 1e-3)
+    {
+      candidate_targets.push_back(odom_pos_ + lateral * lateral_escape_dist_ + Eigen::Vector3d(0, 0, lateral_escape_up_dist_));
+      candidate_targets.push_back(odom_pos_ - lateral * lateral_escape_dist_ + Eigen::Vector3d(0, 0, lateral_escape_up_dist_));
+    }
+
+    for (size_t i = 0; i < candidate_targets.size(); ++i)
+    {
+      const Eigen::Vector3d& candidate = candidate_targets[i];
+      if (!map->isInMap(candidate) || map->getInflateOccupancy(candidate))
+      {
+        continue;
+      }
+
+      bool global_ok = planner_manager_->planGlobalTraj(
+          odom_pos_, odom_vel_, Eigen::Vector3d::Zero(),
+          candidate, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+      if (!global_ok)
+        continue;
+
+      start_pt_ = odom_pos_;
+      start_vel_ = odom_vel_;
+      start_acc_.setZero();
+      local_target_pt_ = candidate;
+      local_target_vel_.setZero();
+
+      bool local_ok = planner_manager_->reboundReplan(
+          start_pt_, start_vel_, start_acc_, local_target_pt_, local_target_vel_, true, true);
+      if (!local_ok)
+        continue;
+
+      have_new_target_ = false;
+      ROS_WARN("Lateral escape success, candidate %zu at (%.2f, %.2f, %.2f)", i,
+               candidate.x(), candidate.y(), candidate.z());
+      publishCurrentTraj();
+      return true;
+    }
+
+    return false;
   }
 
   void EGOReplanFSM::publishSwarmTrajs(bool startup_pub)

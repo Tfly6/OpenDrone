@@ -103,6 +103,13 @@
     <param name="fsm/emergency_time" value="1.0" type="double"/>
     <param name="fsm/realworld_experiment" value="false"/>
     <param name="fsm/fail_safe" value="true"/>
+    <param name="fsm/replan_fail_global_traj_count" value="20" type="int"/>
+    <param name="fsm/replan_fail_global_traj_interval" value="20" type="int"/>
+    <param name="fsm/replan_fail_lateral_escape_count" value="25" type="int"/>
+    <param name="fsm/replan_fail_lateral_escape_interval" value="10" type="int"/>
+    <param name="fsm/lateral_escape_dist" value="2.8" type="double"/>
+    <param name="fsm/lateral_escape_up_dist" value="1.0" type="double"/>
+    <param name="fsm/replan_fail_stop_count" value="120" type="int"/>
 
     <param name="fsm/waypoint_num" value="$(arg point_num)" type="int"/>
     <param name="fsm/waypoint0_x" value="$(arg point0_x)" type="double"/>
