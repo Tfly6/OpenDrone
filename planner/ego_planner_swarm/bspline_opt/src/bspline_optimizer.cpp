@@ -1256,10 +1256,71 @@ namespace ego_planner
         }
         if (j >= cps_.size) // fail to get the obs free point
         {
-          ROS_WARN("WARN! terminal point of the current trajectory is in obstacle, skip this planning.");
+          ROS_WARN_THROTTLE(1.0, "WARN! terminal point of the current trajectory is in obstacle, try tail fallback.");
 
-          force_stop_type_ = STOP_FOR_ERROR;
-          return false;
+          Eigen::Vector3d anchor = cps_.points.col(in_id);
+          Eigen::Vector3d prefer_dir = anchor - local_target_pt_;
+          if (prefer_dir.norm() < 1e-3)
+            prefer_dir = Eigen::Vector3d::UnitX();
+          else
+            prefer_dir.normalize();
+
+          Eigen::Vector3d side_dir = prefer_dir.cross(Eigen::Vector3d::UnitZ());
+          if (side_dir.norm() < 1e-3)
+            side_dir = Eigen::Vector3d::UnitY();
+          else
+            side_dir.normalize();
+
+          std::vector<Eigen::Vector3d> dirs;
+          dirs.reserve(6);
+          dirs.push_back(prefer_dir);
+          dirs.push_back(-prefer_dir);
+          dirs.push_back(side_dir);
+          dirs.push_back(-side_dir);
+          dirs.push_back(Eigen::Vector3d::UnitZ());
+          dirs.push_back(-Eigen::Vector3d::UnitZ());
+
+          const double step = std::max(0.2, grid_map_->getResolution() * 2.0);
+          bool found_free = false;
+          Eigen::Vector3d fallback_pt = anchor;
+          for (int r = 1; r <= 12 && !found_free; ++r)
+          {
+            for (const auto &d : dirs)
+            {
+              Eigen::Vector3d cand = anchor + d * step * r;
+              if (!grid_map_->isInMap(cand))
+                continue;
+              if (!grid_map_->getInflateOccupancy(cand))
+              {
+                fallback_pt = cand;
+                found_free = true;
+                break;
+              }
+            }
+          }
+
+          if (!found_free)
+          {
+            ROS_WARN_THROTTLE(1.0, "WARN! terminal in obstacle and fallback failed, skip this planning.");
+            force_stop_type_ = STOP_FOR_ERROR;
+            return false;
+          }
+
+          out_id = std::min(cps_.size - 1, in_id + 1);
+          if (out_id <= in_id)
+          {
+            ROS_WARN_THROTTLE(1.0, "WARN! fallback out_id invalid, skip this planning.");
+            force_stop_type_ = STOP_FOR_ERROR;
+            return false;
+          }
+
+          cps_.points.col(out_id) = fallback_pt;
+          for (int k = out_id + 1; k < cps_.size; ++k)
+            cps_.points.col(k) = fallback_pt;
+
+          ROS_WARN_THROTTLE(1.0,
+                            "WARN! terminal in obstacle, fallback tail point to (%.2f, %.2f, %.2f)",
+                            fallback_pt.x(), fallback_pt.y(), fallback_pt.z());
         }
 
         i = j + 1;
