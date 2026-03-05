@@ -131,10 +131,12 @@ class PointCloudToWorld:
         range_count = initial_count
         if self.min_range is not None or self.max_range is not None:
             ranges = np.linalg.norm(points, axis=1)
+            range_mask = np.ones(points.shape[0], dtype=bool)
             if self.min_range is not None:
-                points = points[ranges >= float(self.min_range)]
+                range_mask &= (ranges >= float(self.min_range))
             if self.max_range is not None:
-                points = points[ranges <= float(self.max_range)]
+                range_mask &= (ranges <= float(self.max_range))
+            points = points[range_mask]
             range_count = points.shape[0]
 
         if points.size == 0:

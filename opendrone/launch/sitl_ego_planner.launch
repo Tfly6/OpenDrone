@@ -17,7 +17,7 @@
         <arg name="odom_topic" value="/mavros/local_position/odom"/>
         <arg name="max_vel" value="1.0" />
         <arg name="max_acc" value="2.0" />
-        <arg name="obstacles_inflation" value="0.25" />
+        <!-- <arg name="obstacles_inflation" value="0.25" /> -->
         <!-- <arg name="debug_map" default="false"/>
         <arg name="debug_fsm" default="false"/>
         <arg name="debug_planner" default="false"/>

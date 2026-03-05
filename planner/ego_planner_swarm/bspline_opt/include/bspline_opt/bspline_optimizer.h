@@ -125,6 +125,7 @@ namespace ego_planner
 
     inline int getOrder(void) { return order_; }
     inline double getSwarmClearance(void) { return swarm_clearance_; }
+    inline bool isTerminalInObstacleAbort(void) const { return terminal_in_obstacle_abort_; }
 
   private:
     GridMap::Ptr grid_map_;
@@ -171,6 +172,8 @@ namespace ego_planner
     double min_cost_;               //
 
     Eigen::Vector3d local_target_pt_; 
+
+    bool terminal_in_obstacle_abort_{false};
 
 #define INIT_min_ellip_dist_ 123456789.0123456789
     double min_ellip_dist_;

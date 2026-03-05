@@ -80,6 +80,8 @@ namespace ego_planner
     if (debug_planner_)
       ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] replan start dist=%.3f failures=%d", (start_pt - local_target_pt).norm(), continous_failures_count_);
 
+    last_replan_terminal_in_obstacle_ = false;
+
     bspline_optimizer_->setLocalTargetPt(local_target_pt);
 
     ros::Time t_start = ros::Time::now();
@@ -277,6 +279,8 @@ namespace ego_planner
         }
         else
         {
+          last_replan_terminal_in_obstacle_ =
+              last_replan_terminal_in_obstacle_ || bspline_optimizer_->isTerminalInObstacleAbort();
           cout << "traj " << trajs.size() - i << " failed." << endl;
         }
       }
@@ -288,6 +292,7 @@ namespace ego_planner
     else
     {
       flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, ts);
+      last_replan_terminal_in_obstacle_ = bspline_optimizer_->isTerminalInObstacleAbort();
       t_opt = ros::Time::now() - t_start;
       //static int vis_id = 0;
       visualization_->displayInitPathList(point_set, 0.2, 0);
@@ -353,6 +358,7 @@ namespace ego_planner
 
     // success. YoY
     continous_failures_count_ = 0;
+    last_replan_terminal_in_obstacle_ = false;
     if (debug_planner_)
       ROS_INFO_THROTTLE(debug_planner_interval_, "[planner] replan success time=%.3f", (t_init + t_opt + t_refine).toSec());
     return true;

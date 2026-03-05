@@ -688,7 +688,7 @@ void GridMap::clearAndInflateLocalMap()
           ++inflated_voxels;
       }
   md_.last_inflated_voxels_ = inflated_voxels;
-  ROS_INFO_THROTTLE(1.0, "[grid_map] local inflated voxels: %d", inflated_voxels);
+  ROS_INFO_THROTTLE(3.0, "[grid_map] local inflated voxels: %d", inflated_voxels);
 
   // add virtual ceiling to limit flight height
   if (mp_.virtual_ceil_height_ > -0.5) {
@@ -1073,6 +1073,8 @@ void GridMap::depthOdomCallback(const sensor_msgs::ImageConstPtr &img,
 void GridMap::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &cloud,
                                   const nav_msgs::OdometryConstPtr &odom)
   {
+    md_.has_cloud_ = true;
+
     /* get pose */
     Eigen::Quaterniond body_q = Eigen::Quaterniond(odom->pose.pose.orientation.w,
                                                    odom->pose.pose.orientation.x,
@@ -1141,5 +1143,5 @@ void GridMap::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &cloud,
     }
     // ROS_INFO_STREAM("Grid_map cb"<<"receive "<<md_.proj_points_cnt<<"points");
     md_.occ_need_update_ = true;
-    md_.flag_use_depth_fusion = true;
+    // md_.flag_use_depth_fusion = true;
   }

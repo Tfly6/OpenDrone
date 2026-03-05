@@ -562,7 +562,17 @@ namespace ego_planner
           else
           {
             ROS_ERROR("Failed to generate the first trajectory!!!");
-            changeFSMExecState(SEQUENTIAL_START, "FSM");
+            if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+            {
+              ROS_WARN("Target is in obstacle, skip planning and wait for a new valid target.");
+              have_target_ = false;
+              have_new_target_ = false;
+              changeFSMExecState(WAIT_TARGET, "FSM");
+            }
+            else
+            {
+              changeFSMExecState(SEQUENTIAL_START, "FSM");
+            }
           }
         }
         else
@@ -592,7 +602,17 @@ namespace ego_planner
       }
       else
       {
-        changeFSMExecState(GEN_NEW_TRAJ, "FSM");
+        if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+        {
+          ROS_WARN("Target is in obstacle, skip planning and wait for a new valid target.");
+          have_target_ = false;
+          have_new_target_ = false;
+          changeFSMExecState(WAIT_TARGET, "FSM");
+        }
+        else
+        {
+          changeFSMExecState(GEN_NEW_TRAJ, "FSM");
+        }
       }
       break;
     }
@@ -607,6 +627,15 @@ namespace ego_planner
       }
       else
       {
+        if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+        {
+          ROS_WARN("Target is in obstacle, skip planning and wait for a new valid target.");
+          have_target_ = false;
+          have_new_target_ = false;
+          changeFSMExecState(WAIT_TARGET, "FSM");
+          break;
+        }
+
         const int replan_fail_times = timesOfConsecutiveStateCalls().first;
         bool recovered_by_global = false;
         bool recovered_by_escape = false;
@@ -734,9 +763,12 @@ namespace ego_planner
     const int inflated = map->getLastInflatedVoxelCount();
     const size_t cloud_pts = map->getLastCloudPointCount();
     const bool has_depth = map->hasDepthObservation();
+    const bool has_cloud_obs = map->hasCloudObservation();
     const bool cloud_ready = static_cast<int>(cloud_pts) >= map_ready_min_cloud_;
     const bool depth_ready = has_depth;
-    const bool ready_now = inflated >= map_ready_min_inflated_ && (cloud_ready || depth_ready);
+    // Do not block planning by inflated-voxel count.
+    // As long as either depth stream or pointcloud stream is observed, map is considered ready.
+    const bool ready_now = depth_ready || has_cloud_obs;
 
     if (ready_now)
     {
@@ -754,8 +786,8 @@ namespace ego_planner
     if (debug_fsm_)
     {
       ROS_INFO_THROTTLE(debug_fsm_interval_,
-                        "[FSM] map_ready=%d inflated=%d cloud=%zu depth=%d hold=%.1f/%.1f",
-                        ready, inflated, cloud_pts, has_depth,
+                        "[FSM] map_ready=%d inflated=%d cloud=%zu cloud_ready=%d depth=%d cloud_obs=%d hold=%.1f/%.1f",
+                        ready, inflated, cloud_pts, cloud_ready, has_depth, has_cloud_obs,
                         map_ready_start_time_.isZero() ? 0.0 : (ros::Time::now() - map_ready_start_time_).toSec(),
                         map_ready_hold_time_);
     }
@@ -783,6 +815,12 @@ namespace ego_planner
           ROS_INFO_THROTTLE(debug_fsm_interval_, "[FSM] planFromGlobalTraj success trial=%d", i + 1);
         return true;
       }
+      if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+      {
+        if (debug_fsm_)
+          ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromGlobalTraj abort: target in obstacle");
+        return false;
+      }
     }
     if (debug_fsm_)
       ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromGlobalTraj failed trials=%d", trial_times);
@@ -806,13 +844,33 @@ namespace ego_planner
 
     if (!success)
     {
+      if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+      {
+        if (debug_fsm_)
+          ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromCurrentTraj abort: target in obstacle");
+        return false;
+      }
+
       success = callReboundReplan(true, false);
       //changeFSMExecState(EXEC_TRAJ, "FSM");
       if (!success)
       {
+        if (planner_manager_->isLastReplanFailedForTerminalInObstacle())
+        {
+          if (debug_fsm_)
+            ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromCurrentTraj abort: target in obstacle");
+          return false;
+        }
+
         for (int i = 0; i < trial_times; i++)
         {
           success = callReboundReplan(true, true);
+          if (!success && planner_manager_->isLastReplanFailedForTerminalInObstacle())
+          {
+            if (debug_fsm_)
+              ROS_WARN_THROTTLE(debug_fsm_interval_, "[FSM] planFromCurrentTraj abort in random retry: target in obstacle");
+            return false;
+          }
           if (success)
             break;
         }
