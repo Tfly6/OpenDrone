@@ -182,6 +182,7 @@ public:
   void publishDepth();
 
   bool hasDepthObservation();
+  bool hasCloudObservation() const { return md_.has_cloud_; }
   bool odomValid();
   void getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size);
   inline double getResolution();

@@ -43,6 +43,7 @@ namespace ego_planner
     void setDroneIdtoOpt(void) { bspline_optimizer_->setDroneId(pp_.drone_id); }
 
     double getSwarmClearance(void) { return bspline_optimizer_->getSwarmClearance(); }
+    bool isLastReplanFailedForTerminalInObstacle(void) const { return last_replan_terminal_in_obstacle_; }
 
     bool checkCollision(int drone_id);
     
@@ -63,6 +64,7 @@ namespace ego_planner
     BsplineOptimizer::Ptr bspline_optimizer_;
 
     int continous_failures_count_{0};
+    bool last_replan_terminal_in_obstacle_{false};
 
   bool debug_planner_{false};
   double debug_planner_interval_{1.0};
