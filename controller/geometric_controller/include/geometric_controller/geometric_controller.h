@@ -151,9 +151,9 @@ class geometricCtrl {
   void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
   void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
-  void pubPoseHistory();
+  // void pubPoseHistory();
   void pubSystemStatus();
-  void appendPoseHistory();
+  // void appendPoseHistory();
   void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
   void targetCallback(const geometry_msgs::TwistStamped &msg);
   void flattargetCallback(const controller_msgs::FlatTarget &msg);

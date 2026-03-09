@@ -72,7 +72,7 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   angularVelPub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 1);
   referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 1);
   target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
-  posehistoryPub_ = nh_.advertise<nav_msgs::Path>("geometric_controller/path", 10);
+  // posehistoryPub_ = nh_.advertise<nav_msgs::Path>("geometric_controller/path", 10);
   systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
@@ -419,15 +419,15 @@ void geometricCtrl::pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vec
   angularVelPub_.publish(msg);
 }
 
-void geometricCtrl::pubPoseHistory() {
-  nav_msgs::Path msg;
+// void geometricCtrl::pubPoseHistory() {
+//   nav_msgs::Path msg;
 
-  msg.header.stamp = ros::Time::now();
-  msg.header.frame_id = "map";
-  msg.poses = posehistory_vector_;
+//   msg.header.stamp = ros::Time::now();
+//   msg.header.frame_id = "map";
+//   msg.poses = posehistory_vector_;
 
-  posehistoryPub_.publish(msg);
-}
+//   posehistoryPub_.publish(msg);
+// }
 
 void geometricCtrl::pubSystemStatus() {
   mavros_msgs::CompanionProcessStatus msg;
@@ -439,12 +439,12 @@ void geometricCtrl::pubSystemStatus() {
   systemstatusPub_.publish(msg);
 }
 
-void geometricCtrl::appendPoseHistory() {
-  posehistory_vector_.insert(posehistory_vector_.begin(), vector3d2PoseStampedMsg(mavPos_, mavAtt_));
-  if (posehistory_window_ != 0 && posehistory_vector_.size() > posehistory_window_) {
-    posehistory_vector_.pop_back();
-  }
-}
+// void geometricCtrl::appendPoseHistory() {
+//   posehistory_vector_.insert(posehistory_vector_.begin(), vector3d2PoseStampedMsg(mavPos_, mavAtt_));
+//   if (posehistory_window_ != 0 && posehistory_vector_.size() > posehistory_window_) {
+//     posehistory_vector_.pop_back();
+//   }
+// }
 
 geometry_msgs::PoseStamped geometricCtrl::vector3d2PoseStampedMsg(Eigen::Vector3d &position,
                                                                   Eigen::Vector4d &orientation) {
