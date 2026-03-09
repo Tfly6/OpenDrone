@@ -1,0 +1,47 @@
+<launch>
+  <arg name="mass" default="1.5"/>
+  <arg name="hover_thrust" default="0.7"/>
+  <arg name="enable_sim" default="true"/>
+
+
+  <node name="mav_nonlinear_mpc" pkg="mav_nonlinear_mpc" type="nonlinear_mpc_node" respawn="true" clear_params="true" output="screen">
+    <remap from="odometry" to="/mavros/local_position/odom" />
+    <rosparam file="$(find mav_nonlinear_mpc)/resources/nonlinear_mpc_iris.yaml" />
+    <rosparam file="$(find mav_disturbance_observer)/resources/disturbance_observer_iris.yaml"/>
+    <param name="verbose" value="true" />
+    <param name="reference_frame" value="map"/>
+    <param name="control_interface/enable_auto_takeoff" value="true" />
+    <param name="control_interface/enable_auto_land" value="true" />
+    <param name="control_interface/enable_geofence" value="true" />
+    <param name="control_interface/geo_fence/x" value="10.0" />
+    <param name="control_interface/geo_fence/y" value="10.0" />
+    <param name="control_interface/geo_fence/z" value="5.0" />
+    <param name="control_interface/mode_request_interval" value="1.0" />
+    <param name="control_interface/state_topic" value="/mavros/state" />
+    <param name="control_interface/set_mode_service" value="/mavros/set_mode" />
+  </node>
+
+  <node name="px4_attitude_bridge" pkg="mav_control_interface" type="px4_attitude_bridge_node" output="screen" clear_params="true">
+    <param name="odometry_topic" value="/mavros/local_position/odom"/>
+    <param name="state_topic" value="/mavros/state"/>
+    <param name="set_mode_service" value="/mavros/set_mode"/>
+    <param name="arming_service" value="/mavros/cmd/arming"/>
+    <param name="attitude_target_topic" value="/mavros/setpoint_raw/attitude"/>
+    <param name="mass" value="$(arg mass)"/>
+    <param name="hover_thrust" value="$(arg hover_thrust)"/>
+    <param name="enable_sim" value="$(arg enable_sim)"/>
+    <param name="odom_timeout" value="0.5"/>
+    <param name="command_timeout" value="0.5"/>
+    <param name="setpoint_rate" value="50.0"/>
+    <param name="enable_command_lpf" value="true"/>
+    <param name="attitude_lpf_tau" value="0.12"/>
+    <param name="yawrate_lpf_tau" value="0.16"/>
+    <param name="thrust_lpf_tau" value="0.22"/>
+    <param name="enable_auto_offboard" value="true"/>
+    <param name="enable_auto_arm" value="true"/>
+    <param name="offboard_warmup_count" value="100"/>
+    <param name="request_interval" value="1.0"/>
+    <param name="thrust_min" value="0.0"/>
+    <param name="thrust_max" value="1.0"/>
+  </node>
+</launch>

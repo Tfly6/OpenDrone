@@ -1,0 +1,36 @@
+## Kalman Filter Parameters for PX4 Gazebo iris
+KF_observer:
+  calibration_duration: 5
+
+  P0_position: 0.1
+  P0_velocity: 0.1
+  P0_attitude: 0.1
+  P0_angular_velocity: 0.1
+  P0_force: 0.1
+  P0_torque: 0.1
+
+  q_position: 0.01
+  q_velocity: 0.025
+  q_attitude: 0.015
+  q_angular_velocity: 0.02
+  q_force: 0.1
+  q_torque: 0.1
+
+  r_position: 0.001
+  r_velocity: 0.0012
+  r_attitude: 0.01
+
+  omega_limit: [3.0, 3.0, 2.0]
+  external_forces_limit: [5.0, 5.0, 3.0]
+  external_moments_limit: [20.0, 20.0, 20.0]
+
+  drag_coefficients: [0.01, 0.01, 0.0]
+  roll_omega: 7.07
+  roll_damping: 0.72
+  roll_gain: 0.8
+  pitch_omega: 7.07
+  pitch_damping: 0.76
+  pitch_gain: 0.84
+  yaw_omega: 5.0
+  yaw_damping: 0.95
+  yaw_gain: 1.0
