@@ -47,7 +47,7 @@ using namespace Eigen;
 using namespace std;
 // Constructor
 geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
-    : nh_(nh), nh_private_(nh_private), node_state(WAITING_FOR_HOME_POSE) {
+    : nh_(nh), nh_private_(nh_private), node_state_(WAITING_FOR_HOME_POSE) {
   referenceSub_ =
       nh_.subscribe("reference/setpoint", 1, &geometricCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   flatreferenceSub_ = nh_.subscribe("reference/flatsetpoint", 1, &geometricCtrl::flattargetCallback, this,
@@ -84,11 +84,12 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   nh_private_.param<string>("mavname", mav_name_, "iris");
   nh_private_.param<int>("ctrl_mode", ctrl_mode_, ERROR_QUATERNION);
   nh_private_.param<bool>("enable_sim", sim_enable_, true);
+  nh_private_.param<bool>("debug", debugFlag_, false);
   nh_private_.param<bool>("velocity_yaw", velocity_yaw_, false);
   nh_private_.param<double>("max_acc", max_fb_acc_, 4.0);
   nh_private_.param<double>("max_vel", max_vel_, 2.0);
   nh_private_.param<double>("yaw_heading", mavYaw_, 0.0);
-
+  
   double dx, dy, dz;
   nh_private_.param<double>("drag_dx", dx, 0.0);
   nh_private_.param<double>("drag_dy", dy, 0.0);
@@ -115,9 +116,16 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   // nh_private_.param<double>("init_pos_z", initTargetPos_z_, 2.0);
 
   // targetPos_ << initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;  // Initial Position
-  targetVel_ << 0.0, 0.0, 0.0;
-  mavPos_ << 0.0, 0.0, 0.0;
-  mavVel_ << 0.0, 0.0, 0.0;
+  targetPos_.setZero();
+  targetVel_.setZero();
+  targetAcc_.setZero();
+  targetJerk_.setZero();
+  targetSnap_.setZero();
+  mavPos_.setZero();
+  mavVel_.setZero();
+  
+  prev_node_state_ = node_state_;
+  targetPos_[2] = takeoff_height_;
   Kpos_ << -Kpos_x_, -Kpos_y_, -Kpos_z_;
   Kvel_ << -Kvel_x_, -Kvel_y_, -Kvel_z_;
 
@@ -226,8 +234,8 @@ void geometricCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
   }
   mavPos_ = toEigen(msg.pose.position);
   for(int i = 0;i<3;i++){
-    if(mavPos_[i] > geo_fence_[i]){
-        node_state = EMERGENCY;
+    if(mavPos_[i] > geo_fence_[i] || mavPos_[i] < -geo_fence_[i]){
+        node_state_ = EMERGENCY;
         break;
     }
   }
@@ -244,31 +252,35 @@ void geometricCtrl::mavtwistCallback(const geometry_msgs::TwistStamped &msg) {
 
 bool geometricCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
   ROS_INFO("trigger land!");
-  node_state = LANDING;
+  node_state_ = LANDING;
   return true;
 }
 
 void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
-  switch (node_state) {
+  if (node_state_ != prev_node_state_) {
+    ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
+    prev_node_state_ = node_state_;
+  }
+  switch (node_state_) {
     case WAITING_FOR_HOME_POSE:
       waitForPredicate(&received_home_pose, "Waiting for home pose...");
       ROS_INFO("Got pose! Drone Ready to be armed.");
       ROS_INFO("Drone will takeoff to %lf[m]", takeoff_height_);
       // cout << takeoff_height_ <<std::endl;
-      if(!takeoffFlag_){
-        double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
-        double takeoffVel = max_fb_acc_ * t;
-        // targetVel_[0] = mavVel_[0];
-        // targetVel_[1] = mavVel_[1];
-        // ROS_INFO("vel:%lf", takeoffVel);
-        targetVel_[2] = min(takeoffVel, max_vel_);
-        targetAcc_[2] = max_fb_acc_;
-      }
+      // if(!takeoffFlag_){
+      //   double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
+      //   double takeoffVel = sqrt((2 * takeoff_height_ * max_fb_acc_));
+      //   targetVel_[0] = mavVel_[0];
+      //   targetVel_[1] = mavVel_[1];
+      //   ROS_INFO("vel:%lf", takeoffVel);
+      //   targetVel_[2] = min(takeoffVel, max_vel_);
+      //   targetAcc_[2] = 0.5;
+      // }
       if(received_home_pose){
-        node_state = MISSION_EXECUTION;
+        node_state_ = MISSION_EXECUTION;
       }
       
-      // node_state = TAKEOFF;
+      // node_state_ = TAKEOFF;
       break;
     
     // case TAKEOFF: {
@@ -280,7 +292,7 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     //   if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
     //     ROS_INFO("takeoff completed");
     //     targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
-    //     node_state = MISSION_EXECUTION;
+    //     node_state_ = MISSION_EXECUTION;
     //   }
         
     //   // ros::spinOnce();
@@ -289,11 +301,11 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
 
     case MISSION_EXECUTION: {
       if(fabs(mavPos_(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
-        ROS_INFO("takeoff completed");
-        takeoffFlag_ = true;
-      }      
+          ROS_INFO("takeoff completed");
+          takeoffFlag_ = true;
+      }
       Eigen::Vector3d desired_acc;
-      if (feedthrough_enable_) {
+      if(feedthrough_enable_) {
         desired_acc = targetAcc_;
       } else {
         desired_acc = controlPosition(targetPos_, targetVel_, targetAcc_);
@@ -301,8 +313,8 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       computeBodyRateCmd(cmdBodyRate_, desired_acc);
       pubReferencePose(targetPos_, q_des); // reference/pose
       pubRateCommands(cmdBodyRate_, q_des); // command/bodyrate_command
-      appendPoseHistory();
-      pubPoseHistory();
+      // appendPoseHistory();
+      // pubPoseHistory();
       break;
     }
 
@@ -317,7 +329,7 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
           ROS_INFO("land enabled");
       }
-      node_state = LANDED;
+      node_state_ = LANDED;
       // ros::spinOnce();
       break;
     }
@@ -332,7 +344,7 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
       if(!current_state_.armed){
         ROS_WARN("Not arm, nothing to do");
-        node_state = LANDED;
+        node_state_ = LANDED;
         break;
       } 
       geometry_msgs::PoseStamped msg;
@@ -344,7 +356,7 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     }
   }
   std_msgs::Int8 msg;
-  msg.data = node_state;
+  msg.data = node_state_;
   nodeStatePub_.publish(msg);
 }
 
@@ -354,7 +366,7 @@ void geometricCtrl::statusloopCallback(const ros::TimerEvent &event) {
   if (sim_enable_) {
     // Enable OFFBoard mode and arm automatically
     // This will only run if the vehicle is simulated
-    if(node_state != LANDED && node_state != LANDING) {
+    if(node_state_ != WAITING_FOR_HOME_POSE && node_state_ != LANDED && node_state_ != LANDING) {
       mavros_msgs::SetMode offb_set_mode;
       arm_cmd_.request.value = true;
       offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -374,7 +386,7 @@ void geometricCtrl::statusloopCallback(const ros::TimerEvent &event) {
     } 
   }
   else{
-    if( current_state_.mode == "OFFBOARD" && node_state != LANDED && node_state != LANDING){
+    if( current_state_.mode == "OFFBOARD" && node_state_ != WAITING_FOR_HOME_POSE && node_state_ != LANDED && node_state_ != LANDING){
       arm_cmd_.request.value = true;
       if( !current_state_.armed){
           if( arming_client_.call(arm_cmd_) &&arm_cmd_.response.success){
@@ -495,6 +507,9 @@ void geometricCtrl::computeBodyRateCmd(Eigen::Vector4d &bodyrate_cmd, const Eige
   controller_->Update(mavAtt_, q_des, a_des, targetJerk_);  // Calculate BodyRate
   bodyrate_cmd.head(3) = controller_->getDesiredRate();
   double thrust_command = controller_->getDesiredThrust().z();
+  if(debugFlag_){
+    ROS_INFO_STREAM_THROTTLE(5.0, "desired acc: " << a_des.transpose() << " thrust command: " << thrust_command);
+  }
   bodyrate_cmd(3) =
       std::max(0.0, std::min(1.0, norm_thrust_const_ * thrust_command +
                                       norm_thrust_offset_));  // Calculate thrustcontroller_->getDesiredThrust()(3);
