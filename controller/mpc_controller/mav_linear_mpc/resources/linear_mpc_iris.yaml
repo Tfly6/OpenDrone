@@ -1,9 +1,9 @@
 ## Controller Parameters for PX4 Gazebo iris
 mass: 1.50
-roll_time_constant: 0.23
-pitch_time_constant: 0.24
-roll_gain: 0.88
-pitch_gain: 0.88
+roll_time_constant: 0.15
+pitch_time_constant: 0.15
+roll_gain: 1.0
+pitch_gain: 1.0
 drag_coefficients: [0.01, 0.01, 0.0]
 
 q_x: 40
@@ -17,12 +17,12 @@ q_vz: 35
 q_roll: 20
 q_pitch: 20
 
-r_roll: 35
-r_pitch: 55
+r_roll: 20
+r_pitch: 30
 r_thrust: 1.2
 
-r_droll: 0.3
-r_dpitch: 0.7
+r_droll: 0.5
+r_dpitch: 1.0
 r_dthrust: 0.002
 
 roll_max: deg(25.0)
@@ -33,13 +33,13 @@ thrust_max: 20
 
 K_yaw: 1.8
 
-Ki_xy: 0.12
+Ki_xy: 0.06
 Ki_z: 0.22
 position_error_integration_limit: 2
 antiwindup_ball: 0.30
 
 enable_offset_free: false
-enable_integrator: false
+enable_integrator: true
 
 sampling_time: 0.01
 prediction_sampling_time: 0.1

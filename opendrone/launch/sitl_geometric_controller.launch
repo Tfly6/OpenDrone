@@ -12,7 +12,6 @@
             <remap from="command/bodyrate_command" to="/mavros/setpoint_raw/attitude"/>
             <param name="ctrl_mode" value="$(arg command_input)" />
             <param name="enable_sim" value="$(arg gazebo_simulation)" />
-            <param name="enable_gazebo_state" value="true"/>
             <param name="posehistory_window" value="0" />
             <!-- <param name="max_acc" value="10.0" /> -->
             <param name="max_acc" value="$(arg max_acc)" />

@@ -11,6 +11,8 @@
     <param name="verbose" value="true" />
     <param name="reference_frame" value="map"/>
     <param name="control_interface/enable_auto_takeoff" value="true" />
+    <param name="control_interface/takeoff_distance" value="2.0" />
+    <param name="control_interface/takeoff_time" value="5.0" />
     <param name="control_interface/enable_auto_land" value="true" />
     <param name="control_interface/enable_geofence" value="true" />
     <param name="control_interface/geo_fence/x" value="10.0" />

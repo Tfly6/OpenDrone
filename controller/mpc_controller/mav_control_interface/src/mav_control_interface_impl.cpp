@@ -24,7 +24,6 @@
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
 #include "mav_control_interface_impl.h"
-#include "parameters.h"
 
 namespace mav_control_interface {
 
@@ -91,10 +90,10 @@ MavControlInterfaceImpl::MavControlInterfaceImpl(ros::NodeHandle& nh, ros::NodeH
 
   state_machine_.reset(new state_machine::StateMachine(nh_, private_nh_, controller));
 
-  Parameters p;
-  interface_nh.param("takeoff_distance", p.takeoff_distance_, Parameters::kDefaultTakeoffDistance);
-  interface_nh.param("takeoff_time", p.takeoff_time_, Parameters::kDefaultTakeoffTime);
-  state_machine_->SetParameters(p);
+  double takeoff_distance, takeoff_time;
+  interface_nh.param("takeoff_distance", takeoff_distance, 2.0);
+  interface_nh.param("takeoff_time", takeoff_time, 5.0);
+  state_machine_->SetParameters(takeoff_distance, takeoff_time);
 
   ROS_INFO_STREAM("Created control interface for controller " << controller->getName());
   ROS_INFO_STREAM("Control safety config: auto_takeoff=" << (enable_auto_takeoff_ ? "true" : "false")

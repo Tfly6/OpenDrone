@@ -39,7 +39,6 @@
 #include <tf/transform_broadcaster.h>
 
 #include <mav_control_interface/position_controller_interface.h>
-#include "parameters.h"
 
 #include <visualization_msgs/Marker.h>
 
@@ -140,7 +139,7 @@ class StateMachineDefinition : public msm_front::state_machine_def<StateMachineD
     fsm.PublishStateInfo("leaving StateMachine");
   }
 
-  void SetParameters(const Parameters& parameters);
+  void SetParameters(double takeoff_distance, double takeoff_time);
 
  private:
   static constexpr int64_t kOdometryOutdated_ns = 1000000000;
@@ -153,7 +152,8 @@ class StateMachineDefinition : public msm_front::state_machine_def<StateMachineD
   ros::Publisher current_reference_publisher_;
   ros::Publisher predicted_state_publisher_;
   ros::Publisher full_predicted_state_publisher_;
-  Parameters parameters_;
+  double takeoff_distance_;
+  double takeoff_time_;
   mav_msgs::EigenOdometry current_state_;
   mav_msgs::EigenTrajectoryPointDeque current_reference_queue_;
 
@@ -232,12 +232,11 @@ class StateMachineDefinition : public msm_front::state_machine_def<StateMachineD
     template<class FSM, class SourceState, class TargetState>
     void operator()(const Takeoff& evt, FSM& fsm, SourceState& src_state, TargetState&)
     {
-      const Parameters& p = fsm.parameters_;
       mav_msgs::EigenOdometry& current_state = fsm.current_state_;
       mav_msgs::EigenTrajectoryPointDeque& current_reference_queue = fsm.current_reference_queue_;
       current_reference_queue.clear();
 
-      const double takeoff_time = std::max(0.1, p.takeoff_time_);
+      const double takeoff_time = std::max(0.1, fsm.takeoff_time_);
       const int64_t takeoff_time_ns = static_cast<int64_t>(takeoff_time * 1.0e9);
       const double current_yaw = mav_msgs::yawFromQuaternion(current_state.orientation_W_B);
 
@@ -253,7 +252,7 @@ class StateMachineDefinition : public msm_front::state_machine_def<StateMachineD
       mav_msgs::EigenTrajectoryPoint trajectory_point;
       trajectory_point.time_from_start_ns = takeoff_time_ns;
       trajectory_point.position_W = current_state.position_W;
-      trajectory_point.position_W.z() += p.takeoff_distance_;
+      trajectory_point.position_W.z() += fsm.takeoff_distance_;
       trajectory_point.velocity_W = Eigen::Vector3d::Zero();
       trajectory_point.acceleration_W = Eigen::Vector3d::Zero();
       trajectory_point.setFromYaw(current_yaw);

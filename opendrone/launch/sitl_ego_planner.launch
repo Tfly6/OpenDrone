@@ -1,4 +1,5 @@
 <launch>
+    <arg name="use_mpc" default="false" />
     <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
     <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/>
 
@@ -15,8 +16,8 @@
         <arg name="depth_topic" default="/camera/depth/image_raw"/>
         <!-- <arg name="depth_topic" default="/iris/camera/depth/image_raw"/> -->
         <arg name="odom_topic" value="/mavros/local_position/odom"/>
-        <arg name="max_vel" value="1.0" />
-        <arg name="max_acc" value="2.0" />
+        <arg name="max_vel" value="1.5" />
+        <arg name="max_acc" value="3.0" />
         <!-- <arg name="obstacles_inflation" value="0.25" /> -->
         <!-- <arg name="debug_map" default="false"/>
         <arg name="debug_fsm" default="false"/>
@@ -24,10 +25,23 @@
         <arg name="debug_astar" default="false"/> -->
     </include>
 
-    <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
-        <param name="fast_planner_traj_topic" value="/drone_0_planning/pos_cmd"/>
-        <param name="traj_pub_topic" value="/command/trajectory"/>
-    </node>
+    <!-- 当 use_mpc 为 true 时 -->
+    <group if="$(arg use_mpc)">
+        <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
+            <param name="planner_bspline_topic" value="/drone_0_planning/bspline"/>
+            <param name="publish_horizon_points" value="60"/>
+            <param name="publish_dt" value="0.02"/>
+            <param name="traj_pub_topic" value="/command/trajectory"/>
+        </node>
+    </group>
+
+    <!-- 当 use_mpc 为 false 时 -->
+    <group unless="$(arg use_mpc)">
+        <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
+            <param name="planner_traj_topic" value="/drone_0_planning/pos_cmd"/>
+            <param name="traj_pub_topic" value="/command/trajectory"/>
+        </node>
+    </group>
     
     <!-- rviz -->
     <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find opendrone)/rviz/rviz_ego.rviz" required="true" /> -->

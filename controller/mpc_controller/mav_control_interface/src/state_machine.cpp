@@ -45,9 +45,10 @@ StateMachineDefinition::StateMachineDefinition(const ros::NodeHandle& nh, const 
     nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>( "full_predicted_state", 1 );
 }
 
-void StateMachineDefinition::SetParameters(const Parameters& parameters)
+void StateMachineDefinition::SetParameters(double takeoff_distance, double takeoff_time)
 {
-  parameters_ = parameters;
+  takeoff_distance_ = takeoff_distance;
+  takeoff_time_ = takeoff_time;
 }
 
 void StateMachineDefinition::PublishAttitudeCommand (
