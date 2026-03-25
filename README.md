@@ -33,7 +33,17 @@
   # ./shell/trigger_land.sh
   ```
   
+- **mpc_controller**：参考了 [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw) ，包含了线性mpc和非线性mpc，此控制器尚在实验中。
+  启动：
   
+  ```bash
+  # 线性 mpc
+  roslaunch opendrone sitl_mpc_controller.launch
+  # 非线性 mpc
+  roslaunch opendrone sitl_nmpc_controller.launch
+  ```
+
+
 
 **规划器（planner）**
 
@@ -75,10 +85,10 @@ cd ~/catkin_ws && catkin init # 初始化工作空间
 catkin build
 ```
 
-- **依赖** 
+- **安装依赖** 
 
 ```bash
-sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev
+sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev liblapacke-dev
 sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs ros-$ROS_DISTRO-laser-geometry ros-$ROS_DISTRO-tf2-sensor-msgs
 ```
 
@@ -100,6 +110,8 @@ sudo make install
 cd ~/catkin_ws/src
 git clone --recursive https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
+# 编译 mpc 相关的包需要十几分钟，所以如果不用 mpc 可以用下面命令把它列入编译黑名单
+# catkin config --skiplist mav_control_interface mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
 catkin build
 ```
 ## 3. 运行
@@ -252,3 +264,7 @@ roslaunch opendrone sitl_ego_planner_mid360.launch
 [3] D. Mellinger and V. Kumar, “Minimum snap trajectory generation and control for quadrotors,” in Proc. of the IEEE Intl. Conf. on Robot. and Autom. (ICRA), Shanghai, China, May 2011, pp. 2520–2525.
 
 [4] X. Zhou, Z. Wang, H. Ye, C. Xu, and F. Gao, “EGO-Planner: An ESDFfree gradient-based local planner for quadrotors,” IEEE Robotics and Automation Letters, vol. 6, no. 2, pp. 478–485, 2021.
+
+[5] Model Predictive Control for Trajectory Tracking of Unmanned Aerial Vehicles Using Robot Operating System. Mina Kamel, Thomas Stastny, Kostas Alexis and Roland Siegwart. Robot Operating System (ROS) The Complete Reference Volume 2. Springer 2017
+
+[6] Linear vs Nonlinear MPC for Trajectory Tracking Applied to Rotary Wing Micro Aerial Vehicles. Mina Kamel, Michael Burri and Roland Siegwart. arXiv:1611.09240
