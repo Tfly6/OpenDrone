@@ -27,6 +27,7 @@
 #include <mav_planning_msgs/PolynomialSegment.h>
 #include <mav_planning_msgs/PolynomialTrajectory.h>
 #include <ros/ros.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <std_srvs/Empty.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
@@ -61,7 +62,11 @@ class TrajectorySamplerNode {
   ros::Subscriber trajectory_sub_;
   ros::Subscriber trajectory4D_sub_;
   ros::Publisher command_pub_;
+  ros::Publisher traj_trigger_pub_;
   ros::ServiceServer stop_srv_;
+
+  bool loop_trajectory_;
+  bool trigger_sent_;  // 防止重复触发
   ros::Time start_time_;
 
   // Service client for getting the MAV interface to listen to our sent

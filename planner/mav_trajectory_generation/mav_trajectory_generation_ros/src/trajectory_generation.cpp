@@ -35,6 +35,12 @@ TrajectoryGeneration::TrajectoryGeneration(ros::NodeHandle& nh) :
         nh.subscribe("/mavros/local_position/odom", 1, &TrajectoryGeneration::uavOdomCallback, this);
 
     sub_waypoint_ = nh.subscribe("/trajectory_generation/waypoint", 1, &TrajectoryGeneration::waypointCallback, this);
+
+    nh.param("loop_trajectory", loop_trajectory_, false);
+    nh.param("replan_ratio", replan_ratio_, 0.8);
+
+    // 20Hz 定时检查是否需要重规划
+    replan_timer_ = nh.createTimer(ros::Duration(0.05), &TrajectoryGeneration::checkAndReplan, this);
 }
 
 // Callback to get current Pose of UAV
@@ -73,9 +79,17 @@ void TrajectoryGeneration::planTrajectory() {
   vertices.push_back(start);
   for(int i = 0; i < waypoints_.size(); i++) {
     if(i == waypoints_.size()-1){
-      end.makeStartOrEnd(Eigen::Vector3d(waypoints_[i].position.x, 
-                                        waypoints_[i].position.y,
-                                        waypoints_[i].position.z), derivative_to_optimize_);
+      if (loop_trajectory_) {
+        // 循环模式：终点只约束位置，不强制速度为零，保持速度连续
+        end.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
+                          Eigen::Vector3d(waypoints_[i].position.x,
+                                          waypoints_[i].position.y,
+                                          waypoints_[i].position.z));
+      } else {
+        end.makeStartOrEnd(Eigen::Vector3d(waypoints_[i].position.x,
+                                          waypoints_[i].position.y,
+                                          waypoints_[i].position.z), derivative_to_optimize_);
+      }
     }
     else{
       mav_trajectory_generation::Vertex middle(dimension_);
@@ -92,22 +106,34 @@ void TrajectoryGeneration::planTrajectory() {
   std::vector<double> segment_times;
   segment_times = estimateSegmentTimes(vertices, max_v_, max_a_);
 
-  mav_trajectory_generation::NonlinearOptimizationParameters parameters;
-
-  // set up optimization problem
+  // 使用线性优化，速度远快于非线性优化，适合循环重规划场景
   const int N = 10;
-  mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension_, parameters);
+  mav_trajectory_generation::PolynomialOptimization<N> opt(dimension_);
   opt.setupFromVertices(vertices, segment_times, derivative_to_optimize_);
-
-  // constrain velocity and acceleration
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, max_v_);
-  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, max_a_);
-
-  // solve trajectory
-  opt.optimize();
-
+  opt.solveLinear();
   opt.getTrajectory(&trajectory);
+
+  // 记录轨迹时长和起始时间，供循环重规划使用
+  trajectory_duration_ = trajectory.getMaxTime();
+  trajectory_start_time_ = ros::Time::now();
+  trajectory_active_ = true;
+
   publishTrajectory(trajectory);
+}
+
+void TrajectoryGeneration::checkAndReplan(const ros::TimerEvent&) {
+  if (!loop_trajectory_ || !trajectory_active_ || waypoints_.empty()) return;
+
+  double elapsed = (ros::Time::now() - trajectory_start_time_).toSec();
+  double remaining_ratio = 1.0 - elapsed / trajectory_duration_;
+
+  // 当剩余时间比例低于阈值时触发重规划
+  if (remaining_ratio <= (1.0 - replan_ratio_)) {
+    ROS_INFO("[TrajectoryGeneration] Loop replan triggered (elapsed=%.2fs / %.2fs)",
+             elapsed, trajectory_duration_);
+    trajectory_active_ = false;  // 防止重复触发
+    planTrajectory();
+  }
 }
 
 bool TrajectoryGeneration::publishTrajectory(const mav_trajectory_generation::Trajectory& trajectory){

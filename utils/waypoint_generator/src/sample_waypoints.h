@@ -93,23 +93,11 @@ nav_msgs::Path circle()
         waypoints.poses.push_back(pt);
     }
     
-    if (num_points > 0) 
+    if (num_points > 0)
     {
-        // 将第一个点添加到末尾，确保闭合
-        pt = waypoints.poses[0];
-        waypoints.poses.push_back(pt);
-        pt = waypoints.poses[1];
-        waypoints.poses.push_back(pt);
-        pt = waypoints.poses[2];
-        // waypoints.poses.push_back(pt);
-        // pt = waypoints.poses[3];
-        // waypoints.poses.push_back(pt);
-        // 飞回圆心
-        pt.pose.position.y =  0.0 + center_x;
-        pt.pose.position.x =  0.0 + center_y;
-        pt.pose.position.z =  h;
-        pt.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-        waypoints.poses.push_back(pt);
+        // 重复前两个点，让多项式在接缝处平滑过渡，不强制飞回圆心
+        waypoints.poses.push_back(waypoints.poses[0]);
+        waypoints.poses.push_back(waypoints.poses[1]);
     }
 
     return waypoints;

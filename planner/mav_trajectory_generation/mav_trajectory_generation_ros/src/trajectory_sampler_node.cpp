@@ -26,13 +26,18 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
       nh_private_(nh_private),
       publish_whole_trajectory_(false),
       dt_(0.01),
-      current_sample_time_(0.0) {
+      current_sample_time_(0.0),
+      loop_trajectory_(false),
+      trigger_sent_(false) {
   nh_private_.param("publish_whole_trajectory", publish_whole_trajectory_,
                     publish_whole_trajectory_);
   nh_private_.param("dt", dt_, dt_);
+  nh_private_.param("loop_trajectory", loop_trajectory_, loop_trajectory_);
 
   command_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
       mav_msgs::default_topics::COMMAND_TRAJECTORY, 1); // command/trajectory
+  traj_trigger_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
+      "traj_start_trigger", 1);
   trajectory_sub_ = nh_.subscribe(
       "path_segments", 10, &TrajectorySamplerNode::pathSegmentsCallback, this);
   trajectory4D_sub_ = nh_.subscribe(
@@ -88,6 +93,7 @@ void TrajectorySamplerNode::pathSegments4DCallback(
 }
 
 void TrajectorySamplerNode::processTrajectory() {
+  trigger_sent_ = false;
   // Call the service call to takeover publishing commands.
   if (position_hold_client_.exists()) {
     std_srvs::Empty empty_call;
@@ -131,6 +137,14 @@ void TrajectorySamplerNode::commandTimerCallback(const ros::TimerEvent&) {
     current_sample_time_ += dt_;
   } else {
     publish_timer_.stop();
+    if (loop_trajectory_ && !trigger_sent_) {
+      trigger_sent_ = true;
+      geometry_msgs::PoseStamped trigger_msg;
+      trigger_msg.header.stamp = ros::Time::now();
+      trigger_msg.header.frame_id = "map";
+      traj_trigger_pub_.publish(trigger_msg);
+      ROS_INFO("Trajectory sampler: loop trigger sent.");
+    }
   }
 }
 
