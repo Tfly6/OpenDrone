@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /drone01
+        - /drone01/Planning1
+        - /drone01/Planning1/InitTraj1/Status1
         - /drone01/Planning1/drone_path1/Offset1
         - /drone01/Mapping1/map inflate1
       Splitter Ratio: 0.43611112236976624
@@ -75,19 +77,19 @@ Visualization Manager:
               Queue Size: 100
               Value: false
             - Class: rviz/Marker
-              Enabled: false
+              Enabled: true
               Marker Topic: /drone_0_ego_planner_node/global_list
               Name: global_path
               Namespaces:
                 {}
               Queue Size: 100
-              Value: false
+              Value: true
             - Class: rviz/Marker
               Enabled: true
               Marker Topic: /drone_0_ego_planner_node/optimal_list
               Name: optimal_traj
               Namespaces:
-                {}
+                "": true
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -99,13 +101,13 @@ Visualization Manager:
               Queue Size: 100
               Value: false
             - Class: rviz/Marker
-              Enabled: true
+              Enabled: false
               Marker Topic: /drone_0_ego_planner_node/init_list
               Name: InitTraj
               Namespaces:
                 {}
               Queue Size: 100
-              Value: true
+              Value: false
             - Alpha: 1
               Buffer Length: 1
               Class: rviz/Path
@@ -127,7 +129,7 @@ Visualization Manager:
               Radius: 0.029999999329447746
               Shaft Diameter: 0.10000000149011612
               Shaft Length: 0.10000000149011612
-              Topic: /geometric_controller/path
+              Topic: /drone_0_odom_visualization/path
               Unreliable: false
               Value: true
           Enabled: true
@@ -182,13 +184,13 @@ Visualization Manager:
           Value: true
         - Alpha: 1
           Class: rviz/Axes
-          Enabled: true
+          Enabled: false
           Length: 0.800000011920929
           Name: Axes
           Radius: 0.10000000149011612
           Reference Frame: base_link
           Show Trail: false
-          Value: true
+          Value: false
         - Class: rviz/Image
           Enabled: true
           Image Topic: /camera/depth/image_raw
@@ -229,6 +231,14 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_0_odom_visualization/robot
+          Name: drone
+          Namespaces:
+            drone: true
+          Queue Size: 100
+          Value: true
       Enabled: true
       Name: drone0
   Enabled: true
@@ -258,7 +268,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 16.906137466430664
+      Distance: 26.555665969848633
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -266,17 +276,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -2.362128257751465
-        Y: 0.4553588032722473
-        Z: 4.77113644592464e-07
+        X: 7.952546119689941
+        Y: 3.721078395843506
+        Z: 9.53950802795589e-07
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.584796667098999
+      Pitch: 0.4097968637943268
       Target Frame: <Fixed Frame>
-      Yaw: 3.1566083431243896
+      Yaw: 3.296612024307251
     Saved:
       - Class: rviz/FPS
         Enable Stereo Rendering:
@@ -345,7 +355,7 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 924
-  X: 70
+  X: 700
   Y: 27
   depth:
     collapsed: false

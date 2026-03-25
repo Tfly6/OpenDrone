@@ -39,6 +39,7 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
     node_state_ = WAITING_FOR_CONNECTED;
+    prev_node_state_ = node_state_;
     pid_type_ = static_cast<ControlType>(type);
     targetVel_ << 0.0, 0.0, 0.0;
     targetPos_ << 0, 0, takeoff_height_;
@@ -49,6 +50,10 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
 void pidCtrl::controlLoop(const ros::TimerEvent &event)
 {
+    if (node_state_ != prev_node_state_) {
+        ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
+        prev_node_state_ = node_state_;
+    }
     double dt = event.current_real.toSec() - event.last_real.toSec();
     switch (node_state_)
     {
@@ -63,7 +68,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
     }
     case WAITING_FOR_OFFBOARD:{
         // cout <<"check: " <<currState_.mode <<endl;
-        
         pubLocalPose(init_pose_);
         trigger_offboard();
         trigger_arm();
@@ -244,7 +248,7 @@ void pidCtrl::pos_cb(const geometry_msgs::PoseStamped &msg)
                  msg.pose.position.z;
 
     for(int i = 0;i<3;i++){
-        if(currPose_[i] > geo_fence_[i]){
+        if(currPose_[i] > geo_fence_[i] || currPose_[i] < -geo_fence_[i]){
             node_state_ = EMERGENCY;
             break;
         }

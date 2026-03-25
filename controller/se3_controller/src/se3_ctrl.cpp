@@ -37,6 +37,7 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 
     init_pose_ << 0, 0, 0.5;
     node_state_ = WAITING_FOR_CONNECTED;
+    prev_node_state_ = node_state_;
 
     kp_p_ << 0.85, 0.85, 1.5;
     kp_v_ << 1.5, 1.5, 1.5;
@@ -74,6 +75,22 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 
 
 void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
+    // exec_timer_.stop();
+
+    // Controller_Output_t output;
+    // if(se3_controller_.calControl(odom_data_, imu_data_, desired_state_, output)){
+    //     send_cmd(output, true);
+    //     desire_odom_pub_.publish(desire_odom_);
+    //     if(state_.mode == mavros_msgs::State::MODE_PX4_OFFBOARD && state_.armed == true){
+    //         se3_controller_.estimateTa(imu_data_.a);
+    //     }
+    // }
+    
+    // exec_timer_.start();
+    if (node_state_ != prev_node_state_) {
+        ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
+        prev_node_state_ = node_state_;
+    }
     switch (node_state_)
     {
     case WAITING_FOR_CONNECTED:{

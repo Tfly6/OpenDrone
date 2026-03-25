@@ -1,18 +1,22 @@
 <launch>
-  <arg name="max_acc" default="3" />
-  <arg name="max_vel" default="1.5" />
+  <arg name="max_acc" default="4" />
+  <arg name="max_vel" default="2.5" />
 
   <!--- Trajectory planner -->
   <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen">
         <param name="max_acc" value="$(arg max_acc)" />
         <param name="max_vel" value="$(arg max_vel)" />
+        <param name="loop_trajectory" value="true" />
+        <param name="replan_ratio" value="0.6" />
         <remap from="/trajectory_generation/waypoint" to="/waypoint_generator/waypoints" />
   </node>
 
   <!--- Trajectory sampler -->
   <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
         <param name="publish_whole_trajectory" value="false" />
+        <param name="loop_trajectory" value="true" />
         <remap from="path_segments_4D" to="/trajectory_generation/trajectory"/>
+        <remap from="traj_start_trigger" to="/waypoint_generator/traj_start_trigger"/>
   </node>
 
   <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">

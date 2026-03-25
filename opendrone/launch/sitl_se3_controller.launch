@@ -3,9 +3,9 @@
   <node pkg="se3_controller" type="se3_controller_node" name="se3_controller_node" output="screen">
     <param name="enable_sim" value="true" />
     <param name="takeoff_height" value="2.0" />
-    <param name="geo_fence/x" value="15.0"/>
-    <param name="geo_fence/y" value="15.0"/>
-    <param name="geo_fence/z" value="3.0"/>
+    <param name="geo_fence/x" value="50.0"/>
+    <param name="geo_fence/y" value="50.0"/>
+    <param name="geo_fence/z" value="6.0"/>
   </node>
 
   <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure"></node>

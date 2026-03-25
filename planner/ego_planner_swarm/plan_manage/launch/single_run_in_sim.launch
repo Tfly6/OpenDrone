@@ -118,15 +118,15 @@
         <remap from="~planning/bspline" to="drone_$(arg drone_id)_planning/bspline"/>
         <param name="traj_server/time_forward" value="1.0" type="double"/>
     </node>
-    <!-- use simulator -->
-    <!-- <include file="$(find ego_planner)/launch/simulator.xml">
-        <arg name="drone_id" value="$(arg drone_id)"/>
-        <arg name="map_size_x_" value="$(arg map_size_x)"/>
-        <arg name="map_size_y_" value="$(arg map_size_y)"/>
-        <arg name="map_size_z_" value="$(arg map_size_z)"/>
-        <arg name="init_x_" value="-15"/>
-        <arg name="init_y_" value="0"/>
-        <arg name="init_z_" value="0.1"/>
-        <arg name="odometry_topic" value="$(arg odom_topic)" />
-    </include> -->
+    <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization" type="odom_visualization" output="screen">
+        <remap from="~odom" to="$(arg odom_topic)"/>
+        <param name="color/a" value="1.0"/>
+        <param name="color/r" value="0.0"/>
+        <param name="color/g" value="0.0"/>
+        <param name="color/b" value="0.0"/>
+        <param name="covariance_scale" value="100.0"/>
+        <param name="robot_scale" value="0.35"/>
+        <param name="tf45" value="false"/>
+        <param name="drone_id" value="$(arg drone_id)"/>
+    </node>
 </launch>

@@ -12,26 +12,27 @@
             <remap from="command/bodyrate_command" to="/mavros/setpoint_raw/attitude"/>
             <param name="ctrl_mode" value="$(arg command_input)" />
             <param name="enable_sim" value="$(arg gazebo_simulation)" />
-            <param name="enable_gazebo_state" value="true"/>
             <param name="posehistory_window" value="0" />
             <!-- <param name="max_acc" value="10.0" /> -->
-            <param name="max_acc" value="3.0" />
-            <param name="max_vel" value="1.5" />
+            <param name="max_acc" value="$(arg max_acc)" />
+            <param name="max_vel" value="$(arg max_vel)" />
             <param name="takeoff_height" value="$(arg takeoff_height)" />
             <!--Params specific for Iris copter-->
             <param name="attctrl_constant" value="0.4"/>
-            <param name="normalizedthrust_constant" value="0.045"/>
+            <param name="normalizedthrust_constant" value="0.0612"/>
             <param name="normalizedthrust_offset" value="0.1"/>
             <param name="Kp_x" value="10.0" />
             <param name="Kp_y" value="10.0" />
-            <param name="Kp_z" value="5.0" />
+            <param name="Kp_z" value="20.0" />
             <param name="Kv_x" value="5.0"/>
             <param name="Kv_y" value="5.0"/>
-            <param name="Kv_z" value="8.0"/>
+            <param name="Kv_z" value="10.0"/>
 
             <param name="geo_fence/x" value="100"/>
             <param name="geo_fence/y" value="100"/>
             <param name="geo_fence/z" value="100"/>
+
+            <!-- <param name="debug" value="true"/> -->
     </node>
 
     <!-- Launch rqt_reconfigure -->

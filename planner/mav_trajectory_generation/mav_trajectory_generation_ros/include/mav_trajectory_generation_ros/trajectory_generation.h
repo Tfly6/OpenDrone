@@ -19,6 +19,7 @@
 #include "mav_trajectory_generation/polynomial_optimization_linear.h"
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include "mav_trajectory_generation_ros/ros_conversions.h"
+#include "mav_trajectory_generation/trajectory.h"
 
 
 class TrajectoryGeneration {
@@ -37,7 +38,8 @@ class TrajectoryGeneration {
   //                     const Eigen::VectorXd& goal_vel,
   //                     mav_trajectory_generation::Trajectory* trajectory);
   void planTrajectory();
-                      
+  void checkAndReplan(const ros::TimerEvent&);
+
 //   bool planTrajectory(const Eigen::VectorXd& goal_pos,
 //                       const Eigen::VectorXd& goal_vel,
 //                       const Eigen::VectorXd& start_pos,
@@ -55,6 +57,7 @@ class TrajectoryGeneration {
   ros::Publisher pub_trigger_;
   ros::Subscriber sub_odom_;
   ros::Subscriber sub_waypoint_;
+  ros::Timer replan_timer_;
 
   ros::NodeHandle& nh_;
   
@@ -68,6 +71,13 @@ class TrajectoryGeneration {
   double max_ang_a_;
   const int dimension_;
   const int derivative_to_optimize_ = mav_trajectory_generation::derivative_order::SNAP;
+
+  // 循环重规划相关
+  bool loop_trajectory_ = false;    // 是否开启循环模式
+  double trajectory_duration_ = 0.0; // 当前轨迹总时长
+  ros::Time trajectory_start_time_;  // 轨迹开始执行的时间
+  double replan_ratio_ = 0.8;        // 剩余比例触发重规划（默认80%时触发）
+  bool trajectory_active_ = false;   // 当前是否有轨迹在执行
 
 };
 #endif

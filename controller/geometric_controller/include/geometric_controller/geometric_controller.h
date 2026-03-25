@@ -124,6 +124,7 @@ class geometricCtrl {
   int ctrl_mode_;
   bool landing_commanded_{false};
   bool sim_enable_, takeoffFlag_{false};
+  bool debugFlag_;
   bool velocity_yaw_;
   double kp_rot_, kd_rot_;
   double reference_request_dt_;
@@ -151,9 +152,9 @@ class geometricCtrl {
   void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
   void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
-  void pubPoseHistory();
+  // void pubPoseHistory();
   void pubSystemStatus();
-  void appendPoseHistory();
+  // void appendPoseHistory();
   void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
   void targetCallback(const geometry_msgs::TwistStamped &msg);
   void flattargetCallback(const controller_msgs::FlatTarget &msg);
@@ -175,7 +176,26 @@ class geometricCtrl {
   Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
                                 Eigen::Vector4d &curr_att);
 
-  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } node_state;
+  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } node_state_, prev_node_state_;
+
+  std::string state2string(FlightState state) {
+    switch (state) {
+      case WAITING_FOR_HOME_POSE:
+        return "WAITING_FOR_HOME_POSE";
+      case MISSION_EXECUTION:
+        return "MISSION_EXECUTION";
+      case LANDING:
+        return "LANDING";
+      case LANDED:
+        return "LANDED";
+      case TAKEOFF:
+        return "TAKEOFF";
+      case EMERGENCY:
+        return "EMERGENCY";
+      default:
+        return "UNKNOWN_STATE";
+    }
+  }
 
   template <class T>
   void waitForPredicate(const T *pred, const std::string &msg, double hz = 2.0) {
