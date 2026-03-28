@@ -3,7 +3,7 @@
 
 **控制器（controller文件夹）**
 
-- **geometric_controller**：参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，包含了多个方法。
+- **geometric_controller**：参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，具体看 [README.md](./controller/geometric_controller/README.md)。
 
   启动：
 
@@ -13,7 +13,7 @@
   # ./shell/trigger_land.sh
   ```
 
-- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，包含了多个方法。
+- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/se3_controller/README.md)。
 
   启动：
 
@@ -23,7 +23,7 @@
   # ./shell/trigger_land.sh
   ```
 
-- **pid_controller**：里面包含了简单pid（仅供学习）和级联pid。
+- **pid_controller**：里面包含了简单pid（仅供学习）和级联pid，具体看 [README.md](./controller/pid_controller/README.md)。
 
   启动：
 

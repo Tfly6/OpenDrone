@@ -30,6 +30,7 @@ The geometric controller publishes and subscribes the following topics.
 	- reference/pose ( [geometry_msgs/PoseStamped](http://docs.ros.org/kinetic/api/geometry_msgs/html/msg/PoseStamped.html) )
 
 - Subscribed Topics
+	- command/trajectory[trajectory_msgs/MultiDOFJointTrajectory](https://docs.ros.org/en/melodic/api/trajectory_msgs/html/msg/MultiDOFJointTrajectory.html)
 	- reference/setpoint ( [geometry_msgs/TwistStamped](http://docs.ros.org/api/geometry_msgs/html/msg/TwistStamped.html) )
 	- /mavros/state ( [mavros_msgs/State](http://docs.ros.org/api/mavros_msgs/html/msg/State.html) )
 	- /mavros/local_position/pose ( [geometry_msgs/PoseStamped](http://docs.ros.org/kinetic/api/geometry_msgs/html/msg/PoseStamped.html) )
