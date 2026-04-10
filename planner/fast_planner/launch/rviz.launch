@@ -1,0 +1,3 @@
+<launch>
+  <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find fast_planner)/config/traj.rviz" />
+</launch>
