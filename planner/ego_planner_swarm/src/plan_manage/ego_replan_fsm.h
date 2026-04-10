@@ -13,10 +13,10 @@
 
 #include <bspline_opt/bspline_optimizer.h>
 #include <plan_env/grid_map.h>
-#include <traj_utils/Bspline.h>
-#include <traj_utils/MultiBsplines.h>
+#include <quadrotor_msgs/Bspline.h>
+#include <quadrotor_msgs/MultiBsplines.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <traj_utils/DataDisp.h>
+#include <quadrotor_msgs/DataDisp.h>
 #include <plan_manage/planner_manager.h>
 #include <traj_utils/planning_visualization.h>
 
@@ -50,8 +50,8 @@ namespace ego_planner
     /* planning utils */
     EGOPlannerManager::Ptr planner_manager_;
     PlanningVisualization::Ptr visualization_;
-    traj_utils::DataDisp data_disp_;
-    traj_utils::MultiBsplines multi_bspline_msgs_buf_;
+    quadrotor_msgs::DataDisp data_disp_;
+    quadrotor_msgs::MultiBsplines multi_bspline_msgs_buf_;
 
     /* parameters */
     int target_type_; // 1 mannual select, 2 hard code
@@ -129,8 +129,8 @@ namespace ego_planner
     void waypointCallback(const geometry_msgs::PoseStampedPtr &msg);
     void triggerCallback(const geometry_msgs::PoseStampedPtr &msg);
     void odometryCallback(const nav_msgs::OdometryConstPtr &msg);
-    void swarmTrajsCallback(const traj_utils::MultiBsplinesPtr &msg);
-    void BroadcastBsplineCallback(const traj_utils::BsplinePtr &msg);
+    void swarmTrajsCallback(const quadrotor_msgs::MultiBsplinesPtr &msg);
+    void BroadcastBsplineCallback(const quadrotor_msgs::BsplinePtr &msg);
 
     bool checkCollision();
     void publishSwarmTrajs(bool startup_pub);

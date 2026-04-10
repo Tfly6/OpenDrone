@@ -85,13 +85,13 @@ namespace ego_planner
       swarm_trajs_sub_ = nh.subscribe(sub_topic_name.c_str(), 10, &EGOReplanFSM::swarmTrajsCallback, this, ros::TransportHints().tcpNoDelay());
     }
     string pub_topic_name = string("/drone_") + std::to_string(planner_manager_->pp_.drone_id) + string("_planning/swarm_trajs");
-    swarm_trajs_pub_ = nh.advertise<traj_utils::MultiBsplines>(pub_topic_name.c_str(), 10);
+    swarm_trajs_pub_ = nh.advertise<quadrotor_msgs::MultiBsplines>(pub_topic_name.c_str(), 10);
 
-    broadcast_bspline_pub_ = nh.advertise<traj_utils::Bspline>("planning/broadcast_bspline_from_planner", 10);
+    broadcast_bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("planning/broadcast_bspline_from_planner", 10);
     broadcast_bspline_sub_ = nh.subscribe("planning/broadcast_bspline_to_planner", 100, &EGOReplanFSM::BroadcastBsplineCallback, this, ros::TransportHints().tcpNoDelay());
 
-    bspline_pub_ = nh.advertise<traj_utils::Bspline>("planning/bspline", 10);
-    data_disp_pub_ = nh.advertise<traj_utils::DataDisp>("planning/data_display", 100);
+    bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("planning/bspline", 10);
+    data_disp_pub_ = nh.advertise<quadrotor_msgs::DataDisp>("planning/data_display", 100);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
@@ -300,7 +300,7 @@ namespace ego_planner
     have_odom_ = true;
   }
 
-  void EGOReplanFSM::BroadcastBsplineCallback(const traj_utils::BsplinePtr &msg)
+  void EGOReplanFSM::BroadcastBsplineCallback(const quadrotor_msgs::BsplinePtr &msg)
   {
     size_t id = msg->drone_id;
     if ((int)id == planner_manager_->pp_.drone_id)
@@ -378,7 +378,7 @@ namespace ego_planner
     }
   }
 
-  void EGOReplanFSM::swarmTrajsCallback(const traj_utils::MultiBsplinesPtr &msg)
+  void EGOReplanFSM::swarmTrajsCallback(const quadrotor_msgs::MultiBsplinesPtr &msg)
   {
 
     multi_bspline_msgs_buf_.traj.clear();
@@ -991,7 +991,7 @@ namespace ego_planner
 
       auto info = &planner_manager_->local_data_;
 
-      traj_utils::Bspline bspline;
+      quadrotor_msgs::Bspline bspline;
       bspline.order = 3;
       bspline.start_time = info->start_time_;
       bspline.traj_id = info->traj_id_;
@@ -1031,7 +1031,7 @@ namespace ego_planner
   {
     auto info = &planner_manager_->local_data_;
 
-    traj_utils::Bspline bspline;
+    quadrotor_msgs::Bspline bspline;
     bspline.order = 3;
     bspline.start_time = info->start_time_;
     bspline.traj_id = info->traj_id_;
@@ -1119,7 +1119,7 @@ namespace ego_planner
   {
     auto info = &planner_manager_->local_data_;
 
-    traj_utils::Bspline bspline;
+    quadrotor_msgs::Bspline bspline;
     bspline.order = 3;
     bspline.start_time = info->start_time_;
     bspline.drone_id = planner_manager_->pp_.drone_id;
@@ -1174,7 +1174,7 @@ namespace ego_planner
     auto info = &planner_manager_->local_data_;
 
     /* publish traj */
-    traj_utils::Bspline bspline;
+    quadrotor_msgs::Bspline bspline;
     bspline.order = 3;
     bspline.start_time = info->start_time_;
     bspline.traj_id = info->traj_id_;

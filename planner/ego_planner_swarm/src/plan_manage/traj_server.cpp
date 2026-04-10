@@ -1,6 +1,6 @@
 #include "bspline_opt/uniform_bspline.h"
 #include "nav_msgs/Odometry.h"
-#include "traj_utils/Bspline.h"
+#include "quadrotor_msgs/Bspline.h"
 #include "quadrotor_msgs/PositionCommand.h"
 #include "std_msgs/Empty.h"
 #include "visualization_msgs/Marker.h"
@@ -24,7 +24,7 @@ int traj_id_;
 double last_yaw_, last_yaw_dot_;
 double time_forward_;
 
-void bsplineCallback(traj_utils::BsplineConstPtr msg)
+void bsplineCallback(quadrotor_msgs::BsplineConstPtr msg)
 {
   // parse pos traj
 

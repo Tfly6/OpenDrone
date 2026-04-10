@@ -74,6 +74,9 @@ add_message_files(
   Odometry.msg
   PolynomialTrajectory.msg
   LQRTrajectory.msg
+  Bspline.msg
+  DataDisp.msg
+  MultiBsplines.msg
 )
 
 generate_messages(

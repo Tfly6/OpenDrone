@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
-#include <traj_utils/MultiBsplines.h>
-#include <traj_utils/Bspline.h>
+#include <quadrotor_msgs/MultiBsplines.h>
+#include <quadrotor_msgs/Bspline.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Empty.h>
 
@@ -28,10 +28,10 @@ int drone_id_;
 double odom_broadcast_freq_;
 char send_buf_[BUF_LEN], recv_buf_[BUF_LEN], udp_recv_buf_[BUF_LEN], udp_send_buf_[BUF_LEN];
 struct sockaddr_in addr_udp_send_;
-traj_utils::MultiBsplinesPtr bsplines_msg_;
+quadrotor_msgs::MultiBsplinesPtr bsplines_msg_;
 nav_msgs::OdometryPtr odom_msg_;
 std_msgs::EmptyPtr stop_msg_;
-traj_utils::BsplinePtr bspline_msg_;
+quadrotor_msgs::BsplinePtr bspline_msg_;
 
 enum MESSAGE_TYPE
 {
@@ -186,7 +186,7 @@ int udp_bind_to_port(const int port, int &server_fd)
   return server_fd;
 }
 
-int serializeMultiBsplines(const traj_utils::MultiBsplinesPtr &msg)
+int serializeMultiBsplines(const quadrotor_msgs::MultiBsplinesPtr &msg)
 {
   char *ptr = send_buf_;
 
@@ -357,7 +357,7 @@ int serializeStop(const std_msgs::EmptyPtr &msg)
   return ptr - udp_send_buf_;
 }
 
-int serializeOneTraj(const traj_utils::BsplinePtr &msg)
+int serializeOneTraj(const quadrotor_msgs::BsplinePtr &msg)
 {
   char *ptr = udp_send_buf_;
 
@@ -417,7 +417,7 @@ int serializeOneTraj(const traj_utils::BsplinePtr &msg)
   return ptr - udp_send_buf_;
 }
 
-int deserializeOneTraj(traj_utils::BsplinePtr &msg)
+int deserializeOneTraj(quadrotor_msgs::BsplinePtr &msg)
 {
   char *ptr = udp_recv_buf_;
 
@@ -537,7 +537,7 @@ int deserializeOdom(nav_msgs::OdometryPtr &msg)
   return ptr - udp_recv_buf_;
 }
 
-int deserializeMultiBsplines(traj_utils::MultiBsplinesPtr &msg)
+int deserializeMultiBsplines(quadrotor_msgs::MultiBsplinesPtr &msg)
 {
   char *ptr = recv_buf_;
 
@@ -592,7 +592,7 @@ int deserializeMultiBsplines(traj_utils::MultiBsplinesPtr &msg)
   return ptr - recv_buf_;
 }
 
-void multitraj_sub_tcp_cb(const traj_utils::MultiBsplinesPtr &msg)
+void multitraj_sub_tcp_cb(const quadrotor_msgs::MultiBsplinesPtr &msg)
 {
   int len = serializeMultiBsplines(msg);
   if (send(send_sock_, send_buf_, len, 0) <= 0)
@@ -633,7 +633,7 @@ void emergency_stop_sub_udp_cb(const std_msgs::EmptyPtr &msg)
   }
 }
 
-void one_traj_sub_udp_cb(const traj_utils::BsplinePtr &msg)
+void one_traj_sub_udp_cb(const quadrotor_msgs::BsplinePtr &msg)
 {
 
   int len = serializeOneTraj(msg);
@@ -772,10 +772,10 @@ int main(int argc, char **argv)
   nh.param("drone_id", drone_id_, -1);
   nh.param("odom_max_freq", odom_broadcast_freq_, 1000.0);
 
-  bsplines_msg_.reset(new traj_utils::MultiBsplines);
+  bsplines_msg_.reset(new quadrotor_msgs::MultiBsplines);
   odom_msg_.reset(new nav_msgs::Odometry);
   stop_msg_.reset(new std_msgs::Empty);
-  bspline_msg_.reset(new traj_utils::Bspline);
+  bspline_msg_.reset(new quadrotor_msgs::Bspline);
 
   if (drone_id_ == -1)
   {
@@ -789,7 +789,7 @@ int main(int argc, char **argv)
   if ( drone_id_ >= 1 )
   {
     string pub_traj_topic_name = string("/drone_") + std::to_string(drone_id_ - 1) + string("_planning/swarm_trajs");
-    swarm_trajs_pub_ = nh.advertise<traj_utils::MultiBsplines>(pub_traj_topic_name.c_str(), 10);
+    swarm_trajs_pub_ = nh.advertise<quadrotor_msgs::MultiBsplines>(pub_traj_topic_name.c_str(), 10);
   }
 
   other_odoms_sub_ = nh.subscribe("my_odom", 10, odom_sub_udp_cb, ros::TransportHints().tcpNoDelay());
@@ -799,7 +799,7 @@ int main(int argc, char **argv)
   //emergency_stop_pub_ = nh.advertise<std_msgs::Empty>("emergency_stop_recv", 10);
 
   one_traj_sub_ = nh.subscribe("/broadcast_bspline", 100, one_traj_sub_udp_cb, ros::TransportHints().tcpNoDelay());
-  one_traj_pub_ = nh.advertise<traj_utils::Bspline>("/broadcast_bspline2", 100);
+  one_traj_pub_ = nh.advertise<quadrotor_msgs::Bspline>("/broadcast_bspline2", 100);
 
   boost::thread recv_thd(server_fun);
   recv_thd.detach();
