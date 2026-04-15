@@ -11,8 +11,7 @@ Authors: Mohamed Abdelkader
 import rospy
 import numpy as np
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
-from quadrotor_msgs.msg import PositionCommand
-from traj_utils.msg import Bspline
+from quadrotor_msgs.msg import PositionCommand, Bspline
 from geometry_msgs.msg import Transform, Twist
 from tf.transformations import quaternion_from_euler
 
