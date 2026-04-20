@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="lqr_controller_euler" type="lqr_controller_euler" pkg="lqr_controller" output="screen">
+		<rosparam command="load" file="$(find lqr_controller)/config/param.yaml" />
+	</node>
+</launch>
