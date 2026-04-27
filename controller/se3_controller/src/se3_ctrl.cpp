@@ -4,7 +4,6 @@
 se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
 {
     cmd_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
-    desire_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/desire_odom_pub", 10);
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
 
     set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -14,7 +13,6 @@ se3Ctrl::se3Ctrl(const ros::NodeHandle &nh):nh_(nh)
     odom_sub_ = nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 10, &se3Ctrl::OdomCallback, this);
     imu_sub_ = nh_.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &se3Ctrl::IMUCallback, this);
     state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &se3Ctrl::StateCallback, this);
-    desire_odom_sub_ = nh_.subscribe<nav_msgs::Odometry>("/desire_odom", 10, &se3Ctrl::DesireOdomCallback, this);
     multiDOFJoint_sub_ = nh_.subscribe("/command/trajectory", 10, &se3Ctrl::multiDOFJointCallback, this);
 
     exec_timer_ = nh_.createTimer(ros::Duration(0.01), &se3Ctrl::execFSMCallback, this);
@@ -130,7 +128,6 @@ void se3Ctrl::execFSMCallback(const ros::TimerEvent &e){
         Controller_Output_t output;
         if(se3_controller_.calControl(odom_data_, imu_data_, desired_state_, output)){
             send_cmd(output, true);
-            desire_odom_pub_.publish(desire_odom_);
             se3_controller_.estimateTa(imu_data_.a);
         }
         break;
@@ -168,6 +165,9 @@ void se3Ctrl::send_cmd(const Controller_Output_t &output, bool angle){
     cmd.orientation.y = output.q.y();
     cmd.orientation.z = output.q.z();
     cmd.thrust = output.thrust;
+    // ROS_INFO_STREAM_THROTTLE(3.0, "Publishing command: bodyrates [" << cmd.body_rate.x << ", " << cmd.body_rate.y << ", " << cmd.body_rate.z << "], "
+    //                          << "orientation [" << cmd.orientation.w << ", " << cmd.orientation.x << ", " << cmd.orientation.y << ", " << cmd.orientation.z << "], "
+    //                          << "thrust: " << cmd.thrust );
     if(angle){
         cmd.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE + 
                         mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE + 
@@ -218,29 +218,6 @@ void se3Ctrl::IMUCallback(const sensor_msgs::Imu::ConstPtr &msg){
 
 void se3Ctrl::StateCallback(const mavros_msgs::State::ConstPtr &msg){
     currState_ = *msg;
-}
-
-void se3Ctrl::DesireOdomCallback(const nav_msgs::Odometry::ConstPtr &msg){
-    desire_odom_ = *msg;
-
-    desired_state_.p(0) = msg->pose.pose.position.x;
-    desired_state_.p(1) = msg->pose.pose.position.y;
-    desired_state_.p(2) = msg->pose.pose.position.z;
-
-    desired_state_.v(0) = msg->twist.twist.linear.x;
-    desired_state_.v(1) = msg->twist.twist.linear.y;
-    desired_state_.v(2) = msg->twist.twist.linear.z;
-
-    desired_state_.a.setZero();
-    desired_state_.j.setZero();
-
-    desired_state_.q.w() = msg->pose.pose.orientation.w;
-    desired_state_.q.x() = msg->pose.pose.orientation.x;
-    desired_state_.q.y() = msg->pose.pose.orientation.y;
-    desired_state_.q.z() = msg->pose.pose.orientation.z;
-
-    desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
-    desired_state_.yaw_rate = 0.0;
 }
 
 void se3Ctrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) 
