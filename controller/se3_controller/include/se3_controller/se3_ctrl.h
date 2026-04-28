@@ -24,9 +24,8 @@ using namespace std;
 class se3Ctrl{
 private:
     ros::NodeHandle nh_;
-    ros::Publisher cmd_pub_, desire_odom_pub_, local_pos_pub_;
-    ros::Subscriber odom_sub_, imu_sub_, state_sub_;
-    ros::Subscriber desire_odom_sub_, desire_angle_sub_, multiDOFJoint_sub_;
+    ros::Publisher cmd_pub_, local_pos_pub_;
+    ros::Subscriber odom_sub_, imu_sub_, state_sub_, multiDOFJoint_sub_;
     ros::ServiceClient set_mode_client_;
     ros::ServiceClient arming_client_;
     ros::ServiceServer land_service_;
@@ -84,7 +83,6 @@ private:
     void OdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void IMUCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void StateCallback(const mavros_msgs::State::ConstPtr &msg);
-    void DesireOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
 
 
@@ -123,38 +121,38 @@ private:
 		limit_d_err_v_ = config.limit_d_err_v;
 		limit_d_err_a_ = config.limit_d_err_a;
 
-        ROS_INFO("desire posit: %f %f %f", config.desire_px, config.desire_py, config.desire_pz);
-        ROS_INFO("desire euler: %f %f %f", config.desire_roll, config.desire_pitch, config.desire_yaw);
+        // ROS_INFO("desire posit: %f %f %f", config.desire_px, config.desire_py, config.desire_pz);
+        // ROS_INFO("desire euler: %f %f %f", config.desire_roll, config.desire_pitch, config.desire_yaw);
 
-        desired_state_.p(0) = config.desire_px;
-        desired_state_.p(1) = config.desire_py;
-        desired_state_.p(2) = config.desire_pz;
+        // desired_state_.p(0) = config.desire_px;
+        // desired_state_.p(1) = config.desire_py;
+        // desired_state_.p(2) = config.desire_pz;
 
-        desired_state_.v.setZero();
-        desired_state_.a.setZero();
-        desired_state_.j.setZero();
+        // desired_state_.v.setZero();
+        // desired_state_.a.setZero();
+        // desired_state_.j.setZero();
 
-        Eigen::Quaterniond q = utils::euler2quat(config.desire_roll, config.desire_pitch, config.desire_yaw);
-        desired_state_.q.w() = q.w();
-        desired_state_.q.x() = q.x();
-        desired_state_.q.y() = q.y();
-        desired_state_.q.z() = q.z();
+        // Eigen::Quaterniond q = utils::euler2quat(config.desire_roll, config.desire_pitch, config.desire_yaw);
+        // desired_state_.q.w() = q.w();
+        // desired_state_.q.x() = q.x();
+        // desired_state_.q.y() = q.y();
+        // desired_state_.q.z() = q.z();
 
-        desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
-        desired_state_.yaw_rate = 0.0;
+        // desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
+        // desired_state_.yaw_rate = 0.0;
 
-        desire_odom_.pose.pose.position.x = desired_state_.p(0);
-        desire_odom_.pose.pose.position.y = desired_state_.p(1);
-        desire_odom_.pose.pose.position.z = desired_state_.p(2);
+        // desire_odom_.pose.pose.position.x = desired_state_.p(0);
+        // desire_odom_.pose.pose.position.y = desired_state_.p(1);
+        // desire_odom_.pose.pose.position.z = desired_state_.p(2);
 
-        desire_odom_.twist.twist.linear.x = desired_state_.v(0);
-        desire_odom_.twist.twist.linear.y = desired_state_.v(1);
-        desire_odom_.twist.twist.linear.z = desired_state_.v(2);
+        // desire_odom_.twist.twist.linear.x = desired_state_.v(0);
+        // desire_odom_.twist.twist.linear.y = desired_state_.v(1);
+        // desire_odom_.twist.twist.linear.z = desired_state_.v(2);
 
-        desire_odom_.pose.pose.orientation.w = desired_state_.q.w();
-        desire_odom_.pose.pose.orientation.x = desired_state_.q.x();
-        desire_odom_.pose.pose.orientation.y = desired_state_.q.y();
-        desire_odom_.pose.pose.orientation.z = desired_state_.q.z();
+        // desire_odom_.pose.pose.orientation.w = desired_state_.q.w();
+        // desire_odom_.pose.pose.orientation.x = desired_state_.q.x();
+        // desire_odom_.pose.pose.orientation.y = desired_state_.q.y();
+        // desire_odom_.pose.pose.orientation.z = desired_state_.q.z();
         
         se3_controller_.setup(kp_p_, kp_v_, kp_a_, kp_q_, kp_w_,
                                 kd_p_, kd_v_, kd_a_, kd_q_, kd_w_,

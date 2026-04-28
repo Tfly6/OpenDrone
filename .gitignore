@@ -1,5 +1,6 @@
 .vscode
 .catkin_tools
+__pycache__/
 build/
 devel/
 logs/
@@ -8,3 +9,4 @@ log.txt
 *.patch
 analysis_out/
 temp.md
+*.info

@@ -5,7 +5,6 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2 as pc2
 from std_msgs.msg import Header
-from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 
 
 class PointCloudToWorld:
@@ -91,7 +90,7 @@ class PointCloudToWorld:
                     exc2, self.tf_fail_count)
                 return
 
-        cloud_out = do_transform_cloud(msg, transform)
+        cloud_out = self._transform_cloud_with_fields(msg, transform)
         cloud_out.header.frame_id = self.target_frame
         if not self.filter_enable:
             self.pub.publish(cloud_out)
@@ -99,6 +98,49 @@ class PointCloudToWorld:
 
         filtered_cloud = self._filter_cloud(cloud_out)
         self.pub.publish(filtered_cloud)
+
+    def _transform_cloud_with_fields(self, cloud_msg, transform):
+        """手动变换点云，保留所有字段（如 intensity）"""
+        t = transform.transform.translation
+        q = transform.transform.rotation
+        R = np.array([
+            [1-2*(q.y*q.y+q.z*q.z), 2*(q.x*q.y-q.z*q.w), 2*(q.x*q.z+q.y*q.w)],
+            [2*(q.x*q.y+q.z*q.w), 1-2*(q.x*q.x+q.z*q.z), 2*(q.y*q.z-q.x*q.w)],
+            [2*(q.x*q.z-q.y*q.w), 2*(q.y*q.z+q.x*q.w), 1-2*(q.x*q.x+q.y*q.y)]
+        ])
+        translation = np.array([t.x, t.y, t.z])
+
+        field_names = [f.name for f in cloud_msg.fields]
+
+        points = list(pc2.read_points(cloud_msg, field_names=field_names, skip_nans=True))
+        if not points:
+            header = Header(frame_id=cloud_msg.header.frame_id, stamp=cloud_msg.header.stamp)
+            return pc2.create_cloud(header, cloud_msg.fields, [])
+
+        try:
+            x_idx = field_names.index("x")
+            y_idx = field_names.index("y")
+            z_idx = field_names.index("z")
+        except ValueError:
+            rospy.logwarn_throttle(
+                self.log_interval,
+                "PointCloud2 missing x/y/z fields, skip transform. fields=%s",
+                field_names)
+            return cloud_msg
+
+        xyz = np.array([[p[x_idx], p[y_idx], p[z_idx]] for p in points], dtype=np.float32)
+        xyz_new = (R @ xyz.T).T + translation
+
+        transformed_points = []
+        for i, point in enumerate(points):
+            point_list = list(point)
+            point_list[x_idx] = float(xyz_new[i, 0])
+            point_list[y_idx] = float(xyz_new[i, 1])
+            point_list[z_idx] = float(xyz_new[i, 2])
+            transformed_points.append(tuple(point_list))
+
+        header = Header(frame_id=cloud_msg.header.frame_id, stamp=cloud_msg.header.stamp)
+        return pc2.create_cloud(header, cloud_msg.fields, transformed_points)
 
     def _watchdog(self, _event):
         if self.last_msg_time is None:

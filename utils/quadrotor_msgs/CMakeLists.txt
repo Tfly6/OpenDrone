@@ -64,6 +64,7 @@ add_message_files(
   AuxCommand.msg
   Corrections.msg
   Gains.msg
+  GoalSet.msg
   OutputData.msg
   PositionCommand.msg
   PPROutputData.msg
@@ -74,6 +75,11 @@ add_message_files(
   Odometry.msg
   PolynomialTrajectory.msg
   LQRTrajectory.msg
+  Bspline.msg
+  DataDisp.msg
+  MultiBsplines.msg
+  PolyTraj.msg
+  MINCOTraj.msg
 )
 
 generate_messages(

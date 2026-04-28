@@ -346,6 +346,7 @@ public:
 		
 		double thr = desired_state.a.transpose() * (odom_data.q * Eigen::Vector3d::UnitZ());
 		output.thrust = thr / T_a_;
+		// ROS_INFO_STREAM_THROTTLE(1.0, "T_a_: " << T_a_);
 		// std::cout << std::endl << "desired_state.a: " << desired_state.a.transpose() << std::endl;
 		// std::cout << "odom_v: " << odom_data.v.transpose() << std::endl;
 		
