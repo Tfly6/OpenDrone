@@ -1,0 +1,80 @@
+# Dynamic Planner Default Params
+main_run_freq                           : 10.0
+voxel_dim                               : 0.15   # Unit: meter
+robot_dim                               : 1.6   # Unit: meter
+vehicle_height                          : 1.6   # Unit: meter
+sensor_range                            : 25.0  # Unit: meter
+reproject_dist                          : 5.0   # Unit: meter
+layer_resoltion                         : 0.75
+neighbor_layer_num                      : 1
+visualize_ratio                         : 0.75
+is_inter_navpoint                       : true
+is_simulation                           : true
+is_trajectory                           : false
+attempt_autoswitch                      : true
+world_frame                             : map
+
+# Graph Messager
+GraphMsger/robot_id                     : 0
+
+# Map Handler Params
+MapHandler/ceil_length                  : 30.0    # Unit: meter
+MapHandler/map_grid_max_length          : 2000.0 # Unit: meter
+MapHandler/map_grad_max_height          : 100.0  # Unit: meter 
+
+# Scan Handler Params
+ScanHandler/inflate_scan_size           : 5
+
+# Dynamic Planner Utility Params
+Util/angle_noise                        : 12.0 # Unit: degree
+Util/accept_max_align_angle             : 15.0  # Unit: degree
+Util/new_intensity_thred                : 2.0
+Util/nav_clear_dist                     : 0.75
+Util/terrain_free_Z                     : 0.25
+Util/dyosb_update_thred                 : 4
+Util/new_point_counter                  : 3
+Util/inflate_counter                    : 1
+Util/dynamic_obs_dacay_time             : 1.0
+
+# Dynamic Graph Params
+Graph/node_near_dist                    : 1.5   # Unit: meter
+Graph/move_thred                        : 0.1   # Unit: meter
+Graph/connect_votes_size                : 3
+Graph/trajectory_interval_ratio         : 2.5
+Graph/terrain_inflate_size              : 5      
+Graph/clear_dumper_thred                : 4
+Graph/node_finalize_thred               : 6
+Graph/RANSAC_pool_size                  : 12
+Graphj/vertical_angle_thred             : 25.0  # Unit: degree
+Graph/connect_angle_thred               : 6.0   # Unit: degree
+Graph/pos_filter_margin                 : 0.5   # Unit: meter
+Graph/dirs_filter_margin                : 10.0  # Unit: degree
+
+# Corner Detector Params
+CDetector/resize_ratio                  : 2.0
+CDetector/img_blur_size                 : 7.0
+CDetector/filter_count_value            : 3
+CDetector/approx_eps                    : 0.001 # 0.005 is pretty good, if the environment is really complex (near_node number > 1000), you can try 0.01
+CDetector/is_inflate_image              : true
+CDetector/is_save_img                   : false
+CDetector/img_folder_path               : /home/bottle/hbt_ws/AirFar_dev/data/contour_campus/revised/
+
+# Graph Planner Params
+GPlanner/converge_distance              : 1.5
+GPlanner/goal_adjust_radius             : 5.0
+GPlanner/goal_z_tolerance               : 2.0
+GPlanner/free_counter_thred             : 7
+GPlanner/free_box_dim                   : 0.85 # Unit: meter
+GPlanner/reach_goal_vote_size           : 3
+GPlanner/move_momentum_dist             : 0.85
+GPlanner/path_momentum_thred            : 5
+GPlanner/clear_inflate_size             : 3
+
+# Contour Graph Params
+ContourGraph/around_distance            : 0.75
+ContourGraph/pillar_perimeter_dist      : 3.0  # Unit: meter
+ContourGraph/KDTree_num                 : 8
+ContourGraph/KDTree_neighbor_size       : 2
+ContourGraph/KNN_search_radius          : 2.0  # Unit: meter
+ContourGraph/wall_insert_factor         : 0.6 
+

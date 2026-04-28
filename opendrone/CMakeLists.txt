@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2_ros
   tf2_sensor_msgs
+  pcl_ros
 )
 
 
@@ -53,6 +54,9 @@ target_link_libraries(waypoint ${catkin_LIBRARIES})
 
 add_executable(trigger_land src/trigger_land.cpp)
 target_link_libraries(trigger_land ${catkin_LIBRARIES})
+
+add_executable(depth_camera_processor src/depth_camera_processor.cpp)
+target_link_libraries(depth_camera_processor ${catkin_LIBRARIES})
 
 # add_executable(test1 src/test.cpp)
 # target_link_libraries(test1 ${catkin_LIBRARIES})

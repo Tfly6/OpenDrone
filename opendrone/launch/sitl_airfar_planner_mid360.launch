@@ -1,0 +1,42 @@
+<launch>
+    <arg name="odom_topic" default="/mavros/local_position/odom" />
+    <arg name="lidar_topic" default="/livox/lidar" />  <!-- 你的LiDAR话题 -->
+    <arg name="lidar_frame" default="livox_link" />    <!-- 你的LiDAR frame -->
+    <arg name="config_file" default="default" />
+
+    <!-- TF: world -> map, base_link -> livox_link -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="world_map_linker"
+          args="0 0 0 0 0 0 world map 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="tf_lidar"
+          args="0.07 0 0.072 0 0.3925 0 base_link livox_link 50"/>
+
+    <!-- 点云转换到 map frame -->
+    <node pkg="opendrone" name="pointcloud_to_world" type="pointcloud_to_world.py" output="screen">
+        <param name="source_topic" value="$(arg lidar_topic)" />
+        <param name="output_topic" value="/registered_scan" />
+        <param name="source_frame" value="$(arg lidar_frame)" />
+        <param name="target_frame" value="map" />
+        <param name="cloud_timeout" value="2.0" />
+        <param name="filter_enable" value="false" />
+    </node>
+
+    <!-- Air-FAR Planner -->
+    <include file="$(find airfar_planner)/launch/airfar.launch">
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="terrain_cloud_topic" value="/registered_scan" />
+        <arg name="terrain_local_topic" value="/terrain_local_cloud" />
+        <arg name="scan_cloud_topic" value="/registered_scan" />
+        <arg name="config_file" value="$(arg config_file)" />
+        <!-- terrain_cloud 和 terrain_local_topic 根据需要调整 -->
+    </include>
+
+     <node pkg="opendrone" name="waypoint_msg_converter"
+          type="waypoint_msg_converter.py" output="screen">
+        <param name="waypoint_topic" value="/way_point" />
+        <param name="traj_pub_topic" value="/command/trajectory" />
+    </node>
+
+    <!-- RViz -->
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find opendrone)/rviz/airfar_planner.rviz" required="true" />
+</launch>
