@@ -16,5 +16,3 @@ typedef Eigen::Matrix<double, nControlsQuaternion, 1> control_vector_quat_t;
 typedef Eigen::Matrix<double, nStatesQuaternion, nStatesQuaternion> state_matrix_quat_t;
 typedef Eigen::Matrix<double, nControlsQuaternion, nControlsQuaternion> control_matrix_quat_t;
 typedef Eigen::Matrix<double, nStatesQuaternion, nControlsQuaternion> control_gain_matrix_quat_t;
-
-//static const std::string LQR_Dir = "/home/llanesc/catkin_ws/src/lqr_controller";

@@ -102,8 +102,6 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     {
         // Use LQR for everything: takeoff, hover, trajectory tracking
         // Set hover reference to target position when no trajectory is available
-        // ROS_INFO_THROTTLE(2.0, "MISSION_EXECUTION: setHoverReference to [%.2f, %.2f, %.2f]",
-        //                   targetPos_[0], targetPos_[1], targetPos_[2]);
         if(controlType_ == ControlType::QUATERNION) {
             lqr_quaternion_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
         } else {
@@ -222,15 +220,15 @@ void LQR_Controller::publishAttitude()
 
         cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
 
-        ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-                          currentPos_(0), currentPos_(1), currentPos_(2),
-                          error(0), error(1), error(2));
+        // ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
+        //                   currentPos_(0), currentPos_(1), currentPos_(2),
+        //                   error(0), error(1), error(2));
 
-        ROS_INFO_THROTTLE(2.0,
-                  "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
-                  currentPos_(2), ref(2), error(2), error(8),
-                  traj_control(3), output(3),
-                  gain(3, 2), gain(3, 8));
+        // ROS_INFO_THROTTLE(2.0,
+        //           "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
+        //           currentPos_(2), ref(2), error(2), error(8),
+        //           traj_control(3), output(3),
+        //           gain(3, 2), gain(3, 8));
         
         double thrust_n = output(3);
         double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
@@ -244,10 +242,10 @@ void LQR_Controller::publishAttitude()
         bodyrateMsg.thrust = normalized_thrust;  // Use normalized thrust
         bodyrateMsg.type_mask = 128;  // Use body rates
 
-        ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
-                  output(0), output(1), output(2),
-                  cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
-                  output(3), normalized_thrust);
+        // ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
+        //           output(0), output(1), output(2),
+        //           cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
+        //           output(3), normalized_thrust);
 
         attitudePub_.publish(bodyrateMsg);
     }

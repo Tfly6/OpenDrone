@@ -1,6 +1,31 @@
 # OpenDrone
 基于ROS1的PX4无人机仿真，参考了多个开源项目，并把他们集成在PX4 SITL中，其中：
 
+## 项目目录树
+
+```text
+OpenDrone/
+├── cmake/                # CMake 模块与依赖查找脚本，用于兼容 glog、gflags、OpenBLAS 等第三方库
+│   └── Modules/
+├── controller/           # 控制器集合，统一封装为 ROS 包，便于在 PX4 SITL 中切换不同控制策略
+├── opendrone/            # 主 ROS 功能包
+│   ├── config/           # 参数配置
+│   ├── include/          # 公共头文件
+│   ├── launch/           # 一键启动 SITL、控制器、规划器和测试流程的 launch 文件
+│   ├── rviz/             # RViz 配置
+│   ├── scripts/          # Python 辅助脚本，例如消息转换、相机位姿发布、点云处理
+│   ├── sitl_config/      # PX4/Gazebo SITL 所需的模型、世界、插件列表与仿真配置
+│   └── src/              # 基础示例和辅助工具实现
+├── planner/              # 规划器集合
+├── shell/                # 常用脚本
+├── utils/                # 公共依赖、消息定义、数学工具、可视化和配套基础库，供控制器与规划器复用
+├── CMakeLists_Template.txt
+├── LICENSE
+└── README.md
+```
+
+> 补充说明：仓库内大多数 ROS 包都遵循类似的目录组织方式，例如 **cfg/** 用于动态参数配置，**include/** 用于头文件，**launch/** 用于启动文件，**src/** 用于源码实现，**test/** 用于测试或示例验证。
+
 **控制器（controller文件夹）**
 
 - **geometric_controller**：参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，具体看 [README.md](./controller/geometric_controller/README.md)。
@@ -13,7 +38,7 @@
   # ./shell/trigger_land.sh
   ```
 
-- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/se3_controller/README.md)。
+- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/se3_controller/README.md)。（**推荐使用**）
 
   启动：
 
@@ -33,9 +58,17 @@
   # ./shell/trigger_land.sh
   ```
   
-- **mpc_controller**：参考了 [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw) ，包含了线性mpc和非线性mpc，此控制器尚在实验中。
+- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器。
+
   启动：
-  
+
+  ```bash
+  roslaunch opendrone sitl_lqr_controller.launch
+  ```
+
+- **mpc_controller**：参考了 [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw) 项目，包含了线性mpc和非线性mpc，此控制器尚在实验中。
+  启动：
+
   ```bash
   # 线性 mpc
   roslaunch opendrone sitl_mpc_controller.launch
@@ -45,7 +78,7 @@
 
 
 
-**规划器（planner）**
+**规划器（planner文件夹）**
 
 - **polynomial trajectory generation**：参考了[ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation) 项目，是一个基于优化方法的多项式轨迹生成，并不能实时规划与避障。
 
@@ -55,13 +88,38 @@
   roslaunch opendrone sitl_mav_trajectory_planner.launch
   ```
 
-- **ego_planner**：参考了[ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) 项目，需要带深度相机或3D激光雷达的无人机。
+- **fast_planner** : 参考了[HKUST-Aerial-Robotics/Fast-Planner](https://github.com/HKUST-Aerial-Robotics/Fast-Planner) 项目，需要带深度相机的无人机。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_fast_planner.launch
+  ```
+  
+- **ego_planner**：参考了[ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) 项目，需要带深度相机或3D激光雷达的无人机。（**推荐使用**）
 
   启动：
 
   ```bash
   roslaunch opendrone sitl_ego_planner.launch # 深度相机
   roslaunch opendrone sitl_ego_planner_mid360.launch # 激光雷达
+  ```
+
+- **ego_plannerV2** : 参考了 [ZJU-FAST-Lab/EGO-Planner-v2](https://github.com/ZJU-FAST-Lab/EGO-Planner-v2) 项目，需要带深度相机的无人机。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_ego_planner_v2.launch # 深度相机
+  ```
+
+- **airfar_planner** : 参考了 [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR) 项目，需要带深度相机或3D激光雷达的无人机。此规划器尚在实验中。
+
+  启动：
+
+  ```bash
+  roslaunch opendrone sitl_airfar_planner.launch # 深度相机
+  roslaunch opendrone sitl_airfar_planner_mid360.launch # 激光雷达
   ```
 
   
@@ -110,11 +168,33 @@ sudo make install
 cd ~/catkin_ws/src
 git clone --recursive https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
-# 编译 mpc 相关的包需要十几分钟，所以如果不用 mpc 可以用下面命令把它列入编译黑名单
+# 编译 mpc 相关的包需要十几分钟，所以如果不用 mpc 可以用下面命令把它列入编译黑名单（其他不用的包也是类似操作）
 # catkin config --skiplist mav_control_interface mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
 catkin build
 ```
 ## 3. 运行
+
+- **配置仿真** 
+
+```bash
+# model
+# PX4 < v1.14
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/* ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/* ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
+
+# PX4 >= v1.14
+cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/* ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/* ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
+```
+
+```bash
+# launch
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_depth_camera.launch ${YOUR_PX4_PATH}/launch/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_mid360.launch ${YOUR_PX4_PATH}/launch/
+cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
+```
+
+
 
 ### 实例一：以官方案例为例
 
@@ -159,27 +239,6 @@ roslaunch opendrone sitl_mav_trajectory_planner.launch
 ### 实例三：geometric_controller + ego_planner+深度相机
 实时规划与避障
 
-- 配置仿真（可选）：如果没有可用的带深度相机的无人机，可以参考
-
-```bash
-# model
-# PX4 v1.14之前
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/outdoor_village.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
-
-# PX4 v1.14 之后
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/iris_depth_camera_new ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/outdoor_village.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
-```
-
-```bash
-# launch
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_depth_camera.launch ${YOUR_PX4_PATH}/launch/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
-```
-
 - 终端一：启动gazebo仿真
 
 ```bash
@@ -208,23 +267,6 @@ roslaunch opendrone sitl_ego_planner.launch
 - 根据下面仓库配置Mid360仿真 👇
 
 [Tfly6/Mid360_px4_sim_plugin: Plugin for the simulation of the Livox Mid-360 in Gazebo](https://github.com/Tfly6/Mid360_px4_sim_plugin)
-
-- 复制必要文件
-
-```bash
-# model
-# PX4 v1.14之前
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/ego_swarm.world ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
-
-# PX4 v1.14 之后
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/ego_swarm.world ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
-```
-
-```bash
-# launch
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_mid360.launch ${YOUR_PX4_PATH}/launch/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
-```
 
 - 终端一：启动gazebo仿真
 
@@ -255,7 +297,7 @@ roslaunch opendrone sitl_ego_planner_mid360.launch
 
 
 
-## 参考
+## 相关论文
 
 [1] Lee, Taeyoung, Melvin Leoky, and N. Harris McClamroch. "Geometric tracking control of a quadrotor UAV on SE (3)." Decision and Control (CDC), 2010 49th IEEE Conference on. IEEE, 2010.
 
@@ -268,3 +310,12 @@ roslaunch opendrone sitl_ego_planner_mid360.launch
 [5] Model Predictive Control for Trajectory Tracking of Unmanned Aerial Vehicles Using Robot Operating System. Mina Kamel, Thomas Stastny, Kostas Alexis and Roland Siegwart. Robot Operating System (ROS) The Complete Reference Volume 2. Springer 2017
 
 [6] Linear vs Nonlinear MPC for Trajectory Tracking Applied to Rotary Wing Micro Aerial Vehicles. Mina Kamel, Michael Burri and Roland Siegwart. arXiv:1611.09240
+
+[7] B. He, G. Chen, C. Fermuller, Y. Aloimonos and J. Zhang, "Air-FAR: Fast and Adaptable Routing for Aerial Navigation in Large-Scale Complex Unknown Environments," 2025 IEEE International Conference on Robotics and Automation (ICRA)
+
+[8] Xin Zhou et al. ,Swarm of micro flying robots in the wild.*Sci. Robot.*7,eabm5954(2022)
+
+[9] Foehn, Philipp & Scaramuzza, Davide. (2018). Onboard State Dependent LQR for Agile Quadrotors. 10.1109/ICRA.2018.8460885.
+
+[10] B. Zhou, F. Gao, L. Wang, C. Liu and S. Shen, "Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight," in *IEEE Robotics and Automation Letters*, vol. 4, no. 4, pp. 3529-3536, Oct. 2019
+
