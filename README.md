@@ -147,7 +147,7 @@ catkin build
 
 ```bash
 sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev liblapacke-dev
-sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs ros-$ROS_DISTRO-laser-geometry ros-$ROS_DISTRO-tf2-sensor-msgs
+sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs ros-$ROS_DISTRO-laser-geometry ros-$ROS_DISTRO-tf2-sensor-msgs ros-$ROS_DISTRO-roslint ros-$ROS_DISTRO-tf-conversions ros-$ROS_DISTRO-rviz
 ```
 
 **安装 NLopt 库** 
