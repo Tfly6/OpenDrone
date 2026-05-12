@@ -69,25 +69,94 @@
 - `kd_vx/vy/vz`
 - `pos_error_max`、`vel_error_max`、`vel_integral_max`
 
-## 4. 使用方法
+## 4. 控制理论与工程实现要点
 
-## 4.1 编译
+本节点的控制目标可概括为：让无人机状态 $x(t)$ 跟踪期望状态 $x_d(t)$，并在外部扰动（风、模型误差、传感器噪声）下保持稳定和可控。
+
+### 4.1 PID 基本形式
+
+定义误差：$e(t)=x_d(t)-x(t)$。
+
+连续时间 PID 为：
+
+$$
+u(t)=K_p e(t)+K_i\int_0^t e(\tau)d\tau+K_d\frac{de(t)}{dt}
+$$
+
+- 比例项 $K_p$：决定“当前误差”响应强度，过小会拖沓，过大易震荡。
+- 积分项 $K_i$：消除稳态误差，但过大容易积分饱和（windup）。
+- 微分项 $K_d$：提供阻尼，抑制超调，对噪声较敏感。
+
+### 4.2 为何采用串级 PID
+
+`CASCADE_PID` 将控制分为两层：
+
+- 外环（位置环）：根据位置误差生成速度期望。
+- 内环（速度环）：根据速度误差生成加速度/姿态/推力命令。
+
+这种结构相比单环位置 PID 的优势：
+
+- 更符合飞控执行链路（位置 -> 速度 -> 姿态/推力）。
+- 内环更快、外环更慢，便于分频设计，稳定性更好。
+- 调参可分层进行，工程上更直观。
+
+### 4.3 离散实现直觉（与参数限幅的关系）
+
+控制器在离散周期 $\Delta t$ 下运行，可理解为：
+
+$$
+e_k=x_{d,k}-x_k
+$$
+
+$$
+I_k=\mathrm{clip}(I_{k-1}+e_k\Delta t,\ -I_{max},\ I_{max})
+$$
+
+$$
+D_k=\frac{e_k-e_{k-1}}{\Delta t}
+$$
+
+$$
+u_k=K_p e_k+K_i I_k+K_d D_k
+$$
+
+其中 `pos_err_max`、`vel_err_max`、`vel_integral_max`、`maxVel`、`maxAcc` 的作用分别是：
+
+- 误差限幅：避免异常大误差直接打满控制量。
+- 积分限幅：抑制 windup，减少“放开后反向过冲”。
+- 速度/加速度限幅：满足执行器与飞行包线约束，提升安全性。
+
+### 4.4 简化调参逻辑（为什么推荐当前顺序）
+
+- 先调位置环 `kp_p*`：决定轨迹跟随“拉回”力度。
+- 再调速度环 `kp_v*`：决定速度响应快慢与阻尼。
+- 最后加小积分 `ki_v*`（常先从 `z` 轴开始）：消除稳态偏差。
+
+若出现问题，可按机理排查：
+
+- 高频抖动/噪声放大：适当降 `kd_v*` 或改善速度估计滤波。
+- 低频来回摆动：通常 `kp_p*` 或 `kp_v*` 偏大，或环间带宽分离不足。
+- 高度慢慢漂：`ki_vz` 可能偏小；若上下抽动，`ki_vz` 可能偏大。
+
+## 5. 使用方法
+
+## 5.1 编译
 
 在工作空间根目录执行：
 
 ```bash
-cd ~/test1_ws
+cd ~/catkin_ws
 catkin build pid_controller
 source devel/setup.bash
 ```
 
-## 4.2 直接启动节点
+## 5.2 直接启动节点
 
 ```bash
 rosrun pid_controller pid_controller_node _enable_sim:=true _takeoff_height:=2.0 _pid_type:=1
 ```
 
-## 4.3 使用 OpenDrone 的 SITL 启动文件
+## 5.3 使用 OpenDrone 的 SITL 启动文件
 
 你当前工程中可直接使用：
 
@@ -107,7 +176,7 @@ roslaunch opendrone sitl_pid_controller.launch
 roslaunch opendrone sitl_pid_controller.launch takeoff_height:=3.0 max_acc:=5.0
 ```
 
-## 5. 调参建议
+## 6. 调参建议
 
 - 先固定 `pid_type=1`，优先调 `kp_p*`（位置环）保证响应速度
 - 再调速度环 `kp_v*`，最后加少量 `ki_vz` 消除高度静差
