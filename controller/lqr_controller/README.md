@@ -1,6 +1,6 @@
 # lqr_controller
 
-`lqr_controller` 是一个基于 ROS 的状态依赖线性二次调节器（State Dependent LQR）控制节点，旨在实现高精度的轨迹跟踪控制。该控制器已在 PX4_SITL 和 Gazebo 仿真环境中测试，并成功应用于搭载 Raspberry Pi 3B 的敏捷竞速四旋翼无人机。
+`lqr_controller` 是一个基于 ROS 的状态依赖线性二次调节器（State Dependent LQR）控制节点，旨在实现高精度的轨迹跟踪控制。
 
 ## 1. 功能说明
 

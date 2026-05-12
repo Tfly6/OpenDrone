@@ -28,22 +28,24 @@ OpenDrone/
 
 **控制器（controller文件夹）**
 
-- **geometric_controller**：参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，具体看 [README.md](./controller/geometric_controller/README.md)。
+- **geometric_controller**：
+
+  - **se3_lee** : 参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，具体看 [README.md](./controller/geometric_controller/se3_lee/README.md) 。
 
   启动：
 
   ```bash
-  roslaunch opendrone sitl_geometric_controller.launch # 默认Nonlinear GeometricControl
+  roslaunch opendrone sitl_se3_lee.launch # 默认Nonlinear GeometricControl
   # 降落
   # ./shell/trigger_land.sh
   ```
 
-- **se3_controller**：参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/se3_controller/README.md)。（**推荐使用**）
+  - **se3_hopf** : 参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/geometric_controller/se3_hopf/README.md) 。(**推荐使用**)
 
   启动：
 
   ```bash
-  roslaunch opendrone sitl_se3_controller.launch # 默认 Hopf Fibration on SO(3)
+  roslaunch opendrone sitl_se3_hopf.launch
   # 降落
   # ./shell/trigger_land.sh
   ```
@@ -58,7 +60,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
   
-- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器。
+- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器，具体看 [README.md](./controller/lqr_controller/README.md)。
 
   启动：
 
@@ -177,24 +179,9 @@ catkin build
 - **配置仿真** 
 
 ```bash
-# model
-# PX4 < v1.14
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/* ${YOUR_PX4_PATH}/Tools/sitl_gazebo/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/* ${YOUR_PX4_PATH}/Tools/sitl_gazebo/worlds/
-
-# PX4 >= v1.14
-cp -r ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/models/* ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/worlds/* ${YOUR_PX4_PATH}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/
+cd ~/catkin_ws/src/OpenDrone/shell
+./gazeboSetup.bash ${YOUR_PX4_PATH}
 ```
-
-```bash
-# launch
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_depth_camera.launch ${YOUR_PX4_PATH}/launch/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/outdoor_mid360.launch ${YOUR_PX4_PATH}/launch/
-cp ~/catkin_ws/src/OpenDrone/opendrone/sitl_config/px4_config.yaml ${YOUR_PX4_PATH}/launch/
-```
-
-
 
 ### 实例一：以官方案例为例
 
@@ -223,7 +210,7 @@ roslaunch px4 mavros_posix_sitl.launch
 ```bash
 cd ~/catkin_ws
 source ./devel/setup.bash
-roslaunch opendrone sitl_geometric_controller.launch
+roslaunch opendrone sitl_se3_hopf.launch
 ```
 - 终端三：启动 polynomial trajectory generation
 ```bash
@@ -248,7 +235,7 @@ roslaunch px4 outdoor_depth_camera.launch # 用自己的也行
 ```bash
 cd ~/catkin_ws
 source ./devel/setup.bash
-roslaunch opendrone sitl_geometric_controller.launch
+roslaunch opendrone sitl_se3_hopf.launch
 ```
 - 终端三：启动 ego-planner
 ```bash
@@ -279,7 +266,7 @@ roslaunch px4 outdoor_mid360.launch # 用自己的也行
 ```bash
 cd ~/catkin_ws
 source ./devel/setup.bash
-roslaunch opendrone sitl_geometric_controller.launch
+roslaunch opendrone sitl_se3_hopf.launch
 ```
 
 - 终端三：启动 ego-planner
