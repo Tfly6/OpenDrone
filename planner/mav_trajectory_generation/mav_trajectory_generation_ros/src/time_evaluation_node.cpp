@@ -1,17 +1,72 @@
 #include <ros/ros.h>
-#include <ros/package.h>
 #include <numeric>
+#include <tf/transform_datatypes.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <eigen_conversions/eigen_msg.h>
 
-#include <mav_visualization/helpers.h>
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
 #include <mav_trajectory_generation/timing.h>
 #include <mav_trajectory_generation/trajectory_sampling.h>
 
 #include "mav_trajectory_generation_ros/ros_conversions.h"
-#include "mav_trajectory_generation_ros/ros_visualization.h"
 
 namespace mav_trajectory_generation {
+
+namespace {
+
+std_msgs::ColorRGBA makeColor(double r, double g, double b, double a = 1.0) {
+  std_msgs::ColorRGBA color;
+  color.r = r;
+  color.g = g;
+  color.b = b;
+  color.a = a;
+  return color;
+}
+
+void drawVerticesLineStrip(const Vertex::Vector& vertices,
+                           const std::string& frame_id,
+                           visualization_msgs::MarkerArray* marker_array) {
+  if (marker_array == nullptr) {
+    return;
+  }
+
+  marker_array->markers.clear();
+  marker_array->markers.resize(1);
+  visualization_msgs::Marker& marker = marker_array->markers.front();
+
+  marker.header.frame_id = frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "straight_path";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::LINE_STRIP;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.color = makeColor(0.0, 1.0, 0.0, 1.0);
+  marker.scale.x = 0.1;
+  marker.lifetime = ros::Duration(0.0);
+  marker.points.clear();
+
+  for (const Vertex& vertex : vertices) {
+    if (vertex.D() != 3) {
+      ROS_ERROR("Vertex has dimension %d but should have dimension 3.",
+                vertex.D());
+      return;
+    }
+
+    if (vertex.hasConstraint(derivative_order::POSITION)) {
+      Eigen::VectorXd position = Eigen::Vector3d::Zero();
+      vertex.getConstraint(derivative_order::POSITION, &position);
+      geometry_msgs::Point constraint_msg;
+      tf::pointEigenToMsg(position, constraint_msg);
+      marker.points.push_back(constraint_msg);
+    } else {
+      ROS_WARN("Vertex does not have a position constraint, skipping.");
+    }
+  }
+}
+
+}  // namespace
+
 
 // Benchmarking utilities to evaluate different methods of time allocation for
 // polynomial trajectories.
@@ -178,8 +233,7 @@ void TimeEvaluationNode::runBenchmark(int trial_number, int num_segments) {
 
   visualization_msgs::MarkerArray markers;
   if (visualize_) {
-    drawVertices(vertices, frame_id_, &markers);
-    markers.markers.back().scale.x = 0.1;
+    drawVerticesLineStrip(vertices, frame_id_, &markers);
   }
 
   // Small timer used to get computation times.
@@ -597,26 +651,26 @@ void TimeEvaluationNode::visualizeTrajectory(
     visualization_msgs::MarkerArray* markers) const {
   // Maybe hash the method name to a color somehow????
   // Just hardcode it for now per method name.
-  mav_visualization::Color trajectory_color;
+  std_msgs::ColorRGBA trajectory_color;
 
   if (method_name == "nfabian") {
-    trajectory_color = mav_visualization::Color::Yellow();
+    trajectory_color = makeColor(1.0, 1.0, 0.0);
   } else if (method_name == "trapezoidal") {
-    trajectory_color = mav_visualization::Color::Teal();
+    trajectory_color = makeColor(0.0, 0.5, 0.5);
   } else if (method_name == "nonlinear_time_only") {
-    trajectory_color = mav_visualization::Color::Purple();
+    trajectory_color = makeColor(0.5, 0.0, 0.5);
   } else if (method_name == "nonlinear") {
-    trajectory_color = mav_visualization::Color::Red();
+    trajectory_color = makeColor(1.0, 0.0, 0.0);
   } else if (method_name == "nonlinear_richter") {
-    trajectory_color = mav_visualization::Color::Blue();
+    trajectory_color = makeColor(0.0, 0.0, 1.0);
   } else if (method_name == "mellinger_outer_loop") {
-    trajectory_color = mav_visualization::Color::Orange();
+    trajectory_color = makeColor(1.0, 0.5, 0.0);
   } else if (method_name == "mellinger_outer_loop_trapezoidal_init") {
-    trajectory_color = mav_visualization::Color::Gray();
+    trajectory_color = makeColor(0.5, 0.5, 0.5);
   } else if (method_name == "segment_violation_scaling") {
-    trajectory_color = mav_visualization::Color::Pink();
+    trajectory_color = makeColor(1.0, 0.4, 0.7);
   } else {
-    trajectory_color = mav_visualization::Color::White();
+    trajectory_color = makeColor(1.0, 1.0, 1.0);
   }
 
   const double kDefaultSamplingTime = 0.1;  // In seconds.

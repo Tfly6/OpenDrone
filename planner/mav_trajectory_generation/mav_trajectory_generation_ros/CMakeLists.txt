@@ -33,7 +33,6 @@ cs_add_library(${PROJECT_NAME}
   src/feasibility_sampling.cpp
   src/input_constraints.cpp
   src/ros_conversions.cpp
-  src/ros_visualization.cpp
 )
 
 ############

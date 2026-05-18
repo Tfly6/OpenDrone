@@ -1,5 +1,5 @@
 <package>
-  <name> rviz_plugins </name>
+  <name>rviz_plugins</name>
   <description>
 
     Additional plugins for rviz
@@ -15,11 +15,13 @@
 
   <build_depend>rviz            </build_depend>
   <build_depend>roscpp          </build_depend>
+  <build_depend>pluginlib       </build_depend>
   <!-- <build_depend>multi_map_server</build_depend> -->
   <build_depend>qtbase5-dev     </build_depend>
   <build_depend>message_runtime </build_depend>
 
   <run_depend>rviz              </run_depend>
+  <run_depend>pluginlib         </run_depend>
   <!-- <run_depend>multi_map_server  </run_depend> -->
   <run_depend>message_runtime   </run_depend>
   <run_depend>roscpp            </run_depend>
