@@ -1,14 +1,5 @@
-<<<<<<< HEAD:controller/se3_controller/src/se3_ctrl.cpp
-/**
- * ref: se3_example.cpp
- * @author tfly
- */
-
-#include "se3_controller/se3_ctrl.h"
-=======
 // ref: se3_example.cpp
 #include "se3_hopf/se3_ctrl.h"
->>>>>>> origin/dev:controller/geometric_controller/se3_hopf/src/se3_ctrl.cpp
 
 Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
 {

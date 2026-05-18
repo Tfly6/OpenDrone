@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-<<<<<<< HEAD:opendrone/launch/sitl_se3_controller.launch
-  <node pkg="se3_controller" type="se3_controller_node" name="se3_controller_node" output="screen">
-=======
   <node pkg="se3_hopf" type="se3_hopf_node" name="se3_hopf_node" output="screen">
     <!-- <param name="x" type="double" value="5.0"/>
     <param name="y" type="double" value="7.0"/>
     <param name="z" type="double" value="2.0"/>
     <param name="yaw" type="double" value="1.57"/> -->
->>>>>>> origin/dev:opendrone/launch/sitl_se3_hopf.launch
     <param name="enable_sim" value="true" />
     <param name="takeoff_height" value="2.0" />
     <param name="geo_fence/x" value="50.0"/>

@@ -14,14 +14,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
-<<<<<<< HEAD:controller/se3_controller/include/se3_controller/se3_ctrl.h
-#include "se3_controller/se3_controller.hpp"
-#include "se3_controller/se3_dynamic_tuneConfig.h"
-=======
 #include "se3_hopf/se3_hopf.hpp"
 #include "se3_hopf/se3_dynamic_tuneConfig.h"
 // #include "math_utils/math_utils.h"
->>>>>>> origin/dev:controller/geometric_controller/se3_hopf/include/se3_hopf/se3_ctrl.h
 #include <std_msgs/Float64.h>
 #include <std_srvs/SetBool.h>
 
