@@ -174,7 +174,7 @@ class Se3LeeCtrl {
   Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
                                 Eigen::Vector4d &curr_att);
 
-  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } node_state_, prev_node_state_;
+  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } flightState_, prev_flightState_;
 
   std::string state2string(FlightState state) {
     switch (state) {

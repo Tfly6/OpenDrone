@@ -1,112 +1,133 @@
 /*
  Copyright (c) 2015, Mina Kamel, ASL, ETH Zurich, Switzerland
+*/
 
- You can contact the author at <mina.kamel@mavt.ethz.ch>
-
- All rights reserved.
-
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
- * Redistributions of source code must retain the above copyright
- notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
- notice, this list of conditions and the following disclaimer in the
- documentation and/or other materials provided with the distribution.
- * Neither the name of ETHZ-ASL nor the
- names of its contributors may be used to endorse or promote products
- derived from this software without specific prior written permission.
-
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL ETHZ-ASL BE LIABLE FOR ANY
- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #ifndef INCLUDE_MAV_NONLINEAR_MPC_NONLINEAR_MPC_NODE_H_
 #define INCLUDE_MAV_NONLINEAR_MPC_NONLINEAR_MPC_NODE_H_
 
-#include <boost/bind.hpp>
+#include <string>
+
 #include <Eigen/Eigen>
-#include <stdio.h>
-
-//ros
-#include <ros/ros.h>
-#include <ros/callback_queue.h>
-
-//ros msgs
-#include <mav_msgs/RollPitchYawrateThrust.h>
-#include <mav_msgs/eigen_mav_msgs.h>
-#include <mav_msgs/conversions.h>
-#include <nav_msgs/Odometry.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
-#include <mav_msgs/Status.h>
-
-//dynamic reconfiguration
 #include <dynamic_reconfigure/server.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <mav_msgs/RollPitchYawrateThrust.h>
 #include <mav_nonlinear_mpc/NonLinearMPCConfig.h>
-
 #include <mav_nonlinear_mpc/nonlinear_mpc.h>
-#include <mav_control_interface/position_controller_interface.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
+#include <nav_msgs/Odometry.h>
+#include <ros/ros.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
 namespace mav_control {
 
-class NonLinearModelPredictiveControllerNode : public mav_control_interface::PositionControllerInterface
-{
+class NonLinearModelPredictiveControllerNode {
  public:
   NonLinearModelPredictiveControllerNode(const ros::NodeHandle& nh, const ros::NodeHandle& private_nh);
   ~NonLinearModelPredictiveControllerNode();
 
-  void InitializeParams();
-
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
- private:
-  NonlinearModelPredictiveControl nonlinear_mpc_;
 
+ private:
+  void ControllerDynConfigCallback(mav_nonlinear_mpc::NonLinearMPCConfig& config, uint32_t level);
+
+  void CommandPoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
+  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
+  void OdometryCallback(const nav_msgs::OdometryConstPtr& msg);
+  void MavrosStateCallback(const mavros_msgs::StateConstPtr& msg);
+  void ControlTimerCallback(const ros::TimerEvent&);
+
+  void TrySetOffboard(const ros::Time& now);
+  void TryArm(const ros::Time& now);
+  void PublishAttitudeTarget(const Eigen::Vector4d& rpy_thrust);
+  void GenerateTakeoffTrajectory();
+  bool IsTakeoffReached() const;
+
+  enum FlightState {
+    WAITING_FOR_CONNECTED,
+    WAITING_FOR_OFFBOARD,
+    TAKEOFF,
+    MISSION_EXECUTION,
+    LANDING,
+    LANDED,
+    EMERGENCY,
+  } flightState_, prev_flightState_;
+
+  std::string state2string(FlightState state) {
+    switch (state) {
+      case WAITING_FOR_CONNECTED:
+        return "WAITING_FOR_CONNECTED";
+      case WAITING_FOR_OFFBOARD:
+        return "WAITING_FOR_OFFBOARD";
+      case MISSION_EXECUTION:
+        return "MISSION_EXECUTION";
+      case LANDING:
+        return "LANDING";
+      case LANDED:
+        return "LANDED";
+      case TAKEOFF:
+        return "TAKEOFF";
+      case EMERGENCY:
+        return "EMERGENCY";
+      default:
+        return "UNKNOWN_STATE";
+    }
+  }
+
+  ros::NodeHandle nh_;
+  ros::NodeHandle private_nh_;
+
+  NonlinearModelPredictiveControl nonlinear_mpc_;
   dynamic_reconfigure::Server<mav_nonlinear_mpc::NonLinearMPCConfig> controller_dyn_config_server_;
 
-  void ControllerDynConfigCallback(mav_nonlinear_mpc::NonLinearMPCConfig &config, uint32_t level);
+  ros::Subscriber command_pose_subscriber_;
+  ros::Subscriber command_trajectory_subscriber_;
+  ros::Subscriber odometry_subscriber_;
+  ros::Subscriber mavros_state_subscriber_;
 
-  virtual std::string getName() const
-  {
-    return std::string("nonlinear_model_predictive_controller");
-  }
+  ros::Publisher command_publisher_;
+  ros::Publisher attitude_target_publisher_;
 
-  virtual bool getUseAttitudeQuaternionCommand() const
-  {
-    return false;
-  }
+  ros::ServiceClient set_mode_client_;
+  ros::ServiceClient arming_client_;
 
-  virtual double getMass() const {
-    return nonlinear_mpc_.getMass();
-  }
+  ros::Timer control_timer_;
 
-  virtual bool setReference(const mav_msgs::EigenTrajectoryPoint& reference);
+  mavros_msgs::State current_mavros_state_;
+  Eigen::Vector3d geo_fence_;
+  Eigen::Vector3d current_position_;
 
-  virtual bool setReferenceArray(const mav_msgs::EigenTrajectoryPointDeque& reference_array);
+  bool has_odometry_;
+  bool has_reference_;
+  bool landing_locked_;
+  bool takeoff_trajectory_sent_;
+  int offboard_warmup_counter_;
 
-  virtual bool setOdometry(const mav_msgs::EigenOdometry& odometry);
+  ros::Time last_odometry_stamp_;
+  ros::Time last_mode_request_;
+  ros::Time last_arm_request_;
 
-  virtual bool calculateRollPitchYawrateThrustCommand(
-      mav_msgs::EigenRollPitchYawrateThrust* attitude_thrust_command);
+  double current_yaw_;
 
-  virtual bool calculateAttitudeThrustCommand(mav_msgs::EigenAttitudeThrust* attitude_thrust_command);
+  double mass_;
+  double hover_thrust_;
+  double thrust_min_;
+  double thrust_max_;
+  double yaw_rate_scale_;
+  double takeoff_height_;
+  double takeoff_target_z_;
+  double takeoff_duration_sec_;
+  int takeoff_trajectory_points_;
 
-  virtual bool getCurrentReference(mav_msgs::EigenTrajectoryPoint* reference) const;
-
-  virtual bool getCurrentReference(mav_msgs::EigenTrajectoryPointDeque* reference) const;
-
-  virtual bool getPredictedState(mav_msgs::EigenTrajectoryPointDeque* predicted_state) const;
-
-  void uavStatusCallback(const mav_msgs::StatusConstPtr& msg);
-
+  double control_rate_;
+  double odom_timeout_;
+  bool enable_auto_offboard_;
+  bool enable_auto_arm_;
+  int offboard_warmup_count_;
+  double request_interval_;
 };
 
-}
+}  // namespace mav_control
 
-
-#endif /* INCLUDE_MAV_NONLINEAR_MPC_NONLINEAR_MPC_NODE_H_ */
+#endif

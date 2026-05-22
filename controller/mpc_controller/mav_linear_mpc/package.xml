@@ -18,10 +18,11 @@
   <depend>roscpp</depend>
   <depend>cmake_modules</depend>
   <depend>tf</depend>
-  <depend>mav_control_interface</depend>
   <depend>mav_disturbance_observer</depend>
   <depend>message_runtime</depend>
   <depend>mavros</depend>
   <depend>mavros_msgs</depend>
   <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
 </package>

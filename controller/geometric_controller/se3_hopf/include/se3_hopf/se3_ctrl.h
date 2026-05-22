@@ -52,7 +52,7 @@ private:
     dynamic_reconfigure::Server<se3_hopf::se3_dynamic_tuneConfig> dynamic_tune_server_;
     dynamic_reconfigure::Server<se3_hopf::se3_dynamic_tuneConfig>::CallbackType dynamic_tune_cb_type_;
 
-    enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } node_state_, prev_node_state_;
+    enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } flightState_, prev_flightState_;
 
     std::string state2string(FlightState state) {
         switch (state) {

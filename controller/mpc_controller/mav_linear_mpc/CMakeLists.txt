@@ -18,6 +18,7 @@ include_directories(lib)
 cs_add_library(mav_linear_mpc
   src/linear_mpc.cpp
   src/steady_state_calculation.cpp
+  src/mpc_queue.cpp
 )
 
 cs_add_library(cvxgen_solver 

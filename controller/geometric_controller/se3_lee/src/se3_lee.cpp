@@ -47,7 +47,7 @@ using namespace Eigen;
 using namespace std;
 // Constructor
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
-    : nh_(nh), nh_private_(nh_private), node_state_(WAITING_FOR_HOME_POSE) {
+    : nh_(nh), nh_private_(nh_private), flightState_(WAITING_FOR_HOME_POSE) {
   referenceSub_ =
       nh_.subscribe("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   yawreferenceSub_ =
@@ -122,7 +122,7 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   mavPos_.setZero();
   mavVel_.setZero();
   
-  prev_node_state_ = node_state_;
+  prev_flightState_ = flightState_;
   targetPos_[2] = takeoff_height_;
   Kpos_ << -Kpos_x_, -Kpos_y_, -Kpos_z_;
   Kvel_ << -Kvel_x_, -Kvel_y_, -Kvel_z_;
@@ -198,8 +198,9 @@ void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
   mavPos_ = toEigen(msg.pose.position);
   for(int i = 0;i<3;i++){
     if(mavPos_[i] > geo_fence_[i] || mavPos_[i] < -geo_fence_[i]){
-        node_state_ = EMERGENCY;
-        break;
+      if(flightState_ != LANDING && flightState_ != LANDED)
+        flightState_ = EMERGENCY;
+      break;
     }
   }
   mavAtt_(0) = msg.pose.orientation.w;
@@ -215,16 +216,16 @@ void Se3LeeCtrl::mavtwistCallback(const geometry_msgs::TwistStamped &msg) {
 
 bool Se3LeeCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
   ROS_INFO("trigger land!");
-  node_state_ = LANDING;
+  flightState_ = LANDING;
   return true;
 }
 
 void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
-  if (node_state_ != prev_node_state_) {
-    ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
-    prev_node_state_ = node_state_;
+  if (flightState_ != prev_flightState_) {
+    ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
+    prev_flightState_ = flightState_;
   }
-  switch (node_state_) {
+  switch (flightState_) {
     case WAITING_FOR_HOME_POSE:
       waitForPredicate(&received_home_pose, "Waiting for home pose...");
       ROS_INFO("Got pose! Drone Ready to be armed.");
@@ -240,10 +241,10 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       //   targetAcc_[2] = 0.5;
       // }
       if(received_home_pose){
-        node_state_ = MISSION_EXECUTION;
+        flightState_ = MISSION_EXECUTION;
       }
       
-      // node_state_ = TAKEOFF;
+      // flightState_ = TAKEOFF;
       break;
 
     case MISSION_EXECUTION: {
@@ -271,7 +272,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
           ROS_INFO("land enabled");
       }
-      node_state_ = LANDED;
+      flightState_ = LANDED;
       // ros::spinOnce();
       break;
     }
@@ -286,7 +287,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
       if(!current_state_.armed){
         ROS_WARN("Not arm, nothing to do");
-        node_state_ = LANDED;
+        flightState_ = LANDED;
         break;
       } 
       geometry_msgs::PoseStamped msg;
@@ -298,7 +299,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     }
   }
   std_msgs::Int8 msg;
-  msg.data = node_state_;
+  msg.data = flightState_;
   nodeStatePub_.publish(msg);
 }
 
@@ -308,7 +309,7 @@ void Se3LeeCtrl::statusloopCallback(const ros::TimerEvent &event) {
   if (sim_enable_) {
     // Enable OFFBoard mode and arm automatically
     // This will only run if the vehicle is simulated
-    if(node_state_ != WAITING_FOR_HOME_POSE && node_state_ != LANDED && node_state_ != LANDING) {
+    if(flightState_ != WAITING_FOR_HOME_POSE && flightState_ != LANDED && flightState_ != LANDING) {
       mavros_msgs::SetMode offb_set_mode;
       arm_cmd_.request.value = true;
       offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -328,7 +329,7 @@ void Se3LeeCtrl::statusloopCallback(const ros::TimerEvent &event) {
     } 
   }
   else{
-    if( current_state_.mode == "OFFBOARD" && node_state_ != WAITING_FOR_HOME_POSE && node_state_ != LANDED && node_state_ != LANDING){
+    if( current_state_.mode == "OFFBOARD" && flightState_ != WAITING_FOR_HOME_POSE && flightState_ != LANDED && flightState_ != LANDING){
       arm_cmd_.request.value = true;
       if( !current_state_.armed){
           if( arming_client_.call(arm_cmd_) &&arm_cmd_.response.success){

@@ -70,7 +70,7 @@ class pidCtrl {
         Eigen::Vector4d targetAtt_;
         double targetThrust_;
 
-        enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } node_state_, prev_node_state_;
+        enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } flightState_, prev_flightState_;
         enum ControlType {SIMPLE_PID, CASCADE_PID, NONE} pid_type_;
 
         std::string state2string(FlightState state) {

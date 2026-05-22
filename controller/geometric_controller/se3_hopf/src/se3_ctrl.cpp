@@ -30,8 +30,8 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     vel_in_body_ = true;
 
     init_pose_ << 0, 0, 0.5;
-    node_state_ = WAITING_FOR_CONNECTED;
-    prev_node_state_ = node_state_;
+    flightState_ = WAITING_FOR_CONNECTED;
+    prev_flightState_ = flightState_;
 
     kp_p_ << 0.85, 0.85, 1.5;
     kp_v_ << 1.5, 1.5, 1.5;
@@ -81,11 +81,11 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     // }
     
     // exec_timer_.start();
-    if (node_state_ != prev_node_state_) {
-        ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
-        prev_node_state_ = node_state_;
+    if (flightState_ != prev_flightState_) {
+        ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
+        prev_flightState_ = flightState_;
     }
-    switch (node_state_)
+    switch (flightState_)
     {
     case WAITING_FOR_CONNECTED:{
         while(ros::ok() && !currState_.connected){
@@ -93,16 +93,21 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
         }
         
         ROS_INFO("connected!");
-        node_state_ = WAITING_FOR_OFFBOARD;
+        flightState_ = WAITING_FOR_OFFBOARD;
         break;
     }
     case WAITING_FOR_OFFBOARD:{
-        pubLocalPose(init_pose_);
+        // cout <<"check: " <<currState_.mode <<endl;
+        
+        // pubLocalPose(init_pose_);
+        Controller_Output_t init_output;
+        init_output.thrust = 0.6;
+        send_cmd(init_output, true); // send a zero command to initialize the offboard mode
         trigger_offboard();
         trigger_arm();
         if(currState_.mode == "OFFBOARD" && currState_.armed){
             ROS_INFO("Ready TakeOff");
-            node_state_ = MISSION_EXECUTION;
+            flightState_ = MISSION_EXECUTION;
             // last_ = ros::Time::now();
         }
         break;
@@ -125,7 +130,7 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
             ROS_INFO("land enabled");
         }
-        node_state_ = LANDED;
+        flightState_ = LANDED;
         // ros::spinOnce();
         break;
     }
@@ -136,6 +141,10 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
         }
         // ros::spinOnce();
         break;
+    case EMERGENCY:
+         ROS_ERROR("Emergency state! Please check the system.");
+         flightState_ = LANDING;
+         break;
     default:
         break;
     }
@@ -179,7 +188,7 @@ void Se3HopfCtrl::pubLocalPose(const Eigen::Vector3d &pose)
 
 bool Se3HopfCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
     ROS_INFO("trigger land!");
-    node_state_ = LANDING;
+    flightState_ = LANDING;
     return true;
 }
 
@@ -190,12 +199,13 @@ void Se3HopfCtrl::OdomCallback(const nav_msgs::Odometry::ConstPtr &msg){
     bool judge_z = (odom_data_.p(2) >= geo_fence_[2]);
     bool judge = (judge_x || judge_y || judge_z);
     if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND){
-        mavros_msgs::SetMode land_set_mode;
-        land_set_mode.request.custom_mode = mavros_msgs::State::MODE_PX4_LAND;
-        if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
-            node_state_ = LANDED;
-            ROS_WARN("obs Land enabled");
-        }
+        flightState_ = EMERGENCY;
+        // mavros_msgs::SetMode land_set_mode;
+        // land_set_mode.request.custom_mode = mavros_msgs::State::MODE_PX4_LAND;
+        // if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
+        //     flightState_ = LANDED;
+        //     ROS_WARN("obs Land enabled");
+        // }
     }
 }
 

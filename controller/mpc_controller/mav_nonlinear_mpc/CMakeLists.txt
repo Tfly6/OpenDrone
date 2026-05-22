@@ -36,6 +36,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 #############
 cs_add_library(mav_nonlinear_mpc_lib
   src/nonlinear_mpc.cc
+  src/mpc_queue.cpp
   solver/qpoases/SRC/Bounds.cpp
   solver/qpoases/SRC/Constraints.cpp
   solver/qpoases/SRC/CyclingManager.cpp

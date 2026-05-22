@@ -38,8 +38,8 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
     nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
-    node_state_ = WAITING_FOR_CONNECTED;
-    prev_node_state_ = node_state_;
+    flightState_ = WAITING_FOR_CONNECTED;
+    prev_flightState_ = flightState_;
     pid_type_ = static_cast<ControlType>(type);
     targetVel_ << 0.0, 0.0, 0.0;
     targetPos_ << 0, 0, takeoff_height_;
@@ -50,20 +50,19 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
 void pidCtrl::controlLoop(const ros::TimerEvent &event)
 {
-    if (node_state_ != prev_node_state_) {
-        ROS_WARN_STREAM("State changed from " << state2string(prev_node_state_) << " to " << state2string(node_state_));
-        prev_node_state_ = node_state_;
+    if (flightState_ != prev_flightState_) {
+        ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
+        prev_flightState_ = flightState_;
     }
     double dt = event.current_real.toSec() - event.last_real.toSec();
-    switch (node_state_)
+    switch (flightState_)
     {
     case WAITING_FOR_CONNECTED:{
-        while(ros::ok() && !currState_.connected){
-            ros::spinOnce();
+        ROS_INFO_ONCE("Waiting for FCU connection...");
+        if(currState_.connected){
+            ROS_INFO("FCU Connected");
+            flightState_ = WAITING_FOR_OFFBOARD;
         }
-        
-        ROS_INFO("connected!");
-        node_state_ = WAITING_FOR_OFFBOARD;
         break;
     }
     case WAITING_FOR_OFFBOARD:{
@@ -73,7 +72,7 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         trigger_arm();
         if(currState_.mode == "OFFBOARD" && currState_.armed){
             ROS_INFO("Ready TakeOff");
-            node_state_ = TAKEOFF;
+            flightState_ = TAKEOFF;
             // last_ = ros::Time::now();
         }
         break;
@@ -82,7 +81,7 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         computeTarget(dt);
         if(is_arrive(currPose_, targetPos_)){
             ROS_INFO("TakeOff Complete");
-            node_state_ = MISSION_EXECUTION;
+            flightState_ = MISSION_EXECUTION;
         }
         break;
     }
@@ -97,7 +96,7 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
             ROS_INFO("land enabled");
         }
-        node_state_ = LANDED;
+        flightState_ = LANDED;
         break;
       }
     case LANDED:
@@ -209,7 +208,7 @@ void pidCtrl::pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const do
 
 bool pidCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
     ROS_INFO("trigger land!");
-    node_state_ = LANDING;
+    flightState_ = LANDING;
     return true;
 }
 
@@ -249,7 +248,8 @@ void pidCtrl::pos_cb(const geometry_msgs::PoseStamped &msg)
 
     for(int i = 0;i<3;i++){
         if(currPose_[i] > geo_fence_[i] || currPose_[i] < -geo_fence_[i]){
-            node_state_ = EMERGENCY;
+            if (flightState_ != LANDING && flightState_ != LANDED) 
+                flightState_ = EMERGENCY;
             break;
         }
     }

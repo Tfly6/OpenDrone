@@ -49,7 +49,6 @@ LinearModelPredictiveController::LinearModelPredictiveController(const ros::Node
       position_error_integration_(0, 0, 0),
       command_roll_pitch_yaw_thrust_(0, 0, 0, 0),
       linearized_command_roll_pitch_thrust_(0, 0, 0),
-      mpc_queue_(nh, private_nh, kPredictionHorizonSteps),
       disturbance_observer_(nh, private_nh),
       verbose_(false),
       solve_time_average_(0),
@@ -61,7 +60,7 @@ LinearModelPredictiveController::LinearModelPredictiveController(const ros::Node
 
   initializeParameters();
 
-  mpc_queue_.initializeQueue(sampling_time_, prediction_sampling_time_);
+  mpc_queue_.reset(new MPCQueue(kPredictionHorizonSteps, sampling_time_, prediction_sampling_time_));
 }
 
 LinearModelPredictiveController::~LinearModelPredictiveController()
@@ -307,7 +306,9 @@ void LinearModelPredictiveController::setOdometry(const mav_msgs::EigenOdometry&
 void LinearModelPredictiveController::setCommandTrajectoryPoint(
     const mav_msgs::EigenTrajectoryPoint& command_trajectory)
 {
-  mpc_queue_.insertReference(command_trajectory);
+  mav_msgs::EigenTrajectoryPointDeque command_trajectory_array;
+  command_trajectory_array.push_back(command_trajectory);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory_array);
 }
 
 void LinearModelPredictiveController::setCommandTrajectory(
@@ -318,7 +319,7 @@ void LinearModelPredictiveController::setCommandTrajectory(
     return;
   }
 
-  mpc_queue_.insertReferenceTrajectory(command_trajectory_array);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory_array);
 }
 
 void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
@@ -343,9 +344,9 @@ void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
   double yaw;
 
   // update mpc queue
-  mpc_queue_.updateQueue();
+  mpc_queue_->updateQueue();
   // Copy out the whole queues
-  mpc_queue_.getQueue(position_ref_, velocity_ref_, acceleration_ref_, yaw_ref_, yaw_rate_ref_);
+  mpc_queue_->getQueue(position_ref_, velocity_ref_, acceleration_ref_, yaw_ref_, yaw_rate_ref_);
 
   // update the disturbance observer
   disturbance_observer_.feedAttitudeCommand(command_roll_pitch_yaw_thrust_);

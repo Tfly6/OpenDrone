@@ -20,8 +20,15 @@
   <!-- <depend>eigen_catkin</depend> -->
   <depend>mav_msgs</depend>
   <depend>mav_trajectory_generation</depend>
-  <depend>mav_visualization</depend>
   <depend>mav_planning_msgs</depend>
   <!-- <depend>eigen_checks</depend> -->
-  <depend>roslib</depend>
+    <depend>roslib</depend>
+    <depend>roscpp</depend>
+    <depend>std_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
+    <depend>trajectory_msgs</depend>
+    <depend>visualization_msgs</depend>
+    <depend>tf</depend>
+    <depend>eigen_conversions</depend>
 </package>

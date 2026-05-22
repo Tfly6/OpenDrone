@@ -39,7 +39,7 @@ class LQR_Controller {
     void trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory& msg);
     void triggerOffboard();
     void triggerArm();
-    void publishAttitude();
+    void publishAttitude(Eigen::Vector4d bodyRatesThrustCmd);
     bool isAtPosition(const Eigen::Vector3d& target, double threshold);
 
     // ROS interfaces
