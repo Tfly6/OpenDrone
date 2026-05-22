@@ -80,11 +80,12 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
     case FlightState::WAITING_FOR_OFFBOARD:
     {
-        geometry_msgs::PoseStamped pose;
-        pose.pose.position.x = initPose_[0];
-        pose.pose.position.y = initPose_[1];
-        pose.pose.position.z = initPose_[2];
-        localPosPub_.publish(pose);
+        // geometry_msgs::PoseStamped pose;
+        // pose.pose.position.x = initPose_[0];
+        // pose.pose.position.y = initPose_[1];
+        // pose.pose.position.z = initPose_[2];
+        // localPosPub_.publish(pose);
+        publishAttitude(Eigen::Vector4d(0, 0, 0, hoverThrust_));  // Publish hover command to help transition to OFFBOARD
 
         triggerOffboard();
         triggerArm();
@@ -120,7 +121,79 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
         // LQR control is handled via the odom callback in lqr_quaternion/lqr_euler
         // The controllers compute control outputs based on trajectory
-        publishAttitude();
+        Eigen::Matrix<double, 4, 1> output;
+        Eigen::Vector4d cmd_body_rate_thrust;
+
+        if (controlType_ == ControlType::QUATERNION) {
+            auto traj_control = lqr_quaternion_.getTrajectoryControl();
+            auto gain = lqr_quaternion_.getGain();
+            auto error = lqr_quaternion_.getError();
+            auto ref = lqr_quaternion_.getRefStates();
+            output = traj_control - gain * error;
+            cmd_body_rate_thrust << output(0), output(1), output(2), output(3);
+            // Clamp outputs
+            // for (int i = 0; i < 3; i++) {
+            //     if (output(i) > 2.0) output(i) = 2.0;
+            //     else if (output(i) < -2.0) output(i) = -2.0;
+            // }
+
+            // Debug output for takeoff/Mission execution
+            // ROS_INFO_THROTTLE(2.0, "LQR Quaternion: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
+            //                   currentPos_(0), currentPos_(1), currentPos_(2),
+            //                   error(0), error(1), error(2));
+
+            // double thrust_raw = output(3);
+
+            // Compute thrust
+            // double thrust_n = output(3);
+            // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
+            // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+
+            // ROS_INFO_THROTTLE(2.0,
+            //           "LQR Quat ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f norm=%.3f Kt[z,vz]=[%.3f, %.3f]",
+            //           currentPos_(2), ref(2), error(2), error(9),
+            //           traj_control(3), thrust_raw, normalized_thrust,
+            //           gain(3, 2), gain(3, 9));
+            
+        } else {
+            auto traj_control = lqr_euler_.getTrajectoryControl();
+            auto gain = lqr_euler_.getGain();
+            auto error = lqr_euler_.getError();
+            auto ref = lqr_euler_.getRefStates();
+            output = traj_control - gain * error;
+
+            // Call setOutput for EULER to apply thrust negation and clamping
+            lqr_euler_.setOutput(output);
+            output = lqr_euler_.getOutput();
+
+            Eigen::Vector3d cmd_body_rate_aircraft;
+            Eigen::Vector3d cmd_body_rate_baselink;
+            cmd_body_rate_aircraft << output(0),
+                                        output(1),
+                                        output(2);
+
+            cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
+            cmd_body_rate_thrust << cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), output(3);
+            // ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
+            //                 currentPos_(0), currentPos_(1), currentPos_(2),
+            //                 error(0), error(1), error(2));
+
+            // ROS_INFO_THROTTLE(2.0,
+            //         "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
+            //         currentPos_(2), ref(2), error(2), error(8),
+            //         traj_control(3), output(3),
+            //         gain(3, 2), gain(3, 8));
+            
+            // double thrust_n = output(3);
+            // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
+            // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+           
+            // ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
+            //         output(0), output(1), output(2),
+            //         cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
+            //         output(3), normalized_thrust);
+        }
+        publishAttitude(cmd_body_rate_thrust);
         break;
     }
 
@@ -155,102 +228,35 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     }
 }
 
-void LQR_Controller::publishAttitude()
+void LQR_Controller::publishAttitude(Eigen::Vector4d bodyRatesThrustCmd)
 {
     mavros_msgs::AttitudeTarget bodyrateMsg;
 
     // Get LQR output based on control type
-    Eigen::Matrix<double, 4, 1> output;
+   
 
-    if (controlType_ == ControlType::QUATERNION) {
-        auto traj_control = lqr_quaternion_.getTrajectoryControl();
-        auto gain = lqr_quaternion_.getGain();
-        auto error = lqr_quaternion_.getError();
-        auto ref = lqr_quaternion_.getRefStates();
-        output = traj_control - gain * error;
+    // Clamp outputs
+    // for (int i = 0; i < 3; i++) {
+    //     if (output(i) > 2.0) output(i) = 2.0;
+    //     else if (output(i) < -2.0) output(i) = -2.0;
+    // }
 
-        // Clamp outputs
-        for (int i = 0; i < 3; i++) {
-            if (output(i) > 2.0) output(i) = 2.0;
-            else if (output(i) < -2.0) output(i) = -2.0;
-        }
+    double thrust_raw = bodyRatesThrustCmd(3);
 
-        // Debug output for takeoff/Mission execution
-        // ROS_INFO_THROTTLE(2.0, "LQR Quaternion: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-        //                   currentPos_(0), currentPos_(1), currentPos_(2),
-        //                   error(0), error(1), error(2));
+    // Compute thrust
+    double normalized_thrust = (hoverThrust_ * thrust_raw) / gravity_;
+    normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
 
-        double thrust_raw = output(3);
+    // Publish body rate command
+    bodyrateMsg.header.stamp = ros::Time::now();
+    bodyrateMsg.header.frame_id = "map";
+    bodyrateMsg.body_rate.x = bodyRatesThrustCmd(0);
+    bodyrateMsg.body_rate.y = bodyRatesThrustCmd(1);
+    bodyrateMsg.body_rate.z = bodyRatesThrustCmd(2);
+    bodyrateMsg.thrust = normalized_thrust;
+    bodyrateMsg.type_mask = 128;  // Use body rates
 
-        // Compute thrust
-        double thrust_n = output(3);
-        double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-        normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-
-        // ROS_INFO_THROTTLE(2.0,
-        //           "LQR Quat ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f norm=%.3f Kt[z,vz]=[%.3f, %.3f]",
-        //           currentPos_(2), ref(2), error(2), error(9),
-        //           traj_control(3), thrust_raw, normalized_thrust,
-        //           gain(3, 2), gain(3, 9));
-
-        // Publish body rate command
-        bodyrateMsg.header.stamp = ros::Time::now();
-        bodyrateMsg.header.frame_id = "map";
-        bodyrateMsg.body_rate.x = output(0);
-        bodyrateMsg.body_rate.y = output(1);
-        bodyrateMsg.body_rate.z = output(2);
-        bodyrateMsg.thrust = normalized_thrust;
-        bodyrateMsg.type_mask = 128;  // Use body rates
-
-        attitudePub_.publish(bodyrateMsg);
-    } else {
-        auto traj_control = lqr_euler_.getTrajectoryControl();
-        auto gain = lqr_euler_.getGain();
-        auto error = lqr_euler_.getError();
-        auto ref = lqr_euler_.getRefStates();
-        output = traj_control - gain * error;
-
-        // Call setOutput for EULER to apply thrust negation and clamping
-        lqr_euler_.setOutput(output);
-        output = lqr_euler_.getOutput();
-
-        Eigen::Vector3d cmd_body_rate_aircraft;
-        Eigen::Vector3d cmd_body_rate_baselink;
-        cmd_body_rate_aircraft << output(0),
-                                    output(1),
-                                    output(2);
-
-        cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
-
-        ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-                          currentPos_(0), currentPos_(1), currentPos_(2),
-                          error(0), error(1), error(2));
-
-        ROS_INFO_THROTTLE(2.0,
-                  "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
-                  currentPos_(2), ref(2), error(2), error(8),
-                  traj_control(3), output(3),
-                  gain(3, 2), gain(3, 8));
-        
-        double thrust_n = output(3);
-        double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-        normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-        // Publish body rate command
-        bodyrateMsg.header.stamp = ros::Time::now();
-        bodyrateMsg.header.frame_id = "map";
-        bodyrateMsg.body_rate.x = cmd_body_rate_baselink(0);
-        bodyrateMsg.body_rate.y = cmd_body_rate_baselink(1);
-        bodyrateMsg.body_rate.z = cmd_body_rate_baselink(2);
-        bodyrateMsg.thrust = normalized_thrust;  // Use normalized thrust
-        bodyrateMsg.type_mask = 128;  // Use body rates
-
-        ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
-                  output(0), output(1), output(2),
-                  cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
-                  output(3), normalized_thrust);
-
-        attitudePub_.publish(bodyrateMsg);
-    }
+    attitudePub_.publish(bodyrateMsg);
 }
 
 void LQR_Controller::stateCallback(const mavros_msgs::State::ConstPtr& msg)
@@ -272,10 +278,13 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     // Check geofence
     for (int i = 0; i < 3; i++) {
         if (std::abs(currentPos_[i]) > geoFence_[i]) {
-            ROS_WARN("Geofence violation on axis %d: pos=[%.2f, %.2f, %.2f] limit=[%.2f, %.2f, %.2f]",
-                     i, currentPos_[0], currentPos_[1], currentPos_[2],
-                     geoFence_[0], geoFence_[1], geoFence_[2]);
-            flightState_ = FlightState::EMERGENCY;
+            if(flightState_ != FlightState::LANDING && flightState_ != FlightState::LANDED) {
+                ROS_ERROR("Geofence violation! Current pos [%.2f, %.2f, %.2f] exceeds limit [%.2f, %.2f, %.2f]",
+                          currentPos_[0], currentPos_[1], currentPos_[2],
+                          geoFence_[0], geoFence_[1], geoFence_[2]);
+                flightState_ = FlightState::EMERGENCY;
+            }
+            
             break;
         }
     }

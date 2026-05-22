@@ -36,7 +36,8 @@
 #include <mav_msgs/conversions.h>
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <stdio.h>
-#include <mav_control_interface/mpc_queue.h>
+#include <memory>
+#include <mav_nonlinear_mpc/mpc_queue.h>
 #include "acado_common.h"
 #include "acado_auxiliary_functions.h"
 #include <mav_disturbance_observer/KF_disturbance_observer.h>
@@ -118,6 +119,11 @@ class NonlinearModelPredictiveControl
     return mass_;
   }
 
+  Eigen::Vector4d getCommandRollPitchYawThrust() const
+  {
+    return command_roll_pitch_yaw_thrust_;
+  }
+
   // get reference and predicted state
   bool getCurrentReference(mav_msgs::EigenTrajectoryPoint* reference) const;
   bool getCurrentReference(mav_msgs::EigenTrajectoryPointDeque* reference) const;
@@ -193,7 +199,7 @@ class NonlinearModelPredictiveControl
   double pitch_rate_limit_cmd_;
 
   // reference queue
-  MPCQueue mpc_queue_;
+    std::unique_ptr<MPCQueue> mpc_queue_;
   Vector3dDeque position_ref_, velocity_ref_, acceleration_ref_;
   std::deque<double> yaw_ref_, yaw_rate_ref_;
 

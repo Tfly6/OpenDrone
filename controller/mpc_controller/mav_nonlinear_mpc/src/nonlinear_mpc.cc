@@ -43,7 +43,6 @@ NonlinearModelPredictiveControl::NonlinearModelPredictiveControl(const ros::Node
       private_nh_(private_nh),
       initialized_parameters_(false),
       position_error_integration_(0, 0, 0),
-      mpc_queue_(nh, private_nh, ACADO_N+1),
       command_roll_pitch_yaw_thrust_(0, 0, 0, 0),
       disturbance_observer_(nh, private_nh),
       verbose_(false),
@@ -66,7 +65,7 @@ NonlinearModelPredictiveControl::NonlinearModelPredictiveControl(const ros::Node
 
   initializeParameters();
 
-  mpc_queue_.initializeQueue(sampling_time_, prediction_sampling_time_);
+  mpc_queue_.reset(new MPCQueue(ACADO_N + 1, sampling_time_, prediction_sampling_time_));
 
 }
 
@@ -253,7 +252,9 @@ void NonlinearModelPredictiveControl::setOdometry(const mav_msgs::EigenOdometry&
 void NonlinearModelPredictiveControl::setCommandTrajectoryPoint(
     const mav_msgs::EigenTrajectoryPoint& command_trajectory)
 {
-  mpc_queue_.insertReference(command_trajectory);
+  mav_msgs::EigenTrajectoryPointDeque command_trajectory_array;
+  command_trajectory_array.push_back(command_trajectory);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory_array);
 }
 
 void NonlinearModelPredictiveControl::setCommandTrajectory(
@@ -263,7 +264,7 @@ void NonlinearModelPredictiveControl::setCommandTrajectory(
   if (array_size < 1)
     return;
 
-  mpc_queue_.insertReferenceTrajectory(command_trajectory);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory);
 }
 
 void NonlinearModelPredictiveControl::initializeAcadoSolver(Eigen::VectorXd x0)
@@ -296,8 +297,8 @@ void NonlinearModelPredictiveControl::calculateRollPitchYawrateThrustCommand(
   Eigen::Vector3d current_rpy;
   odometry_.getEulerAngles(&current_rpy);
 
-  mpc_queue_.updateQueue();
-  mpc_queue_.getQueue(position_ref_, velocity_ref_, acceleration_ref_, yaw_ref_, yaw_rate_ref_);
+  mpc_queue_->updateQueue();
+  mpc_queue_->getQueue(position_ref_, velocity_ref_, acceleration_ref_, yaw_ref_, yaw_rate_ref_);
 
   disturbance_observer_.feedAttitudeCommand(command_roll_pitch_yaw_thrust_);
   disturbance_observer_.feedPositionMeasurement(odometry_.position_W);
