@@ -1,0 +1,14 @@
+<launch>
+    <arg name="config_path" default="$(find super_planner_od)/config/click_smooth_ros1.yaml" />
+    <arg name="use_rviz" default="true" />
+    <arg name="rviz_config" default="$(find super_planner_od)/rviz/bench.rviz" />
+
+    <node pkg="super_planner_od" type="fsm_node" name="super_planner_od_fsm" output="screen">
+        <param name="config_path" value="$(arg config_path)" />
+        <param name="rog_map/ros_callback/cloud_topic" value="/registered_scan" />
+        <param name="rog_map/ros_callback/odom_topic" value="/mavros/local_position/odom" />
+        <param name="rog_map/visualization/frame_id" value="world" />
+    </node>
+
+    <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" />
+</launch>

@@ -1,0 +1,4 @@
+<launch>
+    <arg name="rviz_config" default="$(find super_planner_od)/rviz/bench.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" />
+</launch>
