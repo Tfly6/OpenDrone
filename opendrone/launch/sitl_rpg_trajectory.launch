@@ -1,0 +1,24 @@
+<launch>
+  <node pkg="rpg_polynomial_trajectory" type="rpg_traj_node" name="rpg_traj_node" output="screen">
+    <param name="world_frame" value="world"/>
+    <param name="odom_topic" value="/mavros/local_position/odom"/>
+    <param name="goal_topic" value="/move_base_simple/goal"/>
+    <param name="waypoint_topic" value="/rpg_traj/waypoints"/>
+    <param name="cancel_topic" value="/rpg_traj/cancel"/>
+
+    <param name="path_topic" value="/rpg_traj/path"/>
+    <param name="command_traj_topic" value="/command/trajectory"/>
+
+    <param name="use_minimum_snap" value="true"/>
+    <param name="use_segment_refine" value="true"/>
+
+    <param name="order_of_continuity" value="4"/>
+    <param name="max_velocity" value="3.0"/>
+    <param name="max_normalized_thrust" value="15.0"/>
+    <param name="max_roll_pitch_rate" value="2.0"/>
+    <param name="sampling_frequency" value="50.0"/>
+    <param name="exec_frequency" value="50.0"/>
+    <param name="default_segment_time" value="1.0"/>
+    <param name="split_trajectory_publish" value="true"/>
+  </node>
+</launch>
