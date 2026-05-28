@@ -106,6 +106,7 @@ class LinearModelPredictiveControllerNode {
   bool has_reference_;
   bool landing_locked_;
   bool takeoff_trajectory_sent_;
+  bool auto_takeoff_{false};
   int offboard_warmup_counter_;
 
   ros::Time last_odometry_stamp_;

@@ -21,6 +21,11 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     dynamic_tune_server_.setCallback(dynamic_tune_cb_type_);
 
     nh_.param<bool>("enable_sim", sim_enable_, false);
+    nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
+    nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+    nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
+    nh_.param<double>("request_interval", request_interval_, 1.0);
+    nh_.param<bool>("auto_takeoff", auto_takeoff_, true);
     nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
     nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
     nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
@@ -34,6 +39,14 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     init_pose_ << 0, 0, 0.5;
     flightState_ = WAITING_FOR_CONNECTED;
     prev_flightState_ = flightState_;
+    if (offboard_warmup_count_ < 1) {
+        offboard_warmup_count_ = 1;
+    }
+    if (request_interval_ < 0.1) {
+        request_interval_ = 0.1;
+    }
+    last_mode_request_ = ros::Time(0);
+    last_arm_request_ = ros::Time(0);
 
     kp_p_ << 0.85, 0.85, 1.5;
     kp_v_ << 1.5, 1.5, 1.5;
@@ -57,10 +70,10 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     hover_percent_ = 0.25;
     max_hover_percent_ = 0.75;
 
-    desired_state_.p(0) = 0.0;
-    desired_state_.p(1) = 0.0;
-    desired_state_.p(2) = takeoff_height_;
-    desired_state_.yaw = 0.0;
+    // desired_state_.p(0) = 0.0;
+    // desired_state_.p(1) = 0.0;
+    // desired_state_.p(2) = takeoff_height_;
+    // desired_state_.yaw = 0.0;
 
     se3_hopf_.init(hover_percent_, max_hover_percent_, enu_frame_, vel_in_body_);
     se3_hopf_.setup(kp_p_, kp_v_, kp_a_, kp_q_, kp_w_,
@@ -90,44 +103,53 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     switch (flightState_)
     {
     case WAITING_FOR_CONNECTED:{
-        while(ros::ok() && !currState_.connected){
-            ros::spinOnce();
+        ROS_INFO_ONCE("Waiting for FCU connection...");
+        if(currState_.connected){
+            ROS_INFO("connected!");
+            offboard_warmup_counter_ = 0;
+            flightState_ = WAITING_FOR_OFFBOARD;
         }
-        
-        ROS_INFO("connected!");
-        flightState_ = WAITING_FOR_OFFBOARD;
         break;
     }
     case WAITING_FOR_OFFBOARD:{
-        // cout <<"check: " <<currState_.mode <<endl;
-        
-        // pubLocalPose(init_pose_);
+        ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
         Controller_Output_t init_output;
         init_output.thrust = 0.6;
         send_cmd(init_output, true); // send a zero command to initialize the offboard mode
-        trigger_offboard();
-        trigger_arm();
+        ++offboard_warmup_counter_;
+        const ros::Time now = ros::Time::now();
+        TrySetOffboard(now);
+        TryArm(now);
         if(currState_.mode == "OFFBOARD" && currState_.armed){
-            ROS_INFO("Ready TakeOff");
-            flightState_ = MISSION_EXECUTION;
-            // last_ = ros::Time::now();
+            if(auto_takeoff_){
+                ROS_INFO("Offboard and armed! Taking off...");
+                desired_state_.p(0) = 0.0;
+                desired_state_.p(1) = 0.0;
+                desired_state_.p(2) = takeoff_height_;
+                desired_state_.yaw = 0.0;
+                flightState_ = TAKEOFF;
+            }else{
+                flightState_ = MISSION_EXECUTION;
+            }
         }
         break;
     }
-    // case TAKEOFF:{
-        
-    //     if(is_arrive(currPose_, targetPos_)){
-    //         ROS_INFO("TakeOff Complete");
-    //         flightState_ = MISSION_EXECUTION;
-    //     }
-    //     break;
-    // }
+    case TAKEOFF:{
+        ROS_INFO_ONCE("Auto Taking off...");
+        Controller_Output_t output;
+        if(se3_hopf_.calControl(odom_data_, imu_data_, desired_state_, output)){
+            send_cmd(output, true);
+            se3_hopf_.estimateTa(imu_data_.a);
+        }
+        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02){
+            ROS_INFO("TakeOff Complete");
+            flightState_ = MISSION_EXECUTION;
+        }
+        break;
+    }
         
     case MISSION_EXECUTION:{
-        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
-            ROS_INFO("takeoff completed");
-            takeoffFlag_ = true;
-        } 
+        ROS_INFO_ONCE("Mission execution...");
         Controller_Output_t output;
         if(se3_hopf_.calControl(odom_data_, imu_data_, desired_state_, output)){
             send_cmd(output, true);
@@ -136,6 +158,7 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
         break;
     }
     case LANDING: {
+        landing_locked_ = true;
         mavros_msgs::SetMode land_set_mode;
         land_set_mode.request.custom_mode = "AUTO.LAND";
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
@@ -226,6 +249,59 @@ void Se3HopfCtrl::IMUCallback(const sensor_msgs::Imu::ConstPtr &msg){
 
 void Se3HopfCtrl::StateCallback(const mavros_msgs::State::ConstPtr &msg){
     currState_ = *msg;
+    if (currState_.mode == "AUTO.LAND" && !landing_locked_) {
+        landing_locked_ = true;
+        ROS_WARN("se3_hopf landing lock enabled (AUTO.LAND detected).");
+    }
+}
+
+void Se3HopfCtrl::TrySetOffboard(const ros::Time &now) {
+    if (landing_locked_ || !enable_auto_offboard_) {
+        return;
+    }
+    if (currState_.mode == "OFFBOARD") {
+        return;
+    }
+    if (offboard_warmup_counter_ < offboard_warmup_count_) {
+        return;
+    }
+    if ((now - last_mode_request_).toSec() < request_interval_) {
+        return;
+    }
+
+    mavros_msgs::SetMode offb_set_mode;
+    offb_set_mode.request.custom_mode = "OFFBOARD";
+    if (set_mode_client_.call(offb_set_mode) && offb_set_mode.response.mode_sent) {
+        offboard_triggered_ = true;
+        ROS_INFO_THROTTLE(2.0, "se3_hopf requested OFFBOARD mode.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "se3_hopf failed to request OFFBOARD mode.");
+    }
+    last_mode_request_ = now;
+}
+
+void Se3HopfCtrl::TryArm(const ros::Time &now) {
+    if (landing_locked_ || !enable_auto_arm_) {
+        return;
+    }
+    if (currState_.armed) {
+        return;
+    }
+    if (enable_auto_offboard_ && currState_.mode != "OFFBOARD") {
+        return;
+    }
+    if ((now - last_arm_request_).toSec() < request_interval_) {
+        return;
+    }
+
+    arm_cmd.request.value = true;
+    if (arming_client_.call(arm_cmd) && arm_cmd.response.success) {
+        arm_triggered_ = true;
+        ROS_INFO_THROTTLE(2.0, "se3_hopf requested arming.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "se3_hopf failed to arm.");
+    }
+    last_arm_request_ = now;
 }
 
 void Se3HopfCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) 

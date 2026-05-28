@@ -21,7 +21,6 @@
 namespace lqr {
 
 enum class ControlType { QUATERNION, EULER, NONE };
-enum class FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY };
 
 class LQR_Controller {
   public:
@@ -33,12 +32,15 @@ class LQR_Controller {
     void dynamicReconfigureCallback(lqr_controller::LqrControllerConfig &config, uint32_t level);
 
   private:
+    enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY };
+
     std::string state2string(FlightState state);
     void stateCallback(const mavros_msgs::State::ConstPtr& msg);
     void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
     void trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory& msg);
-    void triggerOffboard();
-    void triggerArm();
+    void TrySetOffboard(const ros::Time& now);
+    void TryArm(const ros::Time& now);
+    void computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd);
     void publishAttitude(Eigen::Vector4d bodyRatesThrustCmd);
     bool isAtPosition(const Eigen::Vector3d& target, double threshold);
 
@@ -64,10 +66,17 @@ class LQR_Controller {
     ControlType controlType_;
 
     // Flags
-    bool armTriggered_;
-    bool offboardTriggered_;
-    bool simEnable_;
-    bool takeoffComplete_;
+    bool simEnable_{false};
+    bool takeoffComplete_{false};
+    bool landingLocked_{false};
+    bool enableAutoOffboard_{false};
+    bool enableAutoArm_{false};
+    bool autoTakeoff_{false};
+    int offboardWarmupCounter_;
+    int offboardWarmupCount_;
+    double requestInterval_;
+    ros::Time lastModeRequest_;
+    ros::Time lastArmRequest_;
 
     // Parameters
     double takeoffHeight_;

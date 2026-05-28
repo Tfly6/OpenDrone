@@ -81,6 +81,7 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
   private_nh_.param("odom_timeout", odom_timeout_, 0.8);
   private_nh_.param("enable_auto_offboard", enable_auto_offboard_, true);
   private_nh_.param("enable_auto_arm", enable_auto_arm_, true);
+  private_nh_.param("auto_takeoff", auto_takeoff_, true);
   private_nh_.param("offboard_warmup_count", offboard_warmup_count_, 80);
   private_nh_.param("request_interval", request_interval_, 1.0);
   private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
@@ -360,15 +361,19 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
     }
 
     case WAITING_FOR_OFFBOARD: {
+      ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
       PublishAttitudeTarget(Eigen::Vector4d(0.0, 0.0, current_yaw_, 9.81));
       ++offboard_warmup_counter_;
       TrySetOffboard(now);
       TryArm(now);
 
       if (current_mavros_state_.mode == "OFFBOARD" && current_mavros_state_.armed) {
-        ROS_INFO("Ready Takeoff");
-        takeoff_trajectory_sent_ = false;
-        flightState_ = TAKEOFF;
+        if(auto_takeoff_) {
+          flightState_ = TAKEOFF;
+          takeoff_trajectory_sent_ = false;
+        } else {
+          flightState_ = MISSION_EXECUTION;
+        }
       }
       break;
     }
@@ -381,7 +386,7 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
         ROS_WARN_THROTTLE(1.0, "Linear MPC node waiting for takeoff reference.");
         break;
       }
-
+      ROS_INFO_ONCE("Auto Taking off...");
       Eigen::Vector4d rpyrate_thrust;
       linear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = linear_mpc_.getCommandRollPitchYawThrust();
@@ -399,6 +404,7 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
         ROS_WARN_THROTTLE(1.0, "Linear MPC node waiting for reference.");
         break;
       }
+      ROS_INFO_ONCE("Mission execution...");
       Eigen::Vector4d rpyrate_thrust;
       linear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = linear_mpc_.getCommandRollPitchYawThrust();

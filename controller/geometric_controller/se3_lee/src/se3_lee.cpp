@@ -47,7 +47,7 @@ using namespace Eigen;
 using namespace std;
 // Constructor
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
-    : nh_(nh), nh_private_(nh_private), flightState_(WAITING_FOR_HOME_POSE) {
+    : nh_(nh), nh_private_(nh_private), flightState_(WAITING_FOR_CONNECTED) {
   referenceSub_ =
       nh_.subscribe("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   yawreferenceSub_ =
@@ -64,24 +64,27 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   
   cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3LeeCtrl::cmdloopCallback,
                                    this);  // Define timer for constant loop rate
-  statusloop_timer_ = nh_.createTimer(ros::Duration(1), &Se3LeeCtrl::statusloopCallback,
-                                      this);  // Define timer for constant loop rate
 
   angularVelPub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 1);
   referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 1);
   target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
   // posehistoryPub_ = nh_.advertise<nav_msgs::Path>("se3_lee/path", 10);
-  systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
+  // systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
   land_service_ = nh_.advertiseService("/land", &Se3LeeCtrl::landCallback, this);
 
   // add
-  nodeStatePub_ = nh_.advertise<std_msgs::Int8>("se3_lee/state", 1);
+  nodeStatePub_ = nh_.advertise<std_msgs::Int8>("se3_lee/flight_state", 1);
 
   nh_private_.param<string>("mavname", mav_name_, "iris");
   nh_private_.param<int>("ctrl_mode", ctrl_mode_, ERROR_QUATERNION);
   nh_private_.param<bool>("enable_sim", sim_enable_, true);
+  nh_private_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
+  nh_private_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+  nh_private_.param<bool>("auto_takeoff", auto_takeoff_, true);
+  nh_private_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
+  nh_private_.param<double>("request_interval", request_interval_, 1.0);
   nh_private_.param<bool>("debug", debugFlag_, false);
   nh_private_.param<bool>("velocity_yaw", velocity_yaw_, false);
   nh_private_.param<double>("max_acc", max_fb_acc_, 4.0);
@@ -123,7 +126,15 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   mavVel_.setZero();
   
   prev_flightState_ = flightState_;
-  targetPos_[2] = takeoff_height_;
+  if (offboard_warmup_count_ < 1) {
+    offboard_warmup_count_ = 1;
+  }
+  if (request_interval_ < 0.1) {
+    request_interval_ = 0.1;
+  }
+  last_mode_request_ = ros::Time(0);
+  last_arm_request_ = ros::Time(0);
+  // targetPos_[2] = takeoff_height_;
   Kpos_ << -Kpos_x_, -Kpos_y_, -Kpos_z_;
   Kvel_ << -Kvel_x_, -Kvel_y_, -Kvel_z_;
 
@@ -190,11 +201,11 @@ void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTraje
 }
 
 void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
-  if (!received_home_pose) {
-    received_home_pose = true;
-    home_pose_ = msg.pose;
-    ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
-  }
+  // if (!received_home_pose) {
+  //   received_home_pose = true;
+  //   home_pose_ = msg.pose;
+  //   ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
+  // }
   mavPos_ = toEigen(msg.pose.position);
   for(int i = 0;i<3;i++){
     if(mavPos_[i] > geo_fence_[i] || mavPos_[i] < -geo_fence_[i]){
@@ -226,10 +237,10 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     prev_flightState_ = flightState_;
   }
   switch (flightState_) {
-    case WAITING_FOR_HOME_POSE:
-      waitForPredicate(&received_home_pose, "Waiting for home pose...");
-      ROS_INFO("Got pose! Drone Ready to be armed.");
-      ROS_INFO("Drone will takeoff to %lf[m]", takeoff_height_);
+    // case WAITING_FOR_HOME_POSE:
+    //   waitForPredicate(&received_home_pose, "Waiting for home pose...");
+    //   ROS_INFO("Got pose! Drone Ready to be armed.");
+    //   ROS_INFO("Drone will takeoff to %lf[m]", takeoff_height_);
       // cout << takeoff_height_ <<std::endl;
       // if(!takeoffFlag_){
       //   double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
@@ -240,34 +251,43 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       //   targetVel_[2] = min(takeoffVel, max_vel_);
       //   targetAcc_[2] = 0.5;
       // }
-      if(received_home_pose){
-        flightState_ = MISSION_EXECUTION;
-      }
+      // if (received_home_pose) {
+      //   offboard_warmup_counter_ = 0;
+      //   flightState_ = WAITING_FOR_OFFBOARD;
+      // }
       
       // flightState_ = TAKEOFF;
-      break;
-    
-    // case TAKEOFF: {
-    //   geometry_msgs::PoseStamped takeoffmsg;
-    //   takeoffmsg.header.stamp = ros::Time::now();
-    //   takeoffmsg.pose = home_pose_;
-    //   takeoffmsg.pose.position.z = takeoff_height_;
-    //   target_pose_pub_.publish(takeoffmsg);
-    //   if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
-    //     ROS_INFO("takeoff completed");
-    //     targetPos_ << takeoffmsg.pose.position.x, takeoffmsg.pose.position.y, takeoffmsg.pose.position.z; 
-    //     flightState_ = MISSION_EXECUTION;
-    //   }
-        
-    //   // ros::spinOnce();
-    //   break;
-    // }
-
-    case MISSION_EXECUTION: {
-      if(fabs(mavPos_(2) - takeoff_height_) < 0.02 && !takeoffFlag_){
-          ROS_INFO("takeoff completed");
-          takeoffFlag_ = true;
+      // break;
+    case WAITING_FOR_CONNECTED: {
+      ROS_INFO_ONCE("Waiting for FCU connection...");
+      if (current_state_.connected) {
+        ROS_INFO("Connected to FCU!");
+        offboard_warmup_counter_ = 0;
+        flightState_ = WAITING_FOR_OFFBOARD;
       }
+      break;
+    }
+    case WAITING_FOR_OFFBOARD: {
+      ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
+      pubRateCommands(Eigen::Vector4d(0, 0, 0, 0.7), Eigen::Vector4d::Zero()); // send zero command to initialize the offboard mode
+      ++offboard_warmup_counter_;
+      const ros::Time now = ros::Time::now();
+      TrySetOffboard(now);
+      TryArm(now);
+
+      if (current_state_.mode == "OFFBOARD" && current_state_.armed) {
+        if (auto_takeoff_) {
+          targetPos_[2] = takeoff_height_;
+          flightState_ = TAKEOFF;
+        }else {
+          flightState_ = MISSION_EXECUTION;
+        }
+      }
+      break;
+    }
+    
+    case TAKEOFF: {
+      ROS_INFO_ONCE("Auto Taking off...");
       Eigen::Vector3d desired_acc;
       if(feedthrough_enable_) {
         desired_acc = targetAcc_;
@@ -275,7 +295,24 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
         desired_acc = controlPosition(targetPos_, targetVel_, targetAcc_);
       }
       computeBodyRateCmd(cmdBodyRate_, desired_acc);
-      pubReferencePose(targetPos_, q_des); // reference/pose
+      pubRateCommands(cmdBodyRate_, q_des);
+      if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
+        ROS_INFO("takeoff completed");
+        flightState_ = MISSION_EXECUTION;
+      }
+      break;
+    }
+
+    case MISSION_EXECUTION: {
+      ROS_INFO_ONCE("Mission execution...");
+      Eigen::Vector3d desired_acc;
+      if(feedthrough_enable_) {
+        desired_acc = targetAcc_;
+      } else {
+        desired_acc = controlPosition(targetPos_, targetVel_, targetAcc_);
+      }
+      computeBodyRateCmd(cmdBodyRate_, desired_acc);
+      // pubReferencePose(targetPos_, q_des); // reference/pose
       pubRateCommands(cmdBodyRate_, q_des); // command/bodyrate_command
       // appendPoseHistory();
       // pubPoseHistory();
@@ -288,6 +325,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       // landingmsg.pose = home_pose_;
       // // landingmsg.pose.position.z = landingmsg.pose.position.z + 1.0;
       // target_pose_pub_.publish(landingmsg);
+      landing_locked_ = true;
       mavros_msgs::SetMode land_set_mode;
       land_set_mode.request.custom_mode = "AUTO.LAND";
       if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
@@ -322,44 +360,62 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
   std_msgs::Int8 msg;
   msg.data = flightState_;
   nodeStatePub_.publish(msg);
+  // pubSystemStatus();
 }
 
-void Se3LeeCtrl::mavstateCallback(const mavros_msgs::State::ConstPtr &msg) { current_state_ = *msg; }
+void Se3LeeCtrl::mavstateCallback(const mavros_msgs::State::ConstPtr &msg) {
+  current_state_ = *msg;
+  if (current_state_.mode == "AUTO.LAND" && !landing_locked_) {
+    landing_locked_ = true;
+    ROS_WARN("se3_lee landing lock enabled (AUTO.LAND detected).");
+  }
+}
 
-void Se3LeeCtrl::statusloopCallback(const ros::TimerEvent &event) {
-  if (sim_enable_) {
-    // Enable OFFBoard mode and arm automatically
-    // This will only run if the vehicle is simulated
-    if(flightState_ != WAITING_FOR_HOME_POSE && flightState_ != LANDED && flightState_ != LANDING) {
-      mavros_msgs::SetMode offb_set_mode;
-      arm_cmd_.request.value = true;
-      offb_set_mode.request.custom_mode = "OFFBOARD";
-      if (current_state_.mode != "OFFBOARD" && (ros::Time::now() - last_request_ > ros::Duration(5.0))) {
-        if (set_mode_client_.call(offb_set_mode) && offb_set_mode.response.mode_sent) {
-          ROS_INFO("Offboard enabled");
-        }
-        last_request_ = ros::Time::now();
-      } else {
-        if (!current_state_.armed && (ros::Time::now() - last_request_ > ros::Duration(5.0))) {
-          if (arming_client_.call(arm_cmd_) && arm_cmd_.response.success) {
-            ROS_INFO("Vehicle armed");
-          }
-          last_request_ = ros::Time::now();
-        }
-      }
-    } 
+void Se3LeeCtrl::TrySetOffboard(const ros::Time &now) {
+  if (landing_locked_ || !enable_auto_offboard_) {
+    return;
   }
-  else{
-    if( current_state_.mode == "OFFBOARD" && flightState_ != WAITING_FOR_HOME_POSE && flightState_ != LANDED && flightState_ != LANDING){
-      arm_cmd_.request.value = true;
-      if( !current_state_.armed){
-          if( arming_client_.call(arm_cmd_) &&arm_cmd_.response.success){
-              ROS_INFO("Vehicle armed");
-          }
-      }
-    }
+  if (current_state_.mode == "OFFBOARD") {
+    return;
   }
-  pubSystemStatus();
+  if (offboard_warmup_counter_ < offboard_warmup_count_) {
+    return;
+  }
+  if ((now - last_mode_request_).toSec() < request_interval_) {
+    return;
+  }
+
+  mavros_msgs::SetMode set_mode_srv;
+  set_mode_srv.request.custom_mode = "OFFBOARD";
+  if (set_mode_client_.call(set_mode_srv) && set_mode_srv.response.mode_sent) {
+    ROS_INFO_THROTTLE(2.0, "se3_lee requested OFFBOARD mode.");
+  } else {
+    ROS_WARN_THROTTLE(2.0, "se3_lee failed to request OFFBOARD mode.");
+  }
+  last_mode_request_ = now;
+}
+
+void Se3LeeCtrl::TryArm(const ros::Time &now) {
+  if (landing_locked_ || !enable_auto_arm_) {
+    return;
+  }
+  if (current_state_.armed) {
+    return;
+  }
+  if (enable_auto_offboard_ && current_state_.mode != "OFFBOARD") {
+    return;
+  }
+  if ((now - last_arm_request_).toSec() < request_interval_) {
+    return;
+  }
+
+  arm_cmd_.request.value = true;
+  if (arming_client_.call(arm_cmd_) && arm_cmd_.response.success) {
+    ROS_INFO_THROTTLE(2.0, "se3_lee requested arming.");
+  } else {
+    ROS_WARN_THROTTLE(2.0, "se3_lee failed to arm.");
+  }
+  last_arm_request_ = now;
 }
 
 void Se3LeeCtrl::pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude) {

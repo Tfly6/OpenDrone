@@ -28,8 +28,8 @@ class pidCtrl {
         pidCtrl(const ros::NodeHandle &nh);
 
         void dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level);
-        void trigger_offboard();
-        void trigger_arm();
+        void TrySetOffboard(const ros::Time &now);
+        void TryArm(const ros::Time &now);
 
     private:
         ros::NodeHandle nh_;
@@ -54,7 +54,16 @@ class pidCtrl {
         simplePID simpleController;
         cascadePID cascadeController;
 
-        bool sim_enable_, arm_triggered_, offboard_triggered_;
+        bool sim_enable_;
+        bool landing_locked_{false};
+        bool enable_auto_offboard_{false};
+        bool enable_auto_arm_{false};
+        bool autoTakeoff_{false};
+        int offboard_warmup_counter_{0};
+        int offboard_warmup_count_{80};
+        double request_interval_{1.0};
+        ros::Time last_mode_request_;
+        ros::Time last_arm_request_;
         double uavMass_;
         // double tilt_max_;
         double yaw_ref_;

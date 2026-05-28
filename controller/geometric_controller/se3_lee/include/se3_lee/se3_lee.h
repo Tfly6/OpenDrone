@@ -110,8 +110,9 @@ class Se3LeeCtrl {
   ros::ServiceClient set_mode_client_;
   ros::ServiceServer ctrltriggerServ_;
   ros::ServiceServer land_service_;
-  ros::Timer cmdloop_timer_, statusloop_timer_;
-  ros::Time last_request_, reference_request_now_, reference_request_last_;
+  ros::Timer cmdloop_timer_;
+  ros::Time reference_request_now_, reference_request_last_;
+  ros::Time last_mode_request_, last_arm_request_;
 
   //add
   ros::Publisher nodeStatePub_;
@@ -122,7 +123,14 @@ class Se3LeeCtrl {
   bool ctrl_enable_{true};
   int ctrl_mode_;
   bool landing_commanded_{false};
-  bool sim_enable_, takeoffFlag_{false};
+  bool landing_locked_{false};
+  bool enable_auto_offboard_{true};
+  bool enable_auto_arm_{true};
+  bool auto_takeoff_{false};
+  int offboard_warmup_counter_{0};
+  int offboard_warmup_count_{80};
+  double request_interval_{1.0};
+  bool sim_enable_;
   bool debugFlag_;
   bool velocity_yaw_;
   double kp_rot_, kd_rot_;
@@ -163,7 +171,8 @@ class Se3LeeCtrl {
   void mavstateCallback(const mavros_msgs::State::ConstPtr &msg);
   void mavposeCallback(const geometry_msgs::PoseStamped &msg);
   void mavtwistCallback(const geometry_msgs::TwistStamped &msg);
-  void statusloopCallback(const ros::TimerEvent &event);
+  void TrySetOffboard(const ros::Time &now);
+  void TryArm(const ros::Time &now);
   bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
   geometry_msgs::PoseStamped vector3d2PoseStampedMsg(Eigen::Vector3d &position, Eigen::Vector4d &orientation);
@@ -174,20 +183,30 @@ class Se3LeeCtrl {
   Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
                                 Eigen::Vector4d &curr_att);
 
-  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } flightState_, prev_flightState_;
+  enum FlightState {
+    WAITING_FOR_CONNECTED,
+    WAITING_FOR_OFFBOARD,
+    TAKEOFF,
+    MISSION_EXECUTION,
+    LANDING,
+    LANDED,
+    EMERGENCY
+  } flightState_, prev_flightState_;
 
   std::string state2string(FlightState state) {
     switch (state) {
-      case WAITING_FOR_HOME_POSE:
-        return "WAITING_FOR_HOME_POSE";
+      case WAITING_FOR_CONNECTED:
+        return "WAITING_FOR_CONNECTED";
+      case WAITING_FOR_OFFBOARD:
+        return "WAITING_FOR_OFFBOARD";
+      case TAKEOFF:
+        return "TAKEOFF";
       case MISSION_EXECUTION:
         return "MISSION_EXECUTION";
       case LANDING:
         return "LANDING";
       case LANDED:
         return "LANDED";
-      case TAKEOFF:
-        return "TAKEOFF";
       case EMERGENCY:
         return "EMERGENCY";
       default:

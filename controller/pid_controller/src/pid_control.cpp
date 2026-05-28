@@ -22,12 +22,14 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     land_service_ = nh_.advertiseService("/land", &pidCtrl::landCallback, this);
 
     cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &pidCtrl::controlLoop,this);
-
-    arm_triggered_ = false;
-    offboard_triggered_ = false;
     
     int type;
     nh_.param<bool>("enable_sim", sim_enable_, false);
+    nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
+    nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+    nh_.param<bool>("auto_takeoff", autoTakeoff_, true);
+    nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
+    nh_.param<double>("request_interval", request_interval_, 1.0);
     nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
     nh_.param<int>("pid_type", type, 0);
     nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
@@ -51,9 +53,20 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
     flightState_ = WAITING_FOR_CONNECTED;
     prev_flightState_ = flightState_;
+    if (offboard_warmup_count_ < 1) {
+        offboard_warmup_count_ = 1;
+    }
+    if (request_interval_ < 0.1) {
+        request_interval_ = 0.1;
+    }
+    last_mode_request_ = ros::Time(0);
+    last_arm_request_ = ros::Time(0);
     pid_type_ = static_cast<ControlType>(type);
-    targetVel_ << 0.0, 0.0, 0.0;
-    targetPos_ << 0, 0, takeoff_height_;
+    targetVel_.setZero();
+    targetPos_.setZero();
+    targetAtt_.setZero();
+    // targetVel_ << 0.0, 0.0, 0.0;
+    // targetPos_ << 0, 0, takeoff_height_;
 
     // kp_ << Kp_x_, Kp_y_, Kp_z_;
     // ki_ << Ki_x_, Ki_y_, Ki_z_;
@@ -79,23 +92,31 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         ROS_INFO_ONCE("Waiting for FCU connection...");
         if(currState_.connected){
             ROS_INFO("FCU Connected");
+            offboard_warmup_counter_ = 0;
             flightState_ = WAITING_FOR_OFFBOARD;
         }
         break;
     }
     case WAITING_FOR_OFFBOARD:{
-        // cout <<"check: " <<currState_.mode <<endl;
+        ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
         pubLocalPose(init_pose_);
-        trigger_offboard();
-        trigger_arm();
+        ++offboard_warmup_counter_;
+        const ros::Time now = ros::Time::now();
+        TrySetOffboard(now);
+        TryArm(now);
         if(currState_.mode == "OFFBOARD" && currState_.armed){
-            ROS_INFO("Ready TakeOff");
-            flightState_ = TAKEOFF;
+            if (autoTakeoff_) {
+                targetPos_ << init_pose_[0], init_pose_[1], takeoff_height_;
+                flightState_ = TAKEOFF;
+            } else {
+                flightState_ = MISSION_EXECUTION;
+            }
             // last_ = ros::Time::now();
         }
         break;
     }
     case TAKEOFF:{
+        ROS_INFO_ONCE("Auto Taking off...");
         computeTarget(dt);
         if(is_arrive(currPose_, targetPos_)){
             ROS_INFO("TakeOff Complete");
@@ -105,10 +126,12 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
     }
         
     case MISSION_EXECUTION:{
+        ROS_INFO_ONCE("Executing mission...");
         computeTarget(dt);
         break;
     }
     case LANDING: {
+        landing_locked_ = true;
         mavros_msgs::SetMode land_set_mode;
         land_set_mode.request.custom_mode = "AUTO.LAND";
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
@@ -124,7 +147,8 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         }
         break;
     case EMERGENCY:
-        pubLocalPose(Eigen::Vector3d(0.0, 0.0, 2.0));
+        // pubLocalPose(Eigen::Vector3d(0.0, 0.0, 2.0));
+        flightState_ = LANDING;
         ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
         break;
         
@@ -148,43 +172,53 @@ void pidCtrl::computeTarget(const double dt)
     }
 }
 
-void pidCtrl::trigger_offboard()
+void pidCtrl::TrySetOffboard(const ros::Time &now)
 {
-    if (sim_enable_) {
-        // Enable OFFBoard mode and arm automatically
-        // This will only run if the vehicle is simulated
-        
-        mavros_msgs::SetMode offb_set_mode;
-        offb_set_mode.request.custom_mode = "OFFBOARD";
-        if (currState_.mode != "OFFBOARD" && !offboard_triggered_) {
+    if (landing_locked_ || !enable_auto_offboard_) {
+        return;
+    }
+    if (currState_.mode == "OFFBOARD") {
+        return;
+    }
+    if (offboard_warmup_counter_ < offboard_warmup_count_) {
+        return;
+    }
+    if ((now - last_mode_request_).toSec() < request_interval_) {
+        return;
+    }
 
-            if (set_mode_client_.call(offb_set_mode) && offb_set_mode.response.mode_sent) {
-                offboard_triggered_ = true;
-                ROS_INFO("Offboard enabled");
-            }
-        } 
+    mavros_msgs::SetMode offb_set_mode;
+    offb_set_mode.request.custom_mode = "OFFBOARD";
+    if (set_mode_client_.call(offb_set_mode) && offb_set_mode.response.mode_sent) {
+        ROS_INFO_THROTTLE(2.0, "pid_controller requested OFFBOARD mode.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "pid_controller failed to request OFFBOARD mode.");
     }
-    else {
-        ROS_WARN("Not in sim,please be careful!");
-        if (currState_.mode != "OFFBOARD") {
-            ROS_INFO("Switch To Offboard Mode");
-        }
-    }
+    last_mode_request_ = now;
 }
 
-void pidCtrl::trigger_arm()
+void pidCtrl::TryArm(const ros::Time &now)
 {
-    // mavros_msgs::CommandBool arm_cmd;
-    arm_cmd.request.value = true;
-    if( currState_.mode == "OFFBOARD"){
-        if( !currState_.armed && !arm_triggered_){
-            if( arming_client_.call(arm_cmd) &&arm_cmd.response.success){
-                arm_triggered_ = true;
-                ROS_INFO("Vehicle armed");
-            }
-            // cout << "check1"<< arming_client_.call(arm_cmd)<<endl;
-        }
+    if (landing_locked_ || !enable_auto_arm_) {
+        return;
     }
+    if (currState_.armed) {
+        return;
+    }
+    if (enable_auto_offboard_ && currState_.mode != "OFFBOARD") {
+        return;
+    }
+    if ((now - last_arm_request_).toSec() < request_interval_) {
+        return;
+    }
+
+    arm_cmd.request.value = true;
+    if (arming_client_.call(arm_cmd) && arm_cmd.response.success) {
+        ROS_INFO_THROTTLE(2.0, "pid_controller requested arming.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "pid_controller failed to arm.");
+    }
+    last_arm_request_ = now;
 }
 
 void pidCtrl::pubVel(const Eigen::Vector3d &vel)
@@ -262,6 +296,10 @@ void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajecto
 void pidCtrl::state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
     currState_ = *msg;
+    if (currState_.mode == "AUTO.LAND" && !landing_locked_) {
+        landing_locked_ = true;
+        ROS_WARN("pid_controller landing lock enabled (AUTO.LAND detected).");
+    }
 }
 void pidCtrl::pos_cb(const geometry_msgs::PoseStamped &msg)
 {

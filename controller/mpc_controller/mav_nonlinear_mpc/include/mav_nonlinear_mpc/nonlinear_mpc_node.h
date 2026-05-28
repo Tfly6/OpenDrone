@@ -102,13 +102,14 @@ class NonLinearModelPredictiveControllerNode {
   bool has_reference_;
   bool landing_locked_;
   bool takeoff_trajectory_sent_;
+  bool auto_takeoff_{false};
   int offboard_warmup_counter_;
 
   ros::Time last_odometry_stamp_;
   ros::Time last_mode_request_;
   ros::Time last_arm_request_;
 
-  double current_yaw_;
+  double current_yaw_{0.0};
 
   double mass_;
   double hover_thrust_;

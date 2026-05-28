@@ -36,7 +36,19 @@ private:
     Desired_State_t desired_state_;
     SE3_HOPF_CONTROLLER se3_hopf_;
 
-    bool sim_enable_, arm_triggered_{false}, offboard_triggered_{false}, takeoffFlag_{false};
+    bool sim_enable_;
+    bool arm_triggered_{false};
+    bool offboard_triggered_{false};
+    bool auto_takeoff_{false};
+    // bool takeoffFlag_{false};
+    bool landing_locked_{false};
+    bool enable_auto_offboard_{false};
+    bool enable_auto_arm_{false};
+    int offboard_warmup_counter_{0};
+    int offboard_warmup_count_{80};
+    double request_interval_{1.0};
+    ros::Time last_mode_request_;
+    ros::Time last_arm_request_;
     double takeoff_height_;
     Eigen::Vector3d init_pose_, geo_fence_;;
 
@@ -81,6 +93,8 @@ private:
     void IMUCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void StateCallback(const mavros_msgs::State::ConstPtr &msg);
     void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
+    void TrySetOffboard(const ros::Time &now);
+    void TryArm(const ros::Time &now);
 
 
     void DynamicTuneCallback(se3_hopf::se3_dynamic_tuneConfig &config, uint32_t level){
@@ -167,45 +181,6 @@ private:
 public:
     Se3HopfCtrl(const ros::NodeHandle &nh);
     ~Se3HopfCtrl(){};
-
-    void trigger_offboard()
-    {
-        if (sim_enable_) {
-            // Enable OFFBoard mode and arm automatically
-            // This will only run if the vehicle is simulated
-            
-            mavros_msgs::SetMode offb_set_mode;
-            offb_set_mode.request.custom_mode = "OFFBOARD";
-            if (currState_.mode != "OFFBOARD" && !offboard_triggered_) {
-                cout <<"check1: " <<currState_.mode <<endl;
-                if (set_mode_client_.call(offb_set_mode) && offb_set_mode.response.mode_sent) {
-                    offboard_triggered_ = true;
-                    ROS_INFO("Offboard enabled");
-                }
-            } 
-        }
-        else {
-            ROS_WARN("Not in sim,please be careful!");
-            if (currState_.mode != "OFFBOARD") {
-                ROS_INFO("Switch To Offboard Mode");
-            }
-        }
-    }
-
-    void trigger_arm()
-    {
-        // mavros_msgs::CommandBool arm_cmd;
-        arm_cmd.request.value = true;
-        if( currState_.mode == "OFFBOARD"){
-            if( !currState_.armed && !arm_triggered_){
-                if( arming_client_.call(arm_cmd) &&arm_cmd.response.success){
-                    arm_triggered_ = true;
-                    ROS_INFO("Vehicle armed");
-                }
-                // cout << "check1"<< arming_client_.call(arm_cmd)<<endl;
-            }
-        }
-    }
 };
 
 #endif

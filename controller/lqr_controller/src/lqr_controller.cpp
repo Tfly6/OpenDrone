@@ -7,11 +7,11 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     : nodeHandle_(nh)
     , lqr_quaternion_(nh)
     , lqr_euler_(nh)
-    , flightState_(FlightState::WAITING_FOR_CONNECTED)
-    , prevFlightState_(FlightState::WAITING_FOR_CONNECTED)
-    , armTriggered_(false)
-    , offboardTriggered_(false)
-    , takeoffComplete_(false)
+    , flightState_(WAITING_FOR_CONNECTED)
+    , prevFlightState_(WAITING_FOR_CONNECTED)
+    , offboardWarmupCounter_(0)
+    , offboardWarmupCount_(80)
+    , requestInterval_(1.0)
 {
     // Load parameters
     nodeHandle_.param<bool>("enable_sim", simEnable_, false);
@@ -24,6 +24,11 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     nodeHandle_.param<double>("geo_fence/x", geoFence_[0], 10.0);
     nodeHandle_.param<double>("geo_fence/y", geoFence_[1], 10.0);
     nodeHandle_.param<double>("geo_fence/z", geoFence_[2], 4.0);
+    nodeHandle_.param<bool>("enable_auto_offboard", enableAutoOffboard_, simEnable_);
+    nodeHandle_.param<bool>("enable_auto_arm", enableAutoArm_, simEnable_);
+    nodeHandle_.param<bool>("auto_takeoff", autoTakeoff_, true);
+    nodeHandle_.param<int>("offboard_warmup_count", offboardWarmupCount_, 80);
+    nodeHandle_.param<double>("request_interval", requestInterval_, 1.0);
 
     int controlTypeInt = 0;
     nodeHandle_.param<int>("lqr_control_type", controlTypeInt, 0);
@@ -49,7 +54,15 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     controlTimer_ = nodeHandle_.createTimer(ros::Duration(0.01), &LQR_Controller::controlLoop, this);
 
     // Initialize target position
-    targetPos_ << 0, 0, takeoffHeight_;
+    // targetPos_ << 0, 0, takeoffHeight_;
+    if (offboardWarmupCount_ < 1) {
+        offboardWarmupCount_ = 1;
+    }
+    if (requestInterval_ < 0.1) {
+        requestInterval_ = 0.1;
+    }
+    lastModeRequest_ = ros::Time(0);
+    lastArmRequest_ = ros::Time(0);
 
     // Initialize dynamic reconfigure server
     dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig> srv;
@@ -74,157 +87,180 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
     switch (flightState_)
     {
-    case FlightState::WAITING_FOR_CONNECTED:
+    case WAITING_FOR_CONNECTED:
+        ROS_INFO_ONCE("Waiting for FCU connection...");
         // Wait for connection
+        if (currentState_.connected) {
+            ROS_INFO("Connected to FCU!");
+            offboardWarmupCounter_ = 0;
+            flightState_ = WAITING_FOR_OFFBOARD;
+        }
         break;
 
-    case FlightState::WAITING_FOR_OFFBOARD:
+    case WAITING_FOR_OFFBOARD:
     {
         // geometry_msgs::PoseStamped pose;
         // pose.pose.position.x = initPose_[0];
         // pose.pose.position.y = initPose_[1];
         // pose.pose.position.z = initPose_[2];
         // localPosPub_.publish(pose);
+        ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
         publishAttitude(Eigen::Vector4d(0, 0, 0, hoverThrust_));  // Publish hover command to help transition to OFFBOARD
 
-        triggerOffboard();
-        triggerArm();
+        ++offboardWarmupCounter_;
+        TrySetOffboard(ros::Time::now());
+        TryArm(ros::Time::now());
 
         if (currentState_.mode == "OFFBOARD" && currentState_.armed) {
-            targetPos_ << initPose_[0], initPose_[1], takeoffHeight_;
-            ROS_INFO("Ready to take off. targetPos set to [%.2f, %.2f, %.2f], takeoffHeight=%.2f",
-                     targetPos_[0], targetPos_[1], targetPos_[2], takeoffHeight_);
-            flightState_ = FlightState::MISSION_EXECUTION;
+            if(autoTakeoff_) {
+                ROS_INFO("Auto takeoff enabled. Transitioning to TAKEOFF state.");
+                targetPos_ << initPose_[0], initPose_[1], takeoffHeight_;
+                if(controlType_ == ControlType::QUATERNION) {
+                    lqr_quaternion_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
+                } else {
+                    lqr_euler_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
+                }
+                flightState_ = TAKEOFF;
+            } else {
+                flightState_ = MISSION_EXECUTION;
+            }
         }
         break;
     }
-
-    case FlightState::MISSION_EXECUTION:
+    case TAKEOFF:
     {
-        // Use LQR for everything: takeoff, hover, trajectory tracking
-        // Set hover reference to target position when no trajectory is available
-        // ROS_INFO_THROTTLE(2.0, "MISSION_EXECUTION: setHoverReference to [%.2f, %.2f, %.2f]",
-        //                   targetPos_[0], targetPos_[1], targetPos_[2]);
-        if(controlType_ == ControlType::QUATERNION) {
-            lqr_quaternion_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
-        } else {
-            lqr_euler_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
-        }
-
-        // Check if takeoff is complete
-        if (!takeoffComplete_ && isAtPosition(targetPos_, 0.3)) {
-            takeoffComplete_ = true;
+        // Publish takeoff command (handled in odom callback via LQR)
+        ROS_INFO_ONCE("Auto Taking off...");
+        Eigen::Vector4d cmd_body_rate_thrust;
+        computeControlCommands(cmd_body_rate_thrust);
+        publishAttitude(cmd_body_rate_thrust);
+        if (isAtPosition(targetPos_, 0.3)) {
+            flightState_ = MISSION_EXECUTION;
             ROS_INFO("Takeoff complete! Current pos [%.2f, %.2f, %.2f], target [%.2f, %.2f, %.2f]",
                      currentPos_[0], currentPos_[1], currentPos_[2],
                      targetPos_[0], targetPos_[1], targetPos_[2]);
         }
+        break;
+    }
 
+    case MISSION_EXECUTION:   
+    {
+        ROS_INFO_ONCE("Executing mission...");
         // LQR control is handled via the odom callback in lqr_quaternion/lqr_euler
         // The controllers compute control outputs based on trajectory
-        Eigen::Matrix<double, 4, 1> output;
         Eigen::Vector4d cmd_body_rate_thrust;
-
-        if (controlType_ == ControlType::QUATERNION) {
-            auto traj_control = lqr_quaternion_.getTrajectoryControl();
-            auto gain = lqr_quaternion_.getGain();
-            auto error = lqr_quaternion_.getError();
-            auto ref = lqr_quaternion_.getRefStates();
-            output = traj_control - gain * error;
-            cmd_body_rate_thrust << output(0), output(1), output(2), output(3);
-            // Clamp outputs
-            // for (int i = 0; i < 3; i++) {
-            //     if (output(i) > 2.0) output(i) = 2.0;
-            //     else if (output(i) < -2.0) output(i) = -2.0;
-            // }
-
-            // Debug output for takeoff/Mission execution
-            // ROS_INFO_THROTTLE(2.0, "LQR Quaternion: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-            //                   currentPos_(0), currentPos_(1), currentPos_(2),
-            //                   error(0), error(1), error(2));
-
-            // double thrust_raw = output(3);
-
-            // Compute thrust
-            // double thrust_n = output(3);
-            // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-            // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-
-            // ROS_INFO_THROTTLE(2.0,
-            //           "LQR Quat ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f norm=%.3f Kt[z,vz]=[%.3f, %.3f]",
-            //           currentPos_(2), ref(2), error(2), error(9),
-            //           traj_control(3), thrust_raw, normalized_thrust,
-            //           gain(3, 2), gain(3, 9));
-            
-        } else {
-            auto traj_control = lqr_euler_.getTrajectoryControl();
-            auto gain = lqr_euler_.getGain();
-            auto error = lqr_euler_.getError();
-            auto ref = lqr_euler_.getRefStates();
-            output = traj_control - gain * error;
-
-            // Call setOutput for EULER to apply thrust negation and clamping
-            lqr_euler_.setOutput(output);
-            output = lqr_euler_.getOutput();
-
-            Eigen::Vector3d cmd_body_rate_aircraft;
-            Eigen::Vector3d cmd_body_rate_baselink;
-            cmd_body_rate_aircraft << output(0),
-                                        output(1),
-                                        output(2);
-
-            cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
-            cmd_body_rate_thrust << cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), output(3);
-            // ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-            //                 currentPos_(0), currentPos_(1), currentPos_(2),
-            //                 error(0), error(1), error(2));
-
-            // ROS_INFO_THROTTLE(2.0,
-            //         "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
-            //         currentPos_(2), ref(2), error(2), error(8),
-            //         traj_control(3), output(3),
-            //         gain(3, 2), gain(3, 8));
-            
-            // double thrust_n = output(3);
-            // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-            // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-           
-            // ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
-            //         output(0), output(1), output(2),
-            //         cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
-            //         output(3), normalized_thrust);
-        }
+        computeControlCommands(cmd_body_rate_thrust);
         publishAttitude(cmd_body_rate_thrust);
         break;
     }
 
-    case FlightState::LANDING:
+    case LANDING:
     {
+        landingLocked_ = true;
         mavros_msgs::SetMode landMode;
         landMode.request.custom_mode = "AUTO.LAND";
         if (setModeClient_.call(landMode) && landMode.response.mode_sent) {
             ROS_INFO("Landing mode enabled");
         }
-        flightState_ = FlightState::LANDED;
+        flightState_ = LANDED;
         break;
     }
 
-    case FlightState::LANDED:
+    case LANDED:
         if (!currentState_.armed) {
             ROS_INFO("Landed. Please switch to position control to disarm.");
             controlTimer_.stop();
         }
         break;
 
-    case FlightState::EMERGENCY:
+    case EMERGENCY:
     {
-        geometry_msgs::PoseStamped pose;
-        pose.pose.position.x = 0;
-        pose.pose.position.y = 0;
-        pose.pose.position.z = 2.0;
-        localPosPub_.publish(pose);
+        // geometry_msgs::PoseStamped pose;
+        // pose.pose.position.x = 0;
+        // pose.pose.position.y = 0;
+        // pose.pose.position.z = 2.0;
+        // localPosPub_.publish(pose);
+        flightState_ = LANDING;
         ROS_WARN_STREAM_THROTTLE(2.0, "EMERGENCY: Geofence violation! Holding position.");
         break;
     }
+    }
+}
+
+void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
+{
+    // This function can be used to compute control commands based on the current state and trajectory
+    // For now, the control computation is done in the odom callback via the LQR controllers
+     Eigen::Matrix<double, 4, 1> output;
+
+    if (controlType_ == ControlType::QUATERNION) {
+        auto traj_control = lqr_quaternion_.getTrajectoryControl();
+        auto gain = lqr_quaternion_.getGain();
+        auto error = lqr_quaternion_.getError();
+        auto ref = lqr_quaternion_.getRefStates();
+        output = traj_control - gain * error;
+        bodyRatesThrustCmd << output(0), output(1), output(2), output(3);
+        // Clamp outputs
+        // for (int i = 0; i < 3; i++) {
+        //     if (output(i) > 2.0) output(i) = 2.0;
+        //     else if (output(i) < -2.0) output(i) = -2.0;
+        // }
+
+        // Debug output for takeoff/Mission execution
+        // ROS_INFO_THROTTLE(2.0, "LQR Quaternion: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
+        //                   currentPos_(0), currentPos_(1), currentPos_(2),
+        //                   error(0), error(1), error(2));
+
+        // double thrust_raw = output(3);
+
+        // Compute thrust
+        // double thrust_n = output(3);
+        // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
+        // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+
+        // ROS_INFO_THROTTLE(2.0,
+        //           "LQR Quat ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f norm=%.3f Kt[z,vz]=[%.3f, %.3f]",
+        //           currentPos_(2), ref(2), error(2), error(9),
+        //           traj_control(3), thrust_raw, normalized_thrust,
+        //           gain(3, 2), gain(3, 9));
+        
+    } else {
+        auto traj_control = lqr_euler_.getTrajectoryControl();
+        auto gain = lqr_euler_.getGain();
+        auto error = lqr_euler_.getError();
+        auto ref = lqr_euler_.getRefStates();
+        output = traj_control - gain * error;
+
+        // Call setOutput for EULER to apply thrust negation and clamping
+        lqr_euler_.setOutput(output);
+        output = lqr_euler_.getOutput();
+
+        Eigen::Vector3d cmd_body_rate_aircraft;
+        Eigen::Vector3d cmd_body_rate_baselink;
+        cmd_body_rate_aircraft << output(0),
+                                    output(1),
+                                    output(2);
+
+        cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
+        bodyRatesThrustCmd << cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), output(3);
+        // ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
+        //                 currentPos_(0), currentPos_(1), currentPos_(2),
+        //                 error(0), error(1), error(2));
+
+        // ROS_INFO_THROTTLE(2.0,
+        //         "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
+        //         currentPos_(2), ref(2), error(2), error(8),
+        //         traj_control(3), output(3),
+        //         gain(3, 2), gain(3, 8));
+        
+        // double thrust_n = output(3);
+        // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
+        // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+        
+        // ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
+        //         output(0), output(1), output(2),
+        //         cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
+        //         output(3), normalized_thrust);
     }
 }
 
@@ -263,9 +299,9 @@ void LQR_Controller::stateCallback(const mavros_msgs::State::ConstPtr& msg)
 {
     currentState_ = *msg;
 
-    if (flightState_ == FlightState::WAITING_FOR_CONNECTED && currentState_.connected) {
-        ROS_INFO("Mavros connected");
-        flightState_ = FlightState::WAITING_FOR_OFFBOARD;
+    if (currentState_.mode == "AUTO.LAND" && !landingLocked_) {
+        landingLocked_ = true;
+        ROS_WARN("lqr_controller landing lock enabled (AUTO.LAND detected).");
     }
 }
 
@@ -282,7 +318,7 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
                 ROS_ERROR("Geofence violation! Current pos [%.2f, %.2f, %.2f] exceeds limit [%.2f, %.2f, %.2f]",
                           currentPos_[0], currentPos_[1], currentPos_[2],
                           geoFence_[0], geoFence_[1], geoFence_[2]);
-                flightState_ = FlightState::EMERGENCY;
+                flightState_ = EMERGENCY;
             }
             
             break;
@@ -311,41 +347,60 @@ void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTraj
     // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg.points.size());
 }
 
-void LQR_Controller::triggerOffboard()
+void LQR_Controller::TrySetOffboard(const ros::Time& now)
 {
-    if (simEnable_) {
-        mavros_msgs::SetMode offbMode;
-        offbMode.request.custom_mode = "OFFBOARD";
-        if (currentState_.mode != "OFFBOARD" && !offboardTriggered_) {
-            if (setModeClient_.call(offbMode) && offbMode.response.mode_sent) {
-                offboardTriggered_ = true;
-                ROS_INFO("OFFBOARD mode enabled");
-            }
-        }
-    } else {
-        if (currentState_.mode != "OFFBOARD") {
-            ROS_WARN("Not in simulation - please switch to OFFBOARD mode manually");
-        }
+    if (landingLocked_ || !enableAutoOffboard_) {
+        return;
     }
+    if (currentState_.mode == "OFFBOARD") {
+        return;
+    }
+    if (offboardWarmupCounter_ < offboardWarmupCount_) {
+        return;
+    }
+    if ((now - lastModeRequest_).toSec() < requestInterval_) {
+        return;
+    }
+
+    mavros_msgs::SetMode setMode;
+    setMode.request.custom_mode = "OFFBOARD";
+    if (setModeClient_.call(setMode) && setMode.response.mode_sent) {
+        ROS_INFO_THROTTLE(2.0, "lqr_controller requested OFFBOARD mode.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "lqr_controller failed to request OFFBOARD mode.");
+    }
+    lastModeRequest_ = now;
 }
 
-void LQR_Controller::triggerArm()
+void LQR_Controller::TryArm(const ros::Time& now)
 {
+    if (landingLocked_ || !enableAutoArm_) {
+        return;
+    }
+    if (currentState_.armed) {
+        return;
+    }
+    if (enableAutoOffboard_ && currentState_.mode != "OFFBOARD") {
+        return;
+    }
+    if ((now - lastArmRequest_).toSec() < requestInterval_) {
+        return;
+    }
+
     mavros_msgs::CommandBool armCmd;
     armCmd.request.value = true;
-
-    if (currentState_.mode == "OFFBOARD" && !currentState_.armed && !armTriggered_) {
-        if (armingClient_.call(armCmd) && armCmd.response.success) {
-            armTriggered_ = true;
-            ROS_INFO("Vehicle armed");
-        }
+    if (armingClient_.call(armCmd) && armCmd.response.success) {
+        ROS_INFO_THROTTLE(2.0, "lqr_controller requested arming.");
+    } else {
+        ROS_WARN_THROTTLE(2.0, "lqr_controller failed to arm.");
     }
+    lastArmRequest_ = now;
 }
 
 bool LQR_Controller::landCallback(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
     ROS_INFO("Land service called");
-    flightState_ = FlightState::LANDING;
+    flightState_ = LANDING;
     response.success = true;
     return true;
 }
@@ -397,13 +452,13 @@ bool LQR_Controller::isAtPosition(const Eigen::Vector3d& target, double threshol
 std::string LQR_Controller::state2string(FlightState state)
 {
     switch (state) {
-        case FlightState::WAITING_FOR_CONNECTED: return "WAITING_FOR_CONNECTED";
-        case FlightState::WAITING_FOR_OFFBOARD: return "WAITING_FOR_OFFBOARD";
-        case FlightState::TAKEOFF: return "TAKEOFF";
-        case FlightState::MISSION_EXECUTION: return "MISSION_EXECUTION";
-        case FlightState::LANDING: return "LANDING";
-        case FlightState::LANDED: return "LANDED";
-        case FlightState::EMERGENCY: return "EMERGENCY";
+        case WAITING_FOR_CONNECTED: return "WAITING_FOR_CONNECTED";
+        case WAITING_FOR_OFFBOARD: return "WAITING_FOR_OFFBOARD";
+        case TAKEOFF: return "TAKEOFF";
+        case MISSION_EXECUTION: return "MISSION_EXECUTION";
+        case LANDING: return "LANDING";
+        case LANDED: return "LANDED";
+        case EMERGENCY: return "EMERGENCY";
         default: return "UNKNOWN";
     }
 }

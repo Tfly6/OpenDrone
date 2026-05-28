@@ -32,7 +32,6 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
       landing_locked_(false),
       takeoff_trajectory_sent_(false),
       offboard_warmup_counter_(0),
-      current_yaw_(0.0),
       mass_(1.0),
       hover_thrust_(0.5),
       thrust_min_(0.0),
@@ -80,6 +79,7 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
   private_nh_.param("odom_timeout", odom_timeout_, 0.5);
   private_nh_.param("enable_auto_offboard", enable_auto_offboard_, true);
   private_nh_.param("enable_auto_arm", enable_auto_arm_, true);
+  private_nh_.param("auto_takeoff", auto_takeoff_, true);
   private_nh_.param("offboard_warmup_count", offboard_warmup_count_, 80);
   private_nh_.param("request_interval", request_interval_, 1.0);
   private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
@@ -360,15 +360,19 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
     }
 
     case WAITING_FOR_OFFBOARD: {
+      ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
       PublishAttitudeTarget(Eigen::Vector4d(0.0, 0.0, 0.0, 9.81));
       ++offboard_warmup_counter_;
       TrySetOffboard(now);
       TryArm(now);
 
       if (current_mavros_state_.mode == "OFFBOARD" && current_mavros_state_.armed) {
-        ROS_INFO("Ready Takeoff");
-        takeoff_trajectory_sent_ = false;
-        flightState_ = TAKEOFF;
+        if(auto_takeoff_) {
+          takeoff_trajectory_sent_ = false;
+          flightState_ = TAKEOFF;
+        } else {
+          flightState_ = MISSION_EXECUTION;
+        }
       }
       break;
     }
@@ -377,7 +381,7 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
       if (!takeoff_trajectory_sent_) {
         GenerateTakeoffTrajectory();
       }
-
+      ROS_INFO_ONCE("Auto Taking off...");
       Eigen::Vector4d rpyrate_thrust;
       nonlinear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = nonlinear_mpc_.getCommandRollPitchYawThrust();
@@ -395,6 +399,7 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
         ROS_WARN_THROTTLE(1.0, "Nonlinear MPC node waiting for reference.");
         break;
       }
+      ROS_INFO_ONCE("Executing mission...");
       Eigen::Vector4d rpyrate_thrust;
       nonlinear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = nonlinear_mpc_.getCommandRollPitchYawThrust();
