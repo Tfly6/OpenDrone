@@ -5,6 +5,8 @@
 #include <math.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
+#include <geometry_msgs/AccelWithCovarianceStamped.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -13,6 +15,7 @@
 #include <mavros_msgs/State.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Path.h>
+#include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 #include <dynamic_reconfigure/server.h>
 #include <Eigen/Core>
@@ -33,12 +36,16 @@ class pidCtrl {
 
     private:
         ros::NodeHandle nh_;
-        ros::Subscriber pos_sub_, vel_sub_, imu_sub_, state_sub_;
+        ros::Subscriber pos_sub_, vel_sub_, state_sub_;
         ros::Subscriber multiDOFJoint_sub_, simpleWaypoint_sub_;
 
         ros::Publisher local_pos_pub_, vel_pub_;
         ros::Publisher setpoint_raw_local_pub_;
         ros::Publisher setpoint_raw_attitude_pub_;
+        ros::Publisher referencePosePub_;
+        ros::Publisher referenceVelPub_;
+        ros::Publisher referenceAccPub_;
+        ros::Publisher flight_state_pub_;
 
         ros::ServiceClient arming_client_;
         ros::ServiceClient set_mode_client_;
@@ -69,7 +76,7 @@ class pidCtrl {
         double yaw_ref_;
         double takeoff_height_;
         Eigen::Vector3d init_pose_;
-        Eigen::Vector3d currPose_, currVel_, currAcc_;
+        Eigen::Vector3d currPose_, currVel_;
         // Eigen::Vector3d kp_, ki_, kd_;
         // double Kp_x_, Kp_y_, Kp_z_, Ki_x_, Ki_y_, Ki_z_, Kd_x_, Kd_y_, Kd_z_;
         
@@ -112,11 +119,11 @@ class pidCtrl {
         void controlLoop(const ros::TimerEvent &event);
         bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
         void simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg);
-        void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
+        void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
         void state_cb(const mavros_msgs::State::ConstPtr &msg);
-        void pos_cb(const geometry_msgs::PoseStamped &msg);
-        void vel_cb(const geometry_msgs::TwistStamped &msg);
-        void imuCallback(const sensor_msgs::Imu::ConstPtr& msg);
+        void pos_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
+        void vel_cb(const geometry_msgs::TwistStamped::ConstPtr &msg);
+        // void acc_cb(const geometry_msgs::AccelWithCovarianceStamped &msg);
 
 };
 

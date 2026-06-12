@@ -12,8 +12,8 @@
 
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
-    <param name="thrust_min" value="0.0"/>
-    <param name="thrust_max" value="1.0"/>
+    <param name="normalized_thrust_min" value="0.0"/>
+    <param name="normalized_thrust_max" value="1.0"/>
     <param name="yaw_rate_scale" value="1.0"/>
 
     <param name="control_rate" value="100.0"/>

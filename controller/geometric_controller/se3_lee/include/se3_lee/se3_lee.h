@@ -51,6 +51,8 @@
 #include <string>
 
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <mavros_msgs/AttitudeTarget.h>
@@ -104,6 +106,9 @@ class Se3LeeCtrl {
   ros::Subscriber yawreferenceSub_;
   ros::Publisher rotorVelPub_, angularVelPub_, target_pose_pub_;
   ros::Publisher referencePosePub_;
+  ros::Publisher referencePoseEvalPub_;
+  ros::Publisher referenceVelEvalPub_;
+  ros::Publisher referenceAccEvalPub_;
   ros::Publisher posehistoryPub_;
   ros::Publisher systemstatusPub_;
   ros::ServiceClient arming_client_;
@@ -115,7 +120,7 @@ class Se3LeeCtrl {
   ros::Time last_mode_request_, last_arm_request_;
 
   //add
-  ros::Publisher nodeStatePub_;
+  ros::Publisher flight_state_pub_;
 
   string mav_name_;
   bool fail_detec_{false};
@@ -156,21 +161,21 @@ class Se3LeeCtrl {
   double Kpos_x_, Kpos_y_, Kpos_z_, Kvel_x_, Kvel_y_, Kvel_z_;
   int posehistory_window_;
 
-  void pubMotorCommands();
+  // void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
   void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
   // void pubPoseHistory();
   void pubSystemStatus();
   // void appendPoseHistory();
-  void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
-  void targetCallback(const geometry_msgs::TwistStamped &msg);
-  void yawtargetCallback(const std_msgs::Float32 &msg);
-  void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
-  void keyboardCallback(const geometry_msgs::Twist &msg);
+  // void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
+  void targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
+  void yawtargetCallback(const std_msgs::Float32::ConstPtr &msg);
+  void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
+  // void keyboardCallback(const geometry_msgs::Twist &msg);
   void cmdloopCallback(const ros::TimerEvent &event);
   void mavstateCallback(const mavros_msgs::State::ConstPtr &msg);
-  void mavposeCallback(const geometry_msgs::PoseStamped &msg);
-  void mavtwistCallback(const geometry_msgs::TwistStamped &msg);
+  void mavposeCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  void mavtwistCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
   void TrySetOffboard(const ros::Time &now);
   void TryArm(const ros::Time &now);
   bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
@@ -180,8 +185,8 @@ class Se3LeeCtrl {
   Eigen::Vector3d controlPosition(const Eigen::Vector3d &target_pos, const Eigen::Vector3d &target_vel,
                                   const Eigen::Vector3d &target_acc);
   Eigen::Vector3d poscontroller(const Eigen::Vector3d &pos_error, const Eigen::Vector3d &vel_error);
-  Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
-                                Eigen::Vector4d &curr_att);
+  // Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
+  //                               Eigen::Vector4d &curr_att);
 
   enum FlightState {
     WAITING_FOR_CONNECTED,

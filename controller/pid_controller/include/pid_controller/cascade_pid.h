@@ -82,7 +82,7 @@ class cascadePID {
                 target_acc = (maxAcc_ / target_acc.norm()) * target_acc;
             }
 
-            target_acc[2] += GRAVITY;
+            target_acc[2] += GRAVITY; //World Frame
 
             Eigen::Vector4d target_att = acc2quaternion(target_acc, yaw_ref);
 

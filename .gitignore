@@ -8,5 +8,6 @@ logs/
 log.txt
 *.patch
 analysis_out/
+eval_runs/
 temp.md
 *.info

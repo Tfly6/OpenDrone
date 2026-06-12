@@ -8,7 +8,10 @@
 #include <mavros_msgs/State.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 #include <dynamic_reconfigure/server.h>
 #include <Eigen/Core>
@@ -37,7 +40,7 @@ class LQR_Controller {
     std::string state2string(FlightState state);
     void stateCallback(const mavros_msgs::State::ConstPtr& msg);
     void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-    void trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory& msg);
+    void trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
     void TrySetOffboard(const ros::Time& now);
     void TryArm(const ros::Time& now);
     void computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd);
@@ -51,6 +54,10 @@ class LQR_Controller {
     ros::Subscriber trajectorySub_;
     ros::Publisher attitudePub_;
     ros::Publisher localPosPub_;
+    ros::Publisher referencePosePub_;
+    ros::Publisher referenceVelPub_;
+    ros::Publisher referenceAccPub_;
+    ros::Publisher flightStatePub_;
     ros::ServiceClient armingClient_;
     ros::ServiceClient setModeClient_;
     ros::ServiceServer landService_;

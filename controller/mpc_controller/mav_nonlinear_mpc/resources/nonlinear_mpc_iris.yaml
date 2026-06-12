@@ -36,10 +36,10 @@ pitch_rate_limit_cmd: 0.8
 Ki_xy: 0.08
 Ki_z: 0.10
 position_error_integration_limit: 2
-antiwindup_ball: 0.20
+antiwindup_ball: 0.50
 
 enable_offset_free: false
-enable_integrator: false
+enable_integrator: true
 
 sampling_time: 0.01
 prediction_sampling_time: 0.1

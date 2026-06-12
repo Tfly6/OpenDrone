@@ -8,12 +8,14 @@
 #include <mavros_msgs/AttitudeTarget.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
 #include "se3_hopf/se3_hopf.hpp"
 #include "se3_hopf/se3_dynamic_tuneConfig.h"
 // #include "math_utils/math_utils.h"
-#include <std_msgs/Float64.h>
+#include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 
 using namespace std;
@@ -21,7 +23,8 @@ using namespace std;
 class Se3HopfCtrl{
 private:
     ros::NodeHandle nh_;
-    ros::Publisher cmd_pub_, local_pos_pub_;
+    ros::Publisher cmd_pub_, local_pos_pub_, flight_state_pub_, reference_pose_pub_,
+                   reference_vel_pub_, reference_acc_pub_;
     ros::Subscriber odom_sub_, imu_sub_, state_sub_, multiDOFJoint_sub_;
     ros::ServiceClient set_mode_client_;
     ros::ServiceClient arming_client_;
@@ -92,7 +95,7 @@ private:
     void OdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void IMUCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void StateCallback(const mavros_msgs::State::ConstPtr &msg);
-    void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
+    void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
     void TrySetOffboard(const ros::Time &now);
     void TryArm(const ros::Time &now);
 

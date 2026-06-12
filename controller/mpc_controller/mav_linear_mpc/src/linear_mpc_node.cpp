@@ -74,8 +74,8 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
 
   private_nh_.param("mass", mass_, 1.0);
   private_nh_.param("hover_thrust", hover_thrust_, 0.5);
-  private_nh_.param("thrust_min", thrust_min_, 0.1);
-  private_nh_.param("thrust_max", thrust_max_, 1.0);
+  private_nh_.param("normalized_thrust_min", thrust_min_, 0.0);
+  private_nh_.param("normalized_thrust_max", thrust_max_, 1.0);
   private_nh_.param("yaw_rate_scale", yaw_rate_scale_, 1.0);
   private_nh_.param("control_rate", control_rate_, 100.0);
   private_nh_.param("odom_timeout", odom_timeout_, 0.8);
@@ -91,8 +91,8 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
   private_nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
   private_nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
-  takeoff_trajectory_points_ = std::max(2, std::min(3, takeoff_trajectory_points_));
-  takeoff_duration_sec_ = std::max(0.5, takeoff_duration_sec_);
+  takeoff_trajectory_points_ = std::max(2, std::min(10, takeoff_trajectory_points_));
+  takeoff_duration_sec_ = std::max(1.0, takeoff_duration_sec_);
 
   dynamic_reconfigure::Server<mav_linear_mpc::LinearMPCConfig>::CallbackType f;
   f = boost::bind(&LinearModelPredictiveControllerNode::DynConfigCallback, this, _1, _2);
@@ -113,9 +113,15 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
 
   command_publisher_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust>(command_output_topic, 1);
   attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>(attitude_target_topic, 1);
+  reference_pose_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 1);
+  reference_velocity_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 1);
+  reference_accel_publisher_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 1);
 
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_service);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_service);
+  land_service_ = nh_.advertiseService("/land", &LinearModelPredictiveControllerNode::LandCallback, this);
+
+  flight_state_publisher_ = nh_.advertise<std_msgs::Int8>("/flight_state", 1);
 
   control_rate_ = std::max(20.0, control_rate_);
   control_timer_ = nh_.createTimer(ros::Duration(1.0 / control_rate_),
@@ -169,7 +175,7 @@ void LinearModelPredictiveControllerNode::DynConfigCallback(mav_linear_mpc::Line
 }
 
 void LinearModelPredictiveControllerNode::CommandPoseCallback(
-    const geometry_msgs::PoseStampedConstPtr& msg) {
+    const geometry_msgs::PoseStamped::ConstPtr& msg) {
   mav_msgs::EigenTrajectoryPoint reference;
   mav_msgs::eigenTrajectoryPointFromPoseMsg(*msg, &reference);
   linear_mpc_.setCommandTrajectoryPoint(reference);
@@ -177,7 +183,7 @@ void LinearModelPredictiveControllerNode::CommandPoseCallback(
 }
 
 void LinearModelPredictiveControllerNode::CommandTrajectoryCallback(
-    const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
+    const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg) {
   if (msg->points.empty()) {
     return;
   }
@@ -189,7 +195,7 @@ void LinearModelPredictiveControllerNode::CommandTrajectoryCallback(
 }
 
 void LinearModelPredictiveControllerNode::OdometryCallback(
-    const nav_msgs::OdometryConstPtr& msg) {
+    const nav_msgs::Odometry::ConstPtr& msg) {
   mav_msgs::EigenOdometry odometry;
   mav_msgs::eigenOdometryFromMsg(*msg, &odometry);
   odometry.timestamp_ns = ros::Time::now().toNSec();
@@ -210,7 +216,7 @@ void LinearModelPredictiveControllerNode::OdometryCallback(
 }
 
 void LinearModelPredictiveControllerNode::MavrosStateCallback(
-    const mavros_msgs::StateConstPtr& msg) {
+    const mavros_msgs::State::ConstPtr& msg) {
   current_mavros_state_ = *msg;
   if (current_mavros_state_.mode == "AUTO.LAND" && !landing_locked_) {
     landing_locked_ = true;
@@ -264,6 +270,16 @@ void LinearModelPredictiveControllerNode::TryArm(const ros::Time& now) {
     ROS_WARN_THROTTLE(2.0, "Linear MPC node failed to arm.");
   }
   last_arm_request_ = now;
+}
+
+bool LinearModelPredictiveControllerNode::LandCallback(
+    std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+  (void)req;
+  ROS_INFO("Linear MPC received /land request, triggering landing.");
+  flightState_ = LANDING;
+  res.success = true;
+  res.message = "Landing triggered";
+  return true;
 }
 
 void LinearModelPredictiveControllerNode::PublishAttitudeTarget(const Eigen::Vector4d& rpy_thrust) {
@@ -342,6 +358,35 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
     ROS_WARN_THROTTLE(1.0, "Linear MPC node odometry timeout.");
     return;
   }
+  std_msgs::Int8 flight_state_msg;
+  flight_state_msg.data = static_cast<int8_t>(flightState_);
+  flight_state_publisher_.publish(flight_state_msg);
+
+  mav_msgs::EigenTrajectoryPoint ref_point;
+  if (linear_mpc_.getCurrentReference(&ref_point)) {
+    geometry_msgs::PoseStamped ref_msg;
+    ref_msg.header.stamp = ros::Time::now();
+    ref_msg.header.frame_id = "map";
+    ref_msg.pose.position.x = ref_point.position_W.x();
+    ref_msg.pose.position.y = ref_point.position_W.y();
+    ref_msg.pose.position.z = ref_point.position_W.z();
+    ref_msg.pose.orientation.w = 1.0;
+    reference_pose_publisher_.publish(ref_msg);
+
+    geometry_msgs::TwistStamped ref_vel_msg;
+    ref_vel_msg.header = ref_msg.header;
+    ref_vel_msg.twist.linear.x = ref_point.velocity_W.x();
+    ref_vel_msg.twist.linear.y = ref_point.velocity_W.y();
+    ref_vel_msg.twist.linear.z = ref_point.velocity_W.z();
+    reference_velocity_publisher_.publish(ref_vel_msg);
+
+    geometry_msgs::AccelStamped ref_acc_msg;
+    ref_acc_msg.header = ref_msg.header;
+    ref_acc_msg.accel.linear.x = ref_point.acceleration_W.x();
+    ref_acc_msg.accel.linear.y = ref_point.acceleration_W.y();
+    ref_acc_msg.accel.linear.z = ref_point.acceleration_W.z();
+    reference_accel_publisher_.publish(ref_acc_msg);
+  }
 
   if (flightState_ != prev_flightState_) {
     ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to "
@@ -416,9 +461,9 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
       mavros_msgs::SetMode land_set_mode;
       land_set_mode.request.custom_mode = "AUTO.LAND";
       if (set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent) {
+        flightState_ = LANDED;
         ROS_INFO("AUTO.LAND enabled");
       }
-      flightState_ = LANDED;
       break;
     }
 

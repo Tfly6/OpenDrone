@@ -35,13 +35,17 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     controlType_ = (controlTypeInt == 0) ? ControlType::QUATERNION : ControlType::EULER;
 
     // Initialize subscribers
-    stateSub_ = nodeHandle_.subscribe("/mavros/state", 10, &LQR_Controller::stateCallback, this);
-    odomSub_ = nodeHandle_.subscribe("/mavros/local_position/odom", 1, &LQR_Controller::odomCallback, this);
-    trajectorySub_ = nodeHandle_.subscribe("/command/trajectory", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
+    stateSub_ = nodeHandle_.subscribe<mavros_msgs::State>("/mavros/state", 10, &LQR_Controller::stateCallback, this);
+    odomSub_ = nodeHandle_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 1, &LQR_Controller::odomCallback, this);
+    trajectorySub_ = nodeHandle_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
 
     // Initialize publishers
     attitudePub_ = nodeHandle_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     localPosPub_ = nodeHandle_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+    flightStatePub_ = nodeHandle_.advertise<std_msgs::Int8>("/flight_state", 10);
+    referencePosePub_ = nodeHandle_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
+    referenceVelPub_ = nodeHandle_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
+    referenceAccPub_ = nodeHandle_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
 
     // Initialize service clients
     armingClient_ = nodeHandle_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -80,6 +84,10 @@ LQR_Controller::~LQR_Controller()
 
 void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 {
+    std_msgs::Int8 flight_state_msg;
+    flight_state_msg.data = static_cast<int8_t>(flightState_);
+    flightStatePub_.publish(flight_state_msg);
+
     if (flightState_ != prevFlightState_) {
         ROS_WARN_STREAM("LQR State changed: " << state2string(prevFlightState_) << " -> " << state2string(flightState_));
         prevFlightState_ = flightState_;
@@ -160,9 +168,9 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         mavros_msgs::SetMode landMode;
         landMode.request.custom_mode = "AUTO.LAND";
         if (setModeClient_.call(landMode) && landMode.response.mode_sent) {
+            flightState_ = LANDED;
             ROS_INFO("Landing mode enabled");
         }
-        flightState_ = LANDED;
         break;
     }
 
@@ -185,6 +193,37 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         break;
     }
     }
+
+    geometry_msgs::PoseStamped ref_msg;
+    ref_msg.header.stamp = ros::Time::now();
+    ref_msg.header.frame_id = "map";
+    ref_msg.pose.position.x = targetPos_(0);
+    ref_msg.pose.position.y = targetPos_(1);
+    ref_msg.pose.position.z = targetPos_(2);
+    ref_msg.pose.orientation.w = 1.0;
+    referencePosePub_.publish(ref_msg);
+
+    geometry_msgs::TwistStamped ref_vel_msg;
+    ref_vel_msg.header = ref_msg.header;
+    if (controlType_ == ControlType::QUATERNION) {
+        auto ref = lqr_quaternion_.getRefStates();
+        ref_vel_msg.twist.linear.x = ref(7);
+        ref_vel_msg.twist.linear.y = ref(8);
+        ref_vel_msg.twist.linear.z = ref(9);
+    } else {
+        auto ref = lqr_euler_.getRefStates();
+        ref_vel_msg.twist.linear.x = ref(6);
+        ref_vel_msg.twist.linear.y = ref(7);
+        ref_vel_msg.twist.linear.z = ref(8);
+    }
+    referenceVelPub_.publish(ref_vel_msg);
+
+    geometry_msgs::AccelStamped ref_acc_msg;
+    ref_acc_msg.header = ref_msg.header;
+    ref_acc_msg.accel.linear.x = 0.0;
+    ref_acc_msg.accel.linear.y = 0.0;
+    ref_acc_msg.accel.linear.z = 0.0;
+    referenceAccPub_.publish(ref_acc_msg);
 }
 
 void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
@@ -336,15 +375,15 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     }
 }
 
-void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory& msg)
+void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg)
 {
     // Pass trajectory to LQR controllers
     if(controlType_ == ControlType::QUATERNION) {
-        lqr_quaternion_.setTrajectory(msg);
+        lqr_quaternion_.setTrajectory(*msg);
     } else {
-        lqr_euler_.setTrajectory(msg);
+        lqr_euler_.setTrajectory(*msg);
     }
-    // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg.points.size());
+    // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg->points.size());
 }
 
 void LQR_Controller::TrySetOffboard(const ros::Time& now)

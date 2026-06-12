@@ -12,8 +12,13 @@
 
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
-    <param name="thrust_min" value="0.0"/>
-    <param name="thrust_max" value="1.0"/>
+    <!-- thrust_normalized_min/max: MAVROS output clamp (0~1 normalized)
+         The solver's thrust_min/max come from nonlinear_mpc_iris.yaml via dynamic_reconfigure.
+         DO NOT use thrust_min/thrust_max here — it collides with the dynamic_reconfigure key
+         and causes the solver to clamp thrust_min == thrust_max == 5.0 (cfg range lower bound),
+         which completely disables thrust authority. -->
+    <param name="thrust_normalized_min" value="0.0"/>
+    <param name="thrust_normalized_max" value="1.0"/>
     <param name="yaw_rate_scale" value="1.0"/>
 
     <param name="control_rate" value="100.0"/>

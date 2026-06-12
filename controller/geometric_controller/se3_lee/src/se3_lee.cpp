@@ -49,16 +49,16 @@ using namespace std;
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
     : nh_(nh), nh_private_(nh_private), flightState_(WAITING_FOR_CONNECTED) {
   referenceSub_ =
-      nh_.subscribe("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
+      nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   yawreferenceSub_ =
-      nh_.subscribe("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
-  multiDOFJointSub_ = nh_.subscribe("command/trajectory", 1, &Se3LeeCtrl::multiDOFJointCallback, this,
+      nh_.subscribe<std_msgs::Float32>("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
+  multiDOFJointSub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, &Se3LeeCtrl::multiDOFJointCallback, this,
                                     ros::TransportHints().tcpNoDelay());
   mavstateSub_ =
-      nh_.subscribe("mavros/state", 1, &Se3LeeCtrl::mavstateCallback, this, ros::TransportHints().tcpNoDelay());
-  mavposeSub_ = nh_.subscribe("mavros/local_position/pose", 1, &Se3LeeCtrl::mavposeCallback, this,
+      nh_.subscribe<mavros_msgs::State>("mavros/state", 1, &Se3LeeCtrl::mavstateCallback, this, ros::TransportHints().tcpNoDelay());
+  mavposeSub_ = nh_.subscribe<geometry_msgs::PoseStamped>("mavros/local_position/pose", 1, &Se3LeeCtrl::mavposeCallback, this,
                               ros::TransportHints().tcpNoDelay());
-  mavtwistSub_ = nh_.subscribe("mavros/local_position/velocity_local", 1, &Se3LeeCtrl::mavtwistCallback, this,
+  mavtwistSub_ = nh_.subscribe<geometry_msgs::TwistStamped>("mavros/local_position/velocity_local", 1, &Se3LeeCtrl::mavtwistCallback, this,
                                ros::TransportHints().tcpNoDelay());
   ctrltriggerServ_ = nh_.advertiseService("trigger_rlcontroller", &Se3LeeCtrl::ctrltriggerCallback, this);
   
@@ -67,6 +67,9 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
 
   angularVelPub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 1);
   referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 1);
+  referencePoseEvalPub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 1);
+  referenceVelEvalPub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 1);
+  referenceAccEvalPub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 1);
   target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
   // posehistoryPub_ = nh_.advertise<nav_msgs::Path>("se3_lee/path", 10);
   // systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
@@ -75,7 +78,7 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   land_service_ = nh_.advertiseService("/land", &Se3LeeCtrl::landCallback, this);
 
   // add
-  nodeStatePub_ = nh_.advertise<std_msgs::Int8>("se3_lee/flight_state", 1);
+  flight_state_pub_ = nh_.advertise<std_msgs::Int8>("/flight_state", 1);
 
   nh_private_.param<string>("mavname", mav_name_, "iris");
   nh_private_.param<int>("ctrl_mode", ctrl_mode_, ERROR_QUATERNION);
@@ -153,7 +156,7 @@ Se3LeeCtrl::~Se3LeeCtrl() {
   // Destructor
 }
 
-void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped &msg) { // reference/setpoint
+void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg) { // reference/setpoint
   reference_request_last_ = reference_request_now_;
   targetPos_prev_ = targetPos_;
   targetVel_prev_ = targetVel_;
@@ -161,8 +164,8 @@ void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped &msg) { // ref
   reference_request_now_ = ros::Time::now();
   reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
 
-  targetPos_ = toEigen(msg.twist.angular);
-  targetVel_ = toEigen(msg.twist.linear);
+  targetPos_ = toEigen(msg->twist.angular);
+  targetVel_ = toEigen(msg->twist.linear);
 
   if (reference_request_dt_ > 0)
     targetAcc_ = (targetVel_ - targetVel_prev_) / reference_request_dt_;
@@ -170,13 +173,13 @@ void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped &msg) { // ref
     targetAcc_ = Eigen::Vector3d::Zero();
 }
 
-void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32 &msg) { // reference/yaw
-  if (!velocity_yaw_) mavYaw_ = double(msg.data); // false
+void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32::ConstPtr &msg) { // reference/yaw
+  if (!velocity_yaw_) mavYaw_ = double(msg->data); // false
 }
 
-void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) {
+void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) {
   // command/trajectory
-  trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg.points[0];
+  trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
   reference_request_last_ = reference_request_now_;
 
   targetPos_prev_ = targetPos_;
@@ -200,13 +203,13 @@ void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTraje
   }
 }
 
-void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
+void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
   // if (!received_home_pose) {
   //   received_home_pose = true;
-  //   home_pose_ = msg.pose;
+  //   home_pose_ = msg->pose;
   //   ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
   // }
-  mavPos_ = toEigen(msg.pose.position);
+  mavPos_ = toEigen(msg->pose.position);
   for(int i = 0;i<3;i++){
     if(mavPos_[i] > geo_fence_[i] || mavPos_[i] < -geo_fence_[i]){
       if(flightState_ != LANDING && flightState_ != LANDED)
@@ -214,15 +217,15 @@ void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped &msg) {
       break;
     }
   }
-  mavAtt_(0) = msg.pose.orientation.w;
-  mavAtt_(1) = msg.pose.orientation.x;
-  mavAtt_(2) = msg.pose.orientation.y;
-  mavAtt_(3) = msg.pose.orientation.z;
+  mavAtt_(0) = msg->pose.orientation.w;
+  mavAtt_(1) = msg->pose.orientation.x;
+  mavAtt_(2) = msg->pose.orientation.y;
+  mavAtt_(3) = msg->pose.orientation.z;
 }
 
-void Se3LeeCtrl::mavtwistCallback(const geometry_msgs::TwistStamped &msg) {
-  mavVel_ = toEigen(msg.twist.linear);
-  mavRate_ = toEigen(msg.twist.angular);
+void Se3LeeCtrl::mavtwistCallback(const geometry_msgs::TwistStamped::ConstPtr &msg) {
+  mavVel_ = toEigen(msg->twist.linear);
+  mavRate_ = toEigen(msg->twist.angular);
 }
 
 bool Se3LeeCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response) {
@@ -232,6 +235,9 @@ bool Se3LeeCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::Set
 }
 
 void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
+  std_msgs::Int8 flight_state_msg;
+  flight_state_msg.data = static_cast<int8_t>(flightState_);
+  flight_state_pub_.publish(flight_state_msg);
   if (flightState_ != prev_flightState_) {
     ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
     prev_flightState_ = flightState_;
@@ -320,46 +326,63 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     }
 
     case LANDING: {
-      // geometry_msgs::PoseStamped landingmsg;
-      // landingmsg.header.stamp = ros::Time::now();
-      // landingmsg.pose = home_pose_;
-      // // landingmsg.pose.position.z = landingmsg.pose.position.z + 1.0;
-      // target_pose_pub_.publish(landingmsg);
       landing_locked_ = true;
       mavros_msgs::SetMode land_set_mode;
       land_set_mode.request.custom_mode = "AUTO.LAND";
       if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
-          ROS_INFO("land enabled");
+        flightState_ = LANDED;  
+        ROS_INFO("land enabled");
       }
-      flightState_ = LANDED;
       // ros::spinOnce();
       break;
     }
-    case LANDED:
+    case LANDED:{
       if(!current_state_.armed){
         ROS_INFO("Landed. Please set to position control and disarm.");
         cmdloop_timer_.stop();
       }
       // ros::spinOnce();
       break;
+    }
     case EMERGENCY:{
       ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
-      if(!current_state_.armed){
-        ROS_WARN("Not arm, nothing to do");
-        flightState_ = LANDED;
-        break;
-      } 
-      geometry_msgs::PoseStamped msg;
-      msg.header.stamp = ros::Time::now();
-      msg.pose = home_pose_;
-      msg.pose.position.z = takeoff_height_;
-      target_pose_pub_.publish(msg);
+      flightState_ = LANDING;
+      // if(!current_state_.armed){
+      //   ROS_WARN("Not arm, nothing to do");
+      //   flightState_ = LANDED;
+      //   break;
+      // } 
+      // geometry_msgs::PoseStamped msg;
+      // msg.header.stamp = ros::Time::now();
+      // msg.pose = home_pose_;
+      // msg.pose.position.z = takeoff_height_;
+      // target_pose_pub_.publish(msg);
       break;
     }
   }
-  std_msgs::Int8 msg;
-  msg.data = flightState_;
-  nodeStatePub_.publish(msg);
+
+  geometry_msgs::PoseStamped ref_eval_msg;
+  ref_eval_msg.header.stamp = ros::Time::now();
+  ref_eval_msg.header.frame_id = "map";
+  ref_eval_msg.pose.position.x = targetPos_(0);
+  ref_eval_msg.pose.position.y = targetPos_(1);
+  ref_eval_msg.pose.position.z = targetPos_(2);
+  ref_eval_msg.pose.orientation.w = 1.0;
+  referencePoseEvalPub_.publish(ref_eval_msg);
+
+  geometry_msgs::TwistStamped ref_vel_msg;
+  ref_vel_msg.header = ref_eval_msg.header;
+  ref_vel_msg.twist.linear.x = targetVel_(0);
+  ref_vel_msg.twist.linear.y = targetVel_(1);
+  ref_vel_msg.twist.linear.z = targetVel_(2);
+  referenceVelEvalPub_.publish(ref_vel_msg);
+
+  geometry_msgs::AccelStamped ref_acc_msg;
+  ref_acc_msg.header = ref_eval_msg.header;
+  ref_acc_msg.accel.linear.x = targetAcc_(0);
+  ref_acc_msg.accel.linear.y = targetAcc_(1);
+  ref_acc_msg.accel.linear.z = targetAcc_(2);
+  referenceAccEvalPub_.publish(ref_acc_msg);
   // pubSystemStatus();
 }
 

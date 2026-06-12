@@ -5,6 +5,9 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
 {
     cmd_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+    reference_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
+    reference_vel_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
+    reference_acc_pub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
 
     set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -13,12 +16,14 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     odom_sub_ = nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 10, &Se3HopfCtrl::OdomCallback, this);
     imu_sub_ = nh_.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &Se3HopfCtrl::IMUCallback, this);
     state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &Se3HopfCtrl::StateCallback, this);
-    multiDOFJoint_sub_ = nh_.subscribe("/command/trajectory", 10, &Se3HopfCtrl::multiDOFJointCallback, this);
+    multiDOFJoint_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 10, &Se3HopfCtrl::multiDOFJointCallback, this);
 
     exec_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3HopfCtrl::execFSMCallback, this);
 
     dynamic_tune_cb_type_ = boost::bind(&Se3HopfCtrl::DynamicTuneCallback, this, _1, _2);
     dynamic_tune_server_.setCallback(dynamic_tune_cb_type_);
+
+    flight_state_pub_ = nh_.advertise<std_msgs::Int8>("/flight_state", 10);
 
     nh_.param<bool>("enable_sim", sim_enable_, false);
     nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
@@ -96,6 +101,33 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     // }
     
     // exec_timer_.start();
+    std_msgs::Int8 flight_state_msg;
+    flight_state_msg.data = static_cast<int8_t>(flightState_);
+    flight_state_pub_.publish(flight_state_msg);
+
+    geometry_msgs::PoseStamped ref_msg;
+    ref_msg.header.stamp = ros::Time::now();
+    ref_msg.header.frame_id = "map";
+    ref_msg.pose.position.x = desired_state_.p(0);
+    ref_msg.pose.position.y = desired_state_.p(1);
+    ref_msg.pose.position.z = desired_state_.p(2);
+    ref_msg.pose.orientation.w = 1.0;
+    reference_pose_pub_.publish(ref_msg);
+
+    geometry_msgs::TwistStamped ref_vel_msg;
+    ref_vel_msg.header = ref_msg.header;
+    ref_vel_msg.twist.linear.x = desired_state_.v(0);
+    ref_vel_msg.twist.linear.y = desired_state_.v(1);
+    ref_vel_msg.twist.linear.z = desired_state_.v(2);
+    reference_vel_pub_.publish(ref_vel_msg);
+
+    geometry_msgs::AccelStamped ref_acc_msg;
+    ref_acc_msg.header = ref_msg.header;
+    ref_acc_msg.accel.linear.x = desired_state_.a(0);
+    ref_acc_msg.accel.linear.y = desired_state_.a(1);
+    ref_acc_msg.accel.linear.z = desired_state_.a(2);
+    reference_acc_pub_.publish(ref_acc_msg);
+    
     if (flightState_ != prev_flightState_) {
         ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
         prev_flightState_ = flightState_;
@@ -162,9 +194,9 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
         mavros_msgs::SetMode land_set_mode;
         land_set_mode.request.custom_mode = "AUTO.LAND";
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
+            flightState_ = LANDED;
             ROS_INFO("land enabled");
         }
-        flightState_ = LANDED;
         // ros::spinOnce();
         break;
     }
@@ -304,10 +336,10 @@ void Se3HopfCtrl::TryArm(const ros::Time &now) {
     last_arm_request_ = now;
 }
 
-void Se3HopfCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) 
+void Se3HopfCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
 {
     // command/trajectory
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg.points[0];
+    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
 
     desired_state_.p(0) = pt.transforms[0].translation.x;
     desired_state_.p(1) = pt.transforms[0].translation.y;

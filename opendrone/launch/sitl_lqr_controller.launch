@@ -6,9 +6,9 @@
   <arg name="takeoff_height" default="2.0"/>
   <arg name="mass" default="1.5"/>
   <arg name="hover_thrust" default="0.7"/>
-  <arg name="init_pose_x" default="0.0"/>
+  <!-- <arg name="init_pose_x" default="0.0"/>
   <arg name="init_pose_y" default="0.0"/>
-  <arg name="init_pose_z" default="0.5"/>
+  <arg name="init_pose_z" default="0.5"/> -->
 
   <node pkg="lqr_controller" type="lqr_controller_node" name="lqr_controller_node" output="screen" respawn="true" clear_params="true">
     <!-- Control type: 0=QUATERNION (10 states), 1=EULER (9 states) -->
@@ -17,9 +17,9 @@
     <param name="takeoff_height" value="$(arg takeoff_height)"/>
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
-    <param name="init_pose_x" value="$(arg init_pose_x)"/>
+    <!-- <param name="init_pose_x" value="$(arg init_pose_x)"/>
     <param name="init_pose_y" value="$(arg init_pose_y)"/>
-    <param name="init_pose_z" value="$(arg init_pose_z)"/>
+    <param name="init_pose_z" value="$(arg init_pose_z)"/> -->
 
     <!-- Geofence parameters -->
     <param name="geo_fence/x" value="50.0"/>

@@ -10,6 +10,8 @@
 #include <Eigen/Eigen>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
 #include <mav_nonlinear_mpc/NonLinearMPCConfig.h>
 #include <mav_nonlinear_mpc/nonlinear_mpc.h>
@@ -19,6 +21,8 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <std_msgs/Int8.h>
+#include <std_srvs/SetBool.h>
 
 namespace mav_control {
 
@@ -32,10 +36,10 @@ class NonLinearModelPredictiveControllerNode {
  private:
   void ControllerDynConfigCallback(mav_nonlinear_mpc::NonLinearMPCConfig& config, uint32_t level);
 
-  void CommandPoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
-  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
-  void OdometryCallback(const nav_msgs::OdometryConstPtr& msg);
-  void MavrosStateCallback(const mavros_msgs::StateConstPtr& msg);
+  void CommandPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
+  void OdometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void MavrosStateCallback(const mavros_msgs::State::ConstPtr& msg);
   void ControlTimerCallback(const ros::TimerEvent&);
 
   void TrySetOffboard(const ros::Time& now);
@@ -43,6 +47,7 @@ class NonLinearModelPredictiveControllerNode {
   void PublishAttitudeTarget(const Eigen::Vector4d& rpy_thrust);
   void GenerateTakeoffTrajectory();
   bool IsTakeoffReached() const;
+  bool LandCallback(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
 
   enum FlightState {
     WAITING_FOR_CONNECTED,
@@ -88,9 +93,14 @@ class NonLinearModelPredictiveControllerNode {
 
   ros::Publisher command_publisher_;
   ros::Publisher attitude_target_publisher_;
+  ros::Publisher reference_pose_publisher_;
+  ros::Publisher reference_velocity_publisher_;
+  ros::Publisher reference_accel_publisher_;
+  ros::Publisher flight_state_publisher_;
 
   ros::ServiceClient set_mode_client_;
   ros::ServiceClient arming_client_;
+  ros::ServiceServer land_service_;
 
   ros::Timer control_timer_;
 
@@ -113,8 +123,8 @@ class NonLinearModelPredictiveControllerNode {
 
   double mass_;
   double hover_thrust_;
-  double thrust_min_;
-  double thrust_max_;
+  double thrust_normalized_min_;  // MAVROS output clamp min (0~1 normalized)
+  double thrust_normalized_max_;  // MAVROS output clamp max (0~1 normalized)
   double yaw_rate_scale_;
   double takeoff_height_;
   double takeoff_target_z_;

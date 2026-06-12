@@ -4,20 +4,23 @@ using namespace std;
 
 pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
-    state_sub_ = nh_.subscribe("/mavros/state",10,&pidCtrl::state_cb,this);
+    state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state",10,&pidCtrl::state_cb,this);
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
 
-    pos_sub_ = nh_.subscribe("/mavros/local_position/pose", 10, &pidCtrl::pos_cb, this);
-    vel_sub_ = nh_.subscribe("/mavros/local_position/velocity_local", 10, &pidCtrl::vel_cb, this);
-    imu_sub_ = nh_.subscribe<sensor_msgs::Imu>("/mavros/imu/data_raw", 10, &pidCtrl::imuCallback, this);
+    pos_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &pidCtrl::pos_cb, this);
+    vel_sub_ = nh_.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 10, &pidCtrl::vel_cb, this);
     simpleWaypoint_sub_ = nh_.subscribe<nav_msgs::Path>("/waypoint_generator/waypoints", 10, &pidCtrl::simpleWaypoint_cb, this);
-    multiDOFJoint_sub_ = nh_.subscribe("/command/trajectory", 10, &pidCtrl::multiDOFJointCallback, this);
+    multiDOFJoint_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 10, &pidCtrl::multiDOFJointCallback, this);
 
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 10);
     setpoint_raw_local_pub_ = nh_.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     setpoint_raw_attitude_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
+    referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
+    referenceVelPub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
+    referenceAccPub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
+    flight_state_pub_ = nh_.advertise<std_msgs::Int8>("/flight_state", 10);
 
     land_service_ = nh_.advertiseService("/land", &pidCtrl::landCallback, this);
 
@@ -81,6 +84,33 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
 void pidCtrl::controlLoop(const ros::TimerEvent &event)
 {
+    std_msgs::Int8 flight_state_msg;
+    flight_state_msg.data = static_cast<int8_t>(flightState_);
+    flight_state_pub_.publish(flight_state_msg);
+
+    geometry_msgs::PoseStamped ref_msg;
+    ref_msg.header.stamp = ros::Time::now();
+    ref_msg.header.frame_id = "map";
+    ref_msg.pose.position.x = targetPos_(0);
+    ref_msg.pose.position.y = targetPos_(1);
+    ref_msg.pose.position.z = targetPos_(2);
+    ref_msg.pose.orientation.w = 1.0;
+    referencePosePub_.publish(ref_msg);
+
+    geometry_msgs::TwistStamped ref_vel_msg;
+    ref_vel_msg.header = ref_msg.header;
+    ref_vel_msg.twist.linear.x = targetVel_(0);
+    ref_vel_msg.twist.linear.y = targetVel_(1);
+    ref_vel_msg.twist.linear.z = targetVel_(2);
+    referenceVelPub_.publish(ref_vel_msg);
+
+    geometry_msgs::AccelStamped ref_acc_msg;
+    ref_acc_msg.header = ref_msg.header;
+    ref_acc_msg.accel.linear.x = targetAcc_(0);
+    ref_acc_msg.accel.linear.y = targetAcc_(1);
+    ref_acc_msg.accel.linear.z = targetAcc_(2);
+    referenceAccPub_.publish(ref_acc_msg);
+
     if (flightState_ != prev_flightState_) {
         ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
         prev_flightState_ = flightState_;
@@ -135,9 +165,9 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         mavros_msgs::SetMode land_set_mode;
         land_set_mode.request.custom_mode = "AUTO.LAND";
         if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
+            flightState_ = LANDED;
             ROS_INFO("land enabled");
         }
-        flightState_ = LANDED;
         break;
       }
     case LANDED:
@@ -273,10 +303,10 @@ void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){
     ROS_INFO("Received %zu waypoints.", waypoints_.size());
 }
 
-void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg) 
+void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
 {
     // command/trajectory
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg.points[0];
+    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
     // reference_request_last_ = reference_request_now_;
   
     // reference_request_now_ = ros::Time::now();
@@ -301,11 +331,11 @@ void pidCtrl::state_cb(const mavros_msgs::State::ConstPtr &msg)
         ROS_WARN("pid_controller landing lock enabled (AUTO.LAND detected).");
     }
 }
-void pidCtrl::pos_cb(const geometry_msgs::PoseStamped &msg)
+void pidCtrl::pos_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-    currPose_ << msg.pose.position.x,
-                 msg.pose.position.y,
-                 msg.pose.position.z;
+    currPose_ << msg->pose.position.x,
+                 msg->pose.position.y,
+                 msg->pose.position.z;
 
     for(int i = 0;i<3;i++){
         if(currPose_[i] > geo_fence_[i] || currPose_[i] < -geo_fence_[i]){
@@ -315,17 +345,17 @@ void pidCtrl::pos_cb(const geometry_msgs::PoseStamped &msg)
         }
     }
 }
-void pidCtrl::vel_cb(const geometry_msgs::TwistStamped &msg)
+void pidCtrl::vel_cb(const geometry_msgs::TwistStamped::ConstPtr &msg)
 {
-    currVel_ << msg.twist.linear.x,
-                msg.twist.linear.y,
-                msg.twist.linear.z;
+    currVel_ << msg->twist.linear.x,
+                msg->twist.linear.y,
+                msg->twist.linear.z;
 }
-void pidCtrl::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
-    currAcc_ << msg->linear_acceleration.x,
-                msg->linear_acceleration.y,
-                msg->linear_acceleration.z;
-}
+// void pidCtrl::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
+//     currAcc_ << msg->linear_acceleration.x,
+//                 msg->linear_acceleration.y,
+//                 msg->linear_acceleration.z;
+// }
 
 void pidCtrl::dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level){
     Eigen::Vector3d kp_p, kp_v, ki_v, kd_v;

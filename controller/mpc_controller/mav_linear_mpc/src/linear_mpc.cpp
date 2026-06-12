@@ -514,6 +514,7 @@ bool LinearModelPredictiveController::getCurrentReference(
 
   (*reference).position_W = position_ref_.front();
   (*reference).velocity_W = velocity_ref_.front();
+  (*reference).acceleration_W = acceleration_ref_.front();
   (*reference).setFromYaw(yaw_ref_.front());
 
   return true;
@@ -529,6 +530,8 @@ bool LinearModelPredictiveController::getCurrentReference(
   for (int i = 0; i < position_ref_.size(); i++) {
     mav_msgs::EigenTrajectoryPoint pnt;
     pnt.position_W = position_ref_.at(i);
+    pnt.velocity_W = velocity_ref_.at(i);
+    pnt.acceleration_W = acceleration_ref_.at(i);
     pnt.setFromYaw(yaw_ref_.at(i));
     (*reference).push_back(pnt);
   }
