@@ -17,17 +17,14 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "lqr_controller/lqr_euler.hpp"
 #include "lqr_controller/lqr_quaternion.hpp"
 #include "lqr_controller/LqrControllerConfig.h"
 
 namespace lqr {
 
-enum class ControlType { QUATERNION, EULER, NONE };
-
 class LQR_Controller {
   public:
-    LQR_Controller(ros::NodeHandle& nodeHandle);
+    LQR_Controller(ros::NodeHandle& nodeHandle, ros::NodeHandle& privateNodeHandle);
     virtual ~LQR_Controller();
 
     void controlLoop(const ros::TimerEvent& event);
@@ -46,9 +43,14 @@ class LQR_Controller {
     void computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd);
     void publishAttitude(Eigen::Vector4d bodyRatesThrustCmd);
     bool isAtPosition(const Eigen::Vector3d& target, double threshold);
+    void applyTuningConfig(const lqr_controller::LqrControllerConfig& config);
+    void loadStaticTuningConfig();
 
     // ROS interfaces
     ros::NodeHandle nodeHandle_;
+    ros::NodeHandle privateNodeHandle_;
+    dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig> dynConfigServer_;
+    dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig>::CallbackType dynConfigCallbackType_;
     ros::Subscriber stateSub_;
     ros::Subscriber odomSub_;
     ros::Subscriber trajectorySub_;
@@ -63,14 +65,12 @@ class LQR_Controller {
     ros::ServiceServer landService_;
     ros::Timer controlTimer_;
 
-    // LQR controllers
+    // LQR controller
     lqr::LQR_Quaternion lqr_quaternion_;
-    lqr::LQR_Euler lqr_euler_;
 
     // State machine
     FlightState flightState_;
     FlightState prevFlightState_;
-    ControlType controlType_;
 
     // Flags
     bool simEnable_{false};
@@ -79,6 +79,7 @@ class LQR_Controller {
     bool enableAutoOffboard_{false};
     bool enableAutoArm_{false};
     bool autoTakeoff_{false};
+    bool useDynamicReconfigure_{false};
     int offboardWarmupCounter_;
     int offboardWarmupCount_;
     double requestInterval_;

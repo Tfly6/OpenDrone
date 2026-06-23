@@ -1,4 +1,5 @@
 .vscode
+.github
 .catkin_tools
 __pycache__/
 build/

@@ -82,6 +82,7 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
   private_nh_.param("enable_auto_offboard", enable_auto_offboard_, true);
   private_nh_.param("enable_auto_arm", enable_auto_arm_, true);
   private_nh_.param("auto_takeoff", auto_takeoff_, true);
+  private_nh_.param("use_dynamic_reconfigure", use_dynamic_reconfigure_, false);
   private_nh_.param("offboard_warmup_count", offboard_warmup_count_, 80);
   private_nh_.param("request_interval", request_interval_, 1.0);
   private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
@@ -94,9 +95,13 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
   takeoff_trajectory_points_ = std::max(2, std::min(10, takeoff_trajectory_points_));
   takeoff_duration_sec_ = std::max(1.0, takeoff_duration_sec_);
 
-  dynamic_reconfigure::Server<mav_linear_mpc::LinearMPCConfig>::CallbackType f;
-  f = boost::bind(&LinearModelPredictiveControllerNode::DynConfigCallback, this, _1, _2);
-  dyn_config_server_.setCallback(f);
+  if (use_dynamic_reconfigure_) {
+    dynamic_reconfigure::Server<mav_linear_mpc::LinearMPCConfig>::CallbackType f;
+    f = boost::bind(&LinearModelPredictiveControllerNode::DynConfigCallback, this, _1, _2);
+    dyn_config_server_.setCallback(f);
+  } else {
+    LoadStaticTuningConfig();
+  }
 
   command_pose_subscriber_ = nh_.subscribe(command_pose_topic, 1,
                                            &LinearModelPredictiveControllerNode::CommandPoseCallback,
@@ -140,6 +145,11 @@ LinearModelPredictiveControllerNode::~LinearModelPredictiveControllerNode() {}
 void LinearModelPredictiveControllerNode::DynConfigCallback(mav_linear_mpc::LinearMPCConfig& config,
                                                             uint32_t level) {
   (void)level;
+  ApplyTuningConfig(config);
+}
+
+void LinearModelPredictiveControllerNode::ApplyTuningConfig(
+    const mav_linear_mpc::LinearMPCConfig& config) {
   Eigen::Vector3d q_position;
   Eigen::Vector3d q_velocity;
   Eigen::Vector2d q_attitude;
@@ -172,6 +182,35 @@ void LinearModelPredictiveControllerNode::DynConfigCallback(mav_linear_mpc::Line
   linear_mpc_.setEnableOffsetFree(config.enable_offset_free);
 
   linear_mpc_.applyParameters();
+}
+
+void LinearModelPredictiveControllerNode::LoadStaticTuningConfig() {
+  mav_linear_mpc::LinearMPCConfig config;
+  private_nh_.param("q_x", config.q_x, 40.0);
+  private_nh_.param("q_y", config.q_y, 40.0);
+  private_nh_.param("q_z", config.q_z, 60.0);
+  private_nh_.param("q_vx", config.q_vx, 20.0);
+  private_nh_.param("q_vy", config.q_vy, 20.0);
+  private_nh_.param("q_vz", config.q_vz, 25.0);
+  private_nh_.param("q_roll", config.q_roll, 20.0);
+  private_nh_.param("q_pitch", config.q_pitch, 20.0);
+  private_nh_.param("r_roll", config.r_roll, 20.0);
+  private_nh_.param("r_pitch", config.r_pitch, 30.0);
+  private_nh_.param("r_thrust", config.r_thrust, 3.0);
+  private_nh_.param("r_droll", config.r_droll, 0.5);
+  private_nh_.param("r_dpitch", config.r_dpitch, 1.0);
+  private_nh_.param("r_dthrust", config.r_dthrust, 0.01);
+  private_nh_.param("roll_max", config.roll_max, 0.45);
+  private_nh_.param("pitch_max", config.pitch_max, 0.45);
+  private_nh_.param("yaw_rate_max", config.yaw_rate_max, 1.5);
+  private_nh_.param("thrust_min", config.thrust_min, 0.0);
+  private_nh_.param("thrust_max", config.thrust_max, 18.0);
+  private_nh_.param("K_yaw", config.K_yaw, 1.8);
+  private_nh_.param("Ki_xy", config.Ki_xy, 0.06);
+  private_nh_.param("Ki_altitude", config.Ki_altitude, 0.10);
+  private_nh_.param("enable_offset_free", config.enable_offset_free, true);
+  private_nh_.param("enable_integrator", config.enable_integrator, false);
+  ApplyTuningConfig(config);
 }
 
 void LinearModelPredictiveControllerNode::CommandPoseCallback(

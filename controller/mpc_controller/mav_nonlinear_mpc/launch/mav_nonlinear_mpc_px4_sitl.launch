@@ -5,7 +5,7 @@
   <node name="mav_nonlinear_mpc" pkg="mav_nonlinear_mpc" type="nonlinear_mpc_node" respawn="true" clear_params="true" output="screen">
     <remap from="odometry" to="/mavros/local_position/odom" />
 
-    <rosparam file="$(find mav_nonlinear_mpc)/resources/nonlinear_mpc_iris.yaml" />
+    <rosparam file="$(find mav_nonlinear_mpc)/config/default.yaml" />
     <rosparam file="$(find mav_disturbance_observer)/resources/disturbance_observer_iris.yaml"/>
 
     <param name="verbose" value="true" />
@@ -13,7 +13,7 @@
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
     <!-- thrust_normalized_min/max: MAVROS output clamp (0~1 normalized)
-         The solver's thrust_min/max come from nonlinear_mpc_iris.yaml via dynamic_reconfigure.
+         The solver's thrust_min/max come from config/default.yaml or dynamic_reconfigure.
          DO NOT use thrust_min/thrust_max here — it collides with the dynamic_reconfigure key
          and causes the solver to clamp thrust_min == thrust_max == 5.0 (cfg range lower bound),
          which completely disables thrust authority. -->

@@ -39,6 +39,8 @@ class LinearModelPredictiveControllerNode {
 
  private:
   void DynConfigCallback(mav_linear_mpc::LinearMPCConfig& config, uint32_t level);
+  void ApplyTuningConfig(const mav_linear_mpc::LinearMPCConfig& config);
+  void LoadStaticTuningConfig();
 
   void CommandPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
@@ -117,6 +119,7 @@ class LinearModelPredictiveControllerNode {
   bool landing_locked_;
   bool takeoff_trajectory_sent_;
   bool auto_takeoff_{false};
+  bool use_dynamic_reconfigure_{false};
   int offboard_warmup_counter_;
 
   ros::Time last_odometry_stamp_;

@@ -97,6 +97,8 @@ class Se3LeeCtrl {
  private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
+  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig> dyn_config_server_;
+  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType dyn_config_callback_type_;
   ros::Subscriber referenceSub_;
   ros::Subscriber flatreferenceSub_;
   ros::Subscriber multiDOFJointSub_;
@@ -113,7 +115,7 @@ class Se3LeeCtrl {
   ros::Publisher systemstatusPub_;
   ros::ServiceClient arming_client_;
   ros::ServiceClient set_mode_client_;
-  ros::ServiceServer ctrltriggerServ_;
+  // ros::ServiceServer ctrltriggerServ_;
   ros::ServiceServer land_service_;
   ros::Timer cmdloop_timer_;
   ros::Time reference_request_now_, reference_request_last_;
@@ -129,6 +131,7 @@ class Se3LeeCtrl {
   int ctrl_mode_;
   bool landing_commanded_{false};
   bool landing_locked_{false};
+  bool use_dynamic_reconfigure_{false};
   bool enable_auto_offboard_{true};
   bool enable_auto_arm_{true};
   bool auto_takeoff_{false};
@@ -159,13 +162,13 @@ class Se3LeeCtrl {
   Eigen::Vector4d cmdBodyRate_;  //{wx, wy, wz, Thrust}
   Eigen::Vector3d Kpos_, Kvel_, D_;
   double Kpos_x_, Kpos_y_, Kpos_z_, Kvel_x_, Kvel_y_, Kvel_z_;
-  int posehistory_window_;
+  // int posehistory_window_;
 
   // void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
   void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
   // void pubPoseHistory();
-  void pubSystemStatus();
+  // void pubSystemStatus();
   // void appendPoseHistory();
   // void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
   void targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
@@ -178,7 +181,7 @@ class Se3LeeCtrl {
   void mavtwistCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
   void TrySetOffboard(const ros::Time &now);
   void TryArm(const ros::Time &now);
-  bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+  // bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
   geometry_msgs::PoseStamped vector3d2PoseStampedMsg(Eigen::Vector3d &position, Eigen::Vector4d &orientation);
   void computeBodyRateCmd(Eigen::Vector4d &bodyrate_cmd, const Eigen::Vector3d &target_acc);

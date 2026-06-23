@@ -1,7 +1,8 @@
 // ref: se3_example.cpp
 #include "se3_hopf/se3_ctrl.h"
 
-Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
+Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
+    : nh_(nh), private_nh_(private_nh), dynamic_tune_server_(private_nh)
 {
     cmd_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
@@ -20,21 +21,19 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
 
     exec_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3HopfCtrl::execFSMCallback, this);
 
-    dynamic_tune_cb_type_ = boost::bind(&Se3HopfCtrl::DynamicTuneCallback, this, _1, _2);
-    dynamic_tune_server_.setCallback(dynamic_tune_cb_type_);
-
     flight_state_pub_ = nh_.advertise<std_msgs::Int8>("/flight_state", 10);
 
-    nh_.param<bool>("enable_sim", sim_enable_, false);
-    nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
-    nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
-    nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
-    nh_.param<double>("request_interval", request_interval_, 1.0);
-    nh_.param<bool>("auto_takeoff", auto_takeoff_, true);
-    nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
-    nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
-    nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
-    nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
+    private_nh_.param<bool>("enable_sim", sim_enable_, false);
+    private_nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
+    private_nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+    private_nh_.param<bool>("use_dynamic_reconfigure", use_dynamic_reconfigure_, false);
+    private_nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
+    private_nh_.param<double>("request_interval", request_interval_, 1.0);
+    private_nh_.param<bool>("auto_takeoff", auto_takeoff_, true);
+    private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
+    private_nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
+    private_nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
+    private_nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
     enu_frame_ = true;
     vel_in_body_ = true;
@@ -53,24 +52,24 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     last_mode_request_ = ros::Time(0);
     last_arm_request_ = ros::Time(0);
 
-    kp_p_ << 0.85, 0.85, 1.5;
-    kp_v_ << 1.5, 1.5, 1.5;
-    kp_a_ << 1.5, 1.5, 1.5;
-    kp_q_ << 5.5, 5.5, 0.1;
-    kp_w_ << 1.5, 1.5, 0.1;
+    // kp_p_ << 0.85, 0.85, 1.5;
+    // kp_v_ << 1.5, 1.5, 1.5;
+    // kp_a_ << 1.5, 1.5, 1.5;
+    // kp_q_ << 5.5, 5.5, 0.1;
+    // kp_w_ << 1.5, 1.5, 0.1;
 
-    kd_p_ << 0.1, 0.1, 0.0;
-    kd_v_ << 0.0, 0.0, 0.0;
-    kd_a_ << 0.0, 0.0, 0.0;
-    kd_q_ << 0.0, 0.0, 0.0;
-    kd_w_ << 0.0, 0.0, 0.0;
+    // kd_p_ << 0.1, 0.1, 0.0;
+    // kd_v_ << 0.0, 0.0, 0.0;
+    // kd_a_ << 0.0, 0.0, 0.0;
+    // kd_q_ << 0.0, 0.0, 0.0;
+    // kd_w_ << 0.0, 0.0, 0.0;
 
-    limit_err_p_ = 3.0;
-    limit_err_v_ = 2.0;
-    limit_err_a_ = 1.0;
-    limit_d_err_p_ = 3.5;
-    limit_d_err_v_ = 1.0;
-    limit_d_err_a_ = 1.0;
+    // limit_err_p_ = 3.0;
+    // limit_err_v_ = 2.0;
+    // limit_err_a_ = 1.0;
+    // limit_d_err_p_ = 3.5;
+    // limit_d_err_v_ = 1.0;
+    // limit_d_err_a_ = 1.0;
 
     hover_percent_ = 0.25;
     max_hover_percent_ = 0.75;
@@ -81,10 +80,81 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh):nh_(nh)
     // desired_state_.yaw = 0.0;
 
     se3_hopf_.init(hover_percent_, max_hover_percent_, enu_frame_, vel_in_body_);
+    if (use_dynamic_reconfigure_) {
+        dynamic_tune_cb_type_ = boost::bind(&Se3HopfCtrl::DynamicTuneCallback, this, _1, _2);
+        dynamic_tune_server_.setCallback(dynamic_tune_cb_type_);
+        ROS_INFO("se3_hopf using dynamic_reconfigure for tuning parameters.");
+    } else {
+        loadStaticTuneConfig();
+        ROS_INFO("se3_hopf using static ROS parameters for tuning parameters.");
+    }
+}
+
+void Se3HopfCtrl::applyTuneConfig(const se3_hopf::se3_dynamic_tuneConfig &config) {
+    kp_p_ << config.kp_px, config.kp_py, config.kp_pz;
+    kp_v_ << config.kp_vx, config.kp_vy, config.kp_vz;
+    kp_a_ << config.kp_ax, config.kp_ay, config.kp_az;
+    kp_q_ << config.kp_qx, config.kp_qy, config.kp_qz;
+    kp_w_ << config.kp_wx, config.kp_wy, config.kp_wz;
+
+    kd_p_ << config.kd_px, config.kd_py, config.kd_pz;
+    kd_v_ << config.kd_vx, config.kd_vy, config.kd_vz;
+    kd_a_ << config.kd_ax, config.kd_ay, config.kd_az;
+    kd_q_ << config.kd_qx, config.kd_qy, config.kd_qz;
+    kd_w_ << config.kd_wx, config.kd_wy, config.kd_wz;
+
+    limit_err_p_ = config.limit_err_p;
+    limit_err_v_ = config.limit_err_v;
+    limit_err_a_ = config.limit_err_a;
+    limit_d_err_p_ = config.limit_d_err_p;
+    limit_d_err_v_ = config.limit_d_err_v;
+    limit_d_err_a_ = config.limit_d_err_a;
+
     se3_hopf_.setup(kp_p_, kp_v_, kp_a_, kp_q_, kp_w_,
-                            kd_p_, kd_v_, kd_a_, kd_q_, kd_w_,
-                            limit_err_p_, limit_err_v_, limit_err_a_,
-                            limit_d_err_p_, limit_d_err_v_, limit_d_err_a_);
+                    kd_p_, kd_v_, kd_a_, kd_q_, kd_w_,
+                    limit_err_p_, limit_err_v_, limit_err_a_,
+                    limit_d_err_p_, limit_d_err_v_, limit_d_err_a_);
+}
+
+void Se3HopfCtrl::loadStaticTuneConfig() {
+    se3_hopf::se3_dynamic_tuneConfig config;
+    private_nh_.param("kp_px", config.kp_px, 0.85);
+    private_nh_.param("kp_py", config.kp_py, 0.85);
+    private_nh_.param("kp_pz", config.kp_pz, 1.5);
+    private_nh_.param("kp_vx", config.kp_vx, 1.5);
+    private_nh_.param("kp_vy", config.kp_vy, 1.5);
+    private_nh_.param("kp_vz", config.kp_vz, 1.5);
+    private_nh_.param("kp_ax", config.kp_ax, 1.5);
+    private_nh_.param("kp_ay", config.kp_ay, 1.5);
+    private_nh_.param("kp_az", config.kp_az, 1.5);
+    private_nh_.param("kp_qx", config.kp_qx, 5.5);
+    private_nh_.param("kp_qy", config.kp_qy, 5.5);
+    private_nh_.param("kp_qz", config.kp_qz, 0.1);
+    private_nh_.param("kp_wx", config.kp_wx, 1.5);
+    private_nh_.param("kp_wy", config.kp_wy, 1.5);
+    private_nh_.param("kp_wz", config.kp_wz, 0.1);
+    private_nh_.param("kd_px", config.kd_px, 0.1);
+    private_nh_.param("kd_py", config.kd_py, 0.1);
+    private_nh_.param("kd_pz", config.kd_pz, 0.0);
+    private_nh_.param("kd_vx", config.kd_vx, 0.0);
+    private_nh_.param("kd_vy", config.kd_vy, 0.0);
+    private_nh_.param("kd_vz", config.kd_vz, 0.0);
+    private_nh_.param("kd_ax", config.kd_ax, 0.0);
+    private_nh_.param("kd_ay", config.kd_ay, 0.0);
+    private_nh_.param("kd_az", config.kd_az, 0.0);
+    private_nh_.param("kd_qx", config.kd_qx, 0.0);
+    private_nh_.param("kd_qy", config.kd_qy, 0.0);
+    private_nh_.param("kd_qz", config.kd_qz, 0.0);
+    private_nh_.param("kd_wx", config.kd_wx, 0.0);
+    private_nh_.param("kd_wy", config.kd_wy, 0.0);
+    private_nh_.param("kd_wz", config.kd_wz, 0.0);
+    private_nh_.param("limit_err_p", config.limit_err_p, 3.0);
+    private_nh_.param("limit_err_v", config.limit_err_v, 2.0);
+    private_nh_.param("limit_err_a", config.limit_err_a, 1.0);
+    private_nh_.param("limit_d_err_p", config.limit_d_err_p, 3.5);
+    private_nh_.param("limit_d_err_v", config.limit_d_err_v, 1.0);
+    private_nh_.param("limit_d_err_a", config.limit_d_err_a, 1.0);
+    applyTuneConfig(config);
 }
 
 
@@ -338,6 +408,10 @@ void Se3HopfCtrl::TryArm(const ros::Time &now) {
 
 void Se3HopfCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
 {
+    if (msg->points.empty()) {
+        ROS_WARN("Received empty trajectory message");
+        return;
+    }
     // command/trajectory
     trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
 

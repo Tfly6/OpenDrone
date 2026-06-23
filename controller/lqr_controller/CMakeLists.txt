@@ -142,10 +142,7 @@ add_executable(${PROJECT_NAME}_node
   src/lqr_controller_node.cpp
   src/lqr_controller.cpp
   src/lqr_quaternion.cpp
-  src/lqr_euler.cpp
 )
-# add_executable(${PROJECT_NAME}_quaternion src/lqr_node_quaternion.cpp src/lqr_quaternion.cpp)
-# add_executable(${PROJECT_NAME}_euler src/lqr_node_euler.cpp src/lqr_euler.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

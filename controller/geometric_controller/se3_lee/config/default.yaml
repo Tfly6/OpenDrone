@@ -1,0 +1,11 @@
+attctrl_constant: 0.4
+normalizedthrust_constant: 0.0612
+normalizedthrust_offset: 0.1
+
+Kp_x: 10.0
+Kp_y: 10.0
+Kp_z: 20.0
+
+Kv_x: 5.0
+Kv_y: 5.0
+Kv_z: 10.0

@@ -3,10 +3,11 @@
 
 namespace lqr {
 
-LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
+LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     : nodeHandle_(nh)
+    , privateNodeHandle_(private_nh)
+    , dynConfigServer_(privateNodeHandle_)
     , lqr_quaternion_(nh)
-    , lqr_euler_(nh)
     , flightState_(WAITING_FOR_CONNECTED)
     , prevFlightState_(WAITING_FOR_CONNECTED)
     , offboardWarmupCounter_(0)
@@ -14,25 +15,22 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     , requestInterval_(1.0)
 {
     // Load parameters
-    nodeHandle_.param<bool>("enable_sim", simEnable_, false);
-    nodeHandle_.param<double>("takeoff_height", takeoffHeight_, 2.0);
-    nodeHandle_.param<double>("mass", mass_, 1.5);
-    nodeHandle_.param<double>("hover_thrust", hoverThrust_, 0.7);
-    nodeHandle_.param<double>("init_pose_x", initPose_[0], 0.0);
-    nodeHandle_.param<double>("init_pose_y", initPose_[1], 0.0);
-    nodeHandle_.param<double>("init_pose_z", initPose_[2], 0.5);
-    nodeHandle_.param<double>("geo_fence/x", geoFence_[0], 10.0);
-    nodeHandle_.param<double>("geo_fence/y", geoFence_[1], 10.0);
-    nodeHandle_.param<double>("geo_fence/z", geoFence_[2], 4.0);
-    nodeHandle_.param<bool>("enable_auto_offboard", enableAutoOffboard_, simEnable_);
-    nodeHandle_.param<bool>("enable_auto_arm", enableAutoArm_, simEnable_);
-    nodeHandle_.param<bool>("auto_takeoff", autoTakeoff_, true);
-    nodeHandle_.param<int>("offboard_warmup_count", offboardWarmupCount_, 80);
-    nodeHandle_.param<double>("request_interval", requestInterval_, 1.0);
-
-    int controlTypeInt = 0;
-    nodeHandle_.param<int>("lqr_control_type", controlTypeInt, 0);
-    controlType_ = (controlTypeInt == 0) ? ControlType::QUATERNION : ControlType::EULER;
+    privateNodeHandle_.param<bool>("enable_sim", simEnable_, false);
+    privateNodeHandle_.param<double>("takeoff_height", takeoffHeight_, 2.0);
+    privateNodeHandle_.param<double>("mass", mass_, 1.5);
+    privateNodeHandle_.param<double>("hover_thrust", hoverThrust_, 0.7);
+    privateNodeHandle_.param<double>("init_pose_x", initPose_[0], 0.0);
+    privateNodeHandle_.param<double>("init_pose_y", initPose_[1], 0.0);
+    privateNodeHandle_.param<double>("init_pose_z", initPose_[2], 0.5);
+    privateNodeHandle_.param<double>("geo_fence/x", geoFence_[0], 10.0);
+    privateNodeHandle_.param<double>("geo_fence/y", geoFence_[1], 10.0);
+    privateNodeHandle_.param<double>("geo_fence/z", geoFence_[2], 4.0);
+    privateNodeHandle_.param<bool>("enable_auto_offboard", enableAutoOffboard_, simEnable_);
+    privateNodeHandle_.param<bool>("enable_auto_arm", enableAutoArm_, simEnable_);
+    privateNodeHandle_.param<bool>("auto_takeoff", autoTakeoff_, true);
+    privateNodeHandle_.param<bool>("use_dynamic_reconfigure", useDynamicReconfigure_, false);
+    privateNodeHandle_.param<int>("offboard_warmup_count", offboardWarmupCount_, 80);
+    privateNodeHandle_.param<double>("request_interval", requestInterval_, 1.0);
 
     // Initialize subscribers
     stateSub_ = nodeHandle_.subscribe<mavros_msgs::State>("/mavros/state", 10, &LQR_Controller::stateCallback, this);
@@ -67,15 +65,18 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh)
     }
     lastModeRequest_ = ros::Time(0);
     lastArmRequest_ = ros::Time(0);
+    targetPos_.setZero();
 
-    // Initialize dynamic reconfigure server
-    dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig> srv;
-    dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig>::CallbackType f;
-    f = boost::bind(&LQR_Controller::dynamicReconfigureCallback, this, _1, _2);
-    srv.setCallback(f);
+    if (!useDynamicReconfigure_) {
+        loadStaticTuningConfig();
+        ROS_INFO("LQR controller using static ROS parameters for tuning parameters.");
+    } else {
+        dynConfigCallbackType_ = boost::bind(&LQR_Controller::dynamicReconfigureCallback, this, _1, _2);
+        dynConfigServer_.setCallback(dynConfigCallbackType_);
+        ROS_INFO("LQR controller waiting for dynamic_reconfigure tuning parameters.");
+    }
 
-    ROS_INFO("LQR Controller initialized with control type: %s",
-             controlType_ == ControlType::QUATERNION ? "QUATERNION" : "EULER");
+    ROS_INFO("LQR Controller initialized with parameters:");
 }
 
 LQR_Controller::~LQR_Controller()
@@ -123,11 +124,7 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
             if(autoTakeoff_) {
                 ROS_INFO("Auto takeoff enabled. Transitioning to TAKEOFF state.");
                 targetPos_ << initPose_[0], initPose_[1], takeoffHeight_;
-                if(controlType_ == ControlType::QUATERNION) {
-                    lqr_quaternion_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
-                } else {
-                    lqr_euler_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
-                }
+                lqr_quaternion_.setHoverReference(targetPos_[0], targetPos_[1], targetPos_[2]);
                 flightState_ = TAKEOFF;
             } else {
                 flightState_ = MISSION_EXECUTION;
@@ -154,7 +151,6 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     case MISSION_EXECUTION:   
     {
         ROS_INFO_ONCE("Executing mission...");
-        // LQR control is handled via the odom callback in lqr_quaternion/lqr_euler
         // The controllers compute control outputs based on trajectory
         Eigen::Vector4d cmd_body_rate_thrust;
         computeControlCommands(cmd_body_rate_thrust);
@@ -205,17 +201,10 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
     geometry_msgs::TwistStamped ref_vel_msg;
     ref_vel_msg.header = ref_msg.header;
-    if (controlType_ == ControlType::QUATERNION) {
-        auto ref = lqr_quaternion_.getRefStates();
-        ref_vel_msg.twist.linear.x = ref(7);
-        ref_vel_msg.twist.linear.y = ref(8);
-        ref_vel_msg.twist.linear.z = ref(9);
-    } else {
-        auto ref = lqr_euler_.getRefStates();
-        ref_vel_msg.twist.linear.x = ref(6);
-        ref_vel_msg.twist.linear.y = ref(7);
-        ref_vel_msg.twist.linear.z = ref(8);
-    }
+    auto ref = lqr_quaternion_.getRefStates();
+    ref_vel_msg.twist.linear.x = ref(7);
+    ref_vel_msg.twist.linear.y = ref(8);
+    ref_vel_msg.twist.linear.z = ref(9);
     referenceVelPub_.publish(ref_vel_msg);
 
     geometry_msgs::AccelStamped ref_acc_msg;
@@ -232,75 +221,11 @@ void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
     // For now, the control computation is done in the odom callback via the LQR controllers
      Eigen::Matrix<double, 4, 1> output;
 
-    if (controlType_ == ControlType::QUATERNION) {
         auto traj_control = lqr_quaternion_.getTrajectoryControl();
         auto gain = lqr_quaternion_.getGain();
         auto error = lqr_quaternion_.getError();
-        auto ref = lqr_quaternion_.getRefStates();
         output = traj_control - gain * error;
         bodyRatesThrustCmd << output(0), output(1), output(2), output(3);
-        // Clamp outputs
-        // for (int i = 0; i < 3; i++) {
-        //     if (output(i) > 2.0) output(i) = 2.0;
-        //     else if (output(i) < -2.0) output(i) = -2.0;
-        // }
-
-        // Debug output for takeoff/Mission execution
-        // ROS_INFO_THROTTLE(2.0, "LQR Quaternion: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-        //                   currentPos_(0), currentPos_(1), currentPos_(2),
-        //                   error(0), error(1), error(2));
-
-        // double thrust_raw = output(3);
-
-        // Compute thrust
-        // double thrust_n = output(3);
-        // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-        // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-
-        // ROS_INFO_THROTTLE(2.0,
-        //           "LQR Quat ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f norm=%.3f Kt[z,vz]=[%.3f, %.3f]",
-        //           currentPos_(2), ref(2), error(2), error(9),
-        //           traj_control(3), thrust_raw, normalized_thrust,
-        //           gain(3, 2), gain(3, 9));
-        
-    } else {
-        auto traj_control = lqr_euler_.getTrajectoryControl();
-        auto gain = lqr_euler_.getGain();
-        auto error = lqr_euler_.getError();
-        auto ref = lqr_euler_.getRefStates();
-        output = traj_control - gain * error;
-
-        // Call setOutput for EULER to apply thrust negation and clamping
-        lqr_euler_.setOutput(output);
-        output = lqr_euler_.getOutput();
-
-        Eigen::Vector3d cmd_body_rate_aircraft;
-        Eigen::Vector3d cmd_body_rate_baselink;
-        cmd_body_rate_aircraft << output(0),
-                                    output(1),
-                                    output(2);
-
-        cmd_body_rate_baselink = mavros::ftf::transform_frame_aircraft_baselink<Eigen::Vector3d>(cmd_body_rate_aircraft);
-        bodyRatesThrustCmd << cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), output(3);
-        // ROS_INFO_THROTTLE(2.0, "LQR Euler: pos [%.2f, %.2f, %.2f] error [%.2f, %.2f, %.2f]",
-        //                 currentPos_(0), currentPos_(1), currentPos_(2),
-        //                 error(0), error(1), error(2));
-
-        // ROS_INFO_THROTTLE(2.0,
-        //         "LQR Euler ctrl: z=%.2f z_ref=%.2f ez=%.2f evz=%.2f uref4=%.2f raw4=%.2f Kt[z,vz]=[%.3f, %.3f]",
-        //         currentPos_(2), ref(2), error(2), error(8),
-        //         traj_control(3), output(3),
-        //         gain(3, 2), gain(3, 8));
-        
-        // double thrust_n = output(3);
-        // double normalized_thrust = (hoverThrust_ * thrust_n) / gravity_;
-        // normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
-        
-        // ROS_INFO_THROTTLE(2.0, "LQR Euler cmd: rates_raw=[%.2f, %.2f, %.2f] rates=[%.2f, %.2f, %.2f] thrust_raw=%.2f thrust_norm=%.3f",
-        //         output(0), output(1), output(2),
-        //         cmd_body_rate_baselink(0), cmd_body_rate_baselink(1), cmd_body_rate_baselink(2), 
-        //         output(3), normalized_thrust);
-    }
 }
 
 void LQR_Controller::publishAttitude(Eigen::Vector4d bodyRatesThrustCmd)
@@ -364,25 +289,17 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
         }
     }
 
-    // Update LQR controllers with current state
-    if(controlType_ == ControlType::QUATERNION) {
         lqr_quaternion_.setStates(msg);
-        // Compute LQR gains (with internal timing check)
         lqr_quaternion_.computeLQR();
-    } else {
-        lqr_euler_.setStates(msg);
-        lqr_euler_.computeLQR();
-    }
 }
 
 void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg)
 {
-    // Pass trajectory to LQR controllers
-    if(controlType_ == ControlType::QUATERNION) {
-        lqr_quaternion_.setTrajectory(*msg);
-    } else {
-        lqr_euler_.setTrajectory(*msg);
+    if(msg->points.empty()) {
+        ROS_WARN("Received empty trajectory");
+        return;
     }
+    lqr_quaternion_.setTrajectory(*msg);
     // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg->points.size());
 }
 
@@ -446,41 +363,48 @@ bool LQR_Controller::landCallback(std_srvs::SetBool::Request& request, std_srvs:
 
 void LQR_Controller::dynamicReconfigureCallback(lqr_controller::LqrControllerConfig &config, uint32_t level)
 {
-    // Update Q matrix for quaternion controller
+    (void)level;
+    applyTuningConfig(config);
+}
+
+void LQR_Controller::applyTuningConfig(const lqr_controller::LqrControllerConfig& config)
+{
     state_matrix_quat_t Q_quat;
     Q_quat.setZero();
     Q_quat.diagonal() << config.Q_pos_x, config.Q_pos_y, config.Q_pos_z,
-                         config.Q_orient_w, config.Q_orient_x, config.Q_orient_y, config.Q_orient_z,
+                         config.Q_quat_w, config.Q_quat_x, config.Q_quat_y, config.Q_quat_z,
                          config.Q_vel_x, config.Q_vel_y, config.Q_vel_z;
     lqr_quaternion_.setQ(Q_quat);
 
-    // Update R matrix for quaternion controller
     control_matrix_quat_t R_quat;
     R_quat.setZero();
     R_quat.diagonal() << config.R_rate_x, config.R_rate_y, config.R_rate_z, config.R_thrust;
     lqr_quaternion_.setR(R_quat);
 
-    // Update Q matrix for euler controller (9 states)
-    state_matrix_t Q_euler;
-    Q_euler.setZero();
-    Q_euler.diagonal() << config.Q_pos_x, config.Q_pos_y, config.Q_pos_z,
-                          config.Q_orient_w, config.Q_orient_x, config.Q_orient_y,  // roll, pitch, yaw
-                          config.Q_vel_x, config.Q_vel_y, config.Q_vel_z;
-    lqr_euler_.setQ(Q_euler);
-
-    // Update R matrix for euler controller
-    control_matrix_t R_euler;
-    R_euler.setZero();
-    R_euler.diagonal() << config.R_rate_x, config.R_rate_y, config.R_rate_z, config.R_thrust;
-    lqr_euler_.setR(R_euler);
-
-    // Update control type if changed
-    controlType_ = (config.lqr_control_type == 0) ? ControlType::QUATERNION : ControlType::EULER;
-
     ROS_INFO("LQR Dynamic Reconfigure: Q_pos [%.1f, %.1f, %.1f], Q_vel [%.1f, %.1f, %.1f], R_rates [%.1f, %.1f, %.1f], R_thrust %.1f",
              config.Q_pos_x, config.Q_pos_y, config.Q_pos_z,
              config.Q_vel_x, config.Q_vel_y, config.Q_vel_z,
              config.R_rate_x, config.R_rate_y, config.R_rate_z, config.R_thrust);
+}
+
+void LQR_Controller::loadStaticTuningConfig()
+{
+    lqr_controller::LqrControllerConfig config;
+    privateNodeHandle_.param("Q_pos_x", config.Q_pos_x, 100.0);
+    privateNodeHandle_.param("Q_pos_y", config.Q_pos_y, 100.0);
+    privateNodeHandle_.param("Q_pos_z", config.Q_pos_z, 80.0);
+    privateNodeHandle_.param("Q_quat_w", config.Q_quat_w, 0.5);
+    privateNodeHandle_.param("Q_quat_x", config.Q_quat_x, 0.5);
+    privateNodeHandle_.param("Q_quat_y", config.Q_quat_y, 0.5);
+    privateNodeHandle_.param("Q_quat_z", config.Q_quat_z, 5.0);
+    privateNodeHandle_.param("Q_vel_x", config.Q_vel_x, 5.0);
+    privateNodeHandle_.param("Q_vel_y", config.Q_vel_y, 5.0);
+    privateNodeHandle_.param("Q_vel_z", config.Q_vel_z, 3.0);
+    privateNodeHandle_.param("R_rate_x", config.R_rate_x, 15.0);
+    privateNodeHandle_.param("R_rate_y", config.R_rate_y, 15.0);
+    privateNodeHandle_.param("R_rate_z", config.R_rate_z, 10.0);
+    privateNodeHandle_.param("R_thrust", config.R_thrust, 0.4);
+    applyTuningConfig(config);
 }
 
 bool LQR_Controller::isAtPosition(const Eigen::Vector3d& target, double threshold)

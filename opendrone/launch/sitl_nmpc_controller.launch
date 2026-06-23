@@ -1,17 +1,19 @@
 <launch>
   <arg name="mass" default="1.5"/>
   <arg name="hover_thrust" default="0.7"/>
+  <arg name="use_dynamic_reconfigure" default="false"/>
 
   <node name="mav_nonlinear_mpc" pkg="mav_nonlinear_mpc" type="nonlinear_mpc_node" respawn="true" clear_params="true" output="screen">
     <remap from="odometry" to="/mavros/local_position/odom" />
 
-    <rosparam file="$(find mav_nonlinear_mpc)/resources/nonlinear_mpc_iris.yaml" />
+    <rosparam file="$(find mav_nonlinear_mpc)/config/default.yaml" />
     <rosparam file="$(find mav_disturbance_observer)/resources/disturbance_observer_iris.yaml"/>
 
     <param name="verbose" value="true" />
 
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
+    <param name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)"/>
     <param name="thrust_normalized_min" value="0.0"/>
     <param name="thrust_normalized_max" value="1.0"/>
     <param name="yaw_rate_scale" value="1.0"/>
@@ -36,5 +38,7 @@
     <param name="attitude_target_topic" value="/mavros/setpoint_raw/attitude"/>
   </node>
 
-  <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure"></node>
+  <group if="$(arg use_dynamic_reconfigure)">
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
+  </group>
 </launch>

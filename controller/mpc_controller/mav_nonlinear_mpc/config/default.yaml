@@ -1,5 +1,3 @@
-## Controller Parameters for PX4 Gazebo iris
-mass: 1.50
 roll_time_constant: 0.23
 roll_gain: 0.88
 pitch_time_constant: 0.24
@@ -34,7 +32,8 @@ roll_rate_limit_cmd: 1.0
 pitch_rate_limit_cmd: 0.8
 
 Ki_xy: 0.08
-Ki_z: 0.10
+Ki_altitude: 0.10
+
 position_error_integration_limit: 2
 antiwindup_ball: 0.50
 

@@ -23,6 +23,7 @@ using namespace std;
 class Se3HopfCtrl{
 private:
     ros::NodeHandle nh_;
+    ros::NodeHandle private_nh_;
     ros::Publisher cmd_pub_, local_pos_pub_, flight_state_pub_, reference_pose_pub_,
                    reference_vel_pub_, reference_acc_pub_;
     ros::Subscriber odom_sub_, imu_sub_, state_sub_, multiDOFJoint_sub_;
@@ -43,6 +44,7 @@ private:
     bool arm_triggered_{false};
     bool offboard_triggered_{false};
     bool auto_takeoff_{false};
+    bool use_dynamic_reconfigure_{false};
     // bool takeoffFlag_{false};
     bool landing_locked_{false};
     bool enable_auto_offboard_{false};
@@ -98,9 +100,12 @@ private:
     void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
     void TrySetOffboard(const ros::Time &now);
     void TryArm(const ros::Time &now);
+    void applyTuneConfig(const se3_hopf::se3_dynamic_tuneConfig &config);
+    void loadStaticTuneConfig();
 
 
     void DynamicTuneCallback(se3_hopf::se3_dynamic_tuneConfig &config, uint32_t level){
+        (void)level;
         ROS_INFO("kp_p: %f %f %f", config.kp_px, config.kp_py, config.kp_pz);
         ROS_INFO("kp_v: %f %f %f", config.kp_vx, config.kp_vy, config.kp_vz);
         ROS_INFO("kp_a: %f %f %f", config.kp_ax, config.kp_ay, config.kp_az);
@@ -116,65 +121,7 @@ private:
         ROS_INFO("limit err   p v a: %f %f %f", config.limit_err_p, config.limit_err_v, config.limit_err_a);
         ROS_INFO("limit d err p v a: %f %f %f", config.limit_d_err_p, config.limit_d_err_v, config.limit_d_err_a);
 
-        kp_p_ << config.kp_px, config.kp_py, config.kp_pz;
-        kp_v_ << config.kp_vx, config.kp_vy, config.kp_vz;
-        kp_a_ << config.kp_ax, config.kp_ay, config.kp_az;
-        kp_q_ << config.kp_qx, config.kp_qy, config.kp_qz;
-        kp_w_ << config.kp_wx, config.kp_wy, config.kp_wz;
-
-        kd_p_ << config.kd_px, config.kd_py, config.kd_pz;
-        kd_v_ << config.kd_vx, config.kd_vy, config.kd_vz;
-        kd_a_ << config.kd_ax, config.kd_ay, config.kd_az;
-        kd_q_ << config.kd_qx, config.kd_qy, config.kd_qz;
-        kd_w_ << config.kd_wx, config.kd_wy, config.kd_wz;
-
-        limit_err_p_ = config.limit_err_p;
-		limit_err_v_ = config.limit_err_v;
-		limit_err_a_ = config.limit_err_a;
-		limit_d_err_p_ = config.limit_d_err_p;
-		limit_d_err_v_ = config.limit_d_err_v;
-		limit_d_err_a_ = config.limit_d_err_a;
-
-        // ROS_INFO("desire posit: %f %f %f", config.desire_px, config.desire_py, config.desire_pz);
-        // ROS_INFO("desire euler: %f %f %f", config.desire_roll, config.desire_pitch, config.desire_yaw);
-
-        // desired_state_.p(0) = config.desire_px;
-        // desired_state_.p(1) = config.desire_py;
-        // desired_state_.p(2) = config.desire_pz;
-
-        // desired_state_.v.setZero();
-        // desired_state_.a.setZero();
-        // desired_state_.j.setZero();
-
-        // Eigen::Quaterniond q = utils::euler2quat(config.desire_roll, config.desire_pitch, config.desire_yaw);
-        // desired_state_.q.w() = q.w();
-        // desired_state_.q.x() = q.x();
-        // desired_state_.q.y() = q.y();
-        // desired_state_.q.z() = q.z();
-
-        // desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
-        // desired_state_.yaw_rate = 0.0;
-
-        // desire_odom_.pose.pose.position.x = desired_state_.p(0);
-        // desire_odom_.pose.pose.position.y = desired_state_.p(1);
-        // desire_odom_.pose.pose.position.z = desired_state_.p(2);
-
-        // desire_odom_.twist.twist.linear.x = desired_state_.v(0);
-        // desire_odom_.twist.twist.linear.y = desired_state_.v(1);
-        // desire_odom_.twist.twist.linear.z = desired_state_.v(2);
-
-        // desire_odom_.pose.pose.orientation.w = desired_state_.q.w();
-        // desire_odom_.pose.pose.orientation.x = desired_state_.q.x();
-        // desire_odom_.pose.pose.orientation.y = desired_state_.q.y();
-        // desire_odom_.pose.pose.orientation.z = desired_state_.q.z();
-        
-        se3_hopf_.setup(kp_p_, kp_v_, kp_a_, kp_q_, kp_w_,
-                                kd_p_, kd_v_, kd_a_, kd_q_, kd_w_,
-                                limit_err_p_, limit_err_v_, limit_err_a_,
-                                limit_d_err_p_, limit_d_err_v_, limit_d_err_a_);
-
-
-
+        applyTuneConfig(config);
         printf("\n");
     }
 
@@ -182,7 +129,7 @@ private:
 
 
 public:
-    Se3HopfCtrl(const ros::NodeHandle &nh);
+    Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh);
     ~Se3HopfCtrl(){};
 };
 

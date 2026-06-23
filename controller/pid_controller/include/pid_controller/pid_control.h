@@ -26,9 +26,12 @@
 #include "pid_controller/PidControllerConfig.h"
 #include "math_utils/math_utils.h"
 
+#define SIMPLE_PID 1
+#define CASCADE_PID 2
+
 class pidCtrl {
     public:
-        pidCtrl(const ros::NodeHandle &nh);
+        pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh);
 
         void dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level);
         void TrySetOffboard(const ros::Time &now);
@@ -36,6 +39,9 @@ class pidCtrl {
 
     private:
         ros::NodeHandle nh_;
+        ros::NodeHandle private_nh_;
+        dynamic_reconfigure::Server<pid_controller::PidControllerConfig> dyn_config_server_;
+        dynamic_reconfigure::Server<pid_controller::PidControllerConfig>::CallbackType dyn_config_cb_type_;
         ros::Subscriber pos_sub_, vel_sub_, state_sub_;
         ros::Subscriber multiDOFJoint_sub_, simpleWaypoint_sub_;
 
@@ -66,6 +72,7 @@ class pidCtrl {
         bool enable_auto_offboard_{false};
         bool enable_auto_arm_{false};
         bool autoTakeoff_{false};
+        int pid_type_;
         int offboard_warmup_counter_{0};
         int offboard_warmup_count_{80};
         double request_interval_{1.0};
@@ -87,7 +94,7 @@ class pidCtrl {
         // double gravity_ = 9.8;
 
         enum FlightState { WAITING_FOR_CONNECTED, WAITING_FOR_OFFBOARD, TAKEOFF, MISSION_EXECUTION, LANDING, LANDED, EMERGENCY } flightState_, prev_flightState_;
-        enum ControlType {SIMPLE_PID, CASCADE_PID, NONE} pid_type_;
+        // enum ControlType {SIMPLE_PID, CASCADE_PID, NONE} pid_type_;
 
         std::string state2string(FlightState state) {
             switch (state) {

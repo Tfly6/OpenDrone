@@ -1,20 +1,22 @@
 <launch>
     <arg name="gazebo_simulation" default="true" />
-    <arg name="visualization" default="true"/>
     <arg name="takeoff_height" default="2.0" />
-    <arg name="max_acc" default="4" />
+    <arg name="use_dynamic_reconfigure" default="false" />
     
     <node pkg="pid_controller" type="pid_controller_node" name="pid_controller" output="screen">
-            <remap from="/command/bodyrate_command" to="/mavros/setpoint_raw/attitude"/>
-            <param name="enable_sim" value="$(arg gazebo_simulation)" />
-            <param name="takeoff_height" value="$(arg takeoff_height)" />
-            <param name="pid_type" value="1" />
-            <param name="cascade_pid/maxAcc" value="$(arg max_acc)"/>
+        <remap from="/command/bodyrate_command" to="/mavros/setpoint_raw/attitude"/>
+        <rosparam file="$(find pid_controller)/config/default.yaml" />
+        <param name="enable_sim" value="$(arg gazebo_simulation)" />
+        <param name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)" />
+        <param name="takeoff_height" value="$(arg takeoff_height)" />
+        <param name="pid_type" value="2" />
+        <param name="geo_fence/x" value="10.0"/>
+        <param name="geo_fence/y" value="10.0"/>
+        <param name="geo_fence/z" value="7.0"/>
     </node>
 
-    <!-- <rosparam command="load" file="$(find opendrone)/config/pidcontrol.yaml" /> -->
-
     <!-- Launch rqt_reconfigure -->
-    <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
-  
-  </launch>
+    <group if="$(arg use_dynamic_reconfigure)">
+        <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
+    </group>  
+</launch>

@@ -80,6 +80,7 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
   private_nh_.param("enable_auto_offboard", enable_auto_offboard_, true);
   private_nh_.param("enable_auto_arm", enable_auto_arm_, true);
   private_nh_.param("auto_takeoff", auto_takeoff_, true);
+  private_nh_.param("use_dynamic_reconfigure", use_dynamic_reconfigure_, false);
   private_nh_.param("offboard_warmup_count", offboard_warmup_count_, 80);
   private_nh_.param("request_interval", request_interval_, 1.0);
   private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
@@ -92,11 +93,15 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
   takeoff_trajectory_points_ = std::max(2, std::min(3, takeoff_trajectory_points_));
   takeoff_duration_sec_ = std::max(0.5, takeoff_duration_sec_);
 
-  dynamic_reconfigure::Server<mav_nonlinear_mpc::NonLinearMPCConfig>::CallbackType f_controller;
-  f_controller = boost::bind(
-      &NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback,
-      this, _1, _2);
-  controller_dyn_config_server_.setCallback(f_controller);
+  if (use_dynamic_reconfigure_) {
+    dynamic_reconfigure::Server<mav_nonlinear_mpc::NonLinearMPCConfig>::CallbackType f_controller;
+    f_controller = boost::bind(
+        &NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback,
+        this, _1, _2);
+    controller_dyn_config_server_.setCallback(f_controller);
+  } else {
+    LoadStaticTuningConfig();
+  }
 
   command_pose_subscriber_ = nh_.subscribe(command_pose_topic, 1,
                                            &NonLinearModelPredictiveControllerNode::CommandPoseCallback,
@@ -140,6 +145,11 @@ NonLinearModelPredictiveControllerNode::~NonLinearModelPredictiveControllerNode(
 void NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback(
     mav_nonlinear_mpc::NonLinearMPCConfig& config, uint32_t level) {
   (void)level;
+  ApplyTuningConfig(config);
+}
+
+void NonLinearModelPredictiveControllerNode::ApplyTuningConfig(
+    const mav_nonlinear_mpc::NonLinearMPCConfig& config) {
   Eigen::Vector3d q_position;
   Eigen::Vector3d q_velocity;
   Eigen::Vector2d q_attitude;
@@ -170,6 +180,32 @@ void NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback(
   nonlinear_mpc_.setEnableOffsetFree(config.enable_offset_free);
 
   nonlinear_mpc_.applyParameters();
+}
+
+void NonLinearModelPredictiveControllerNode::LoadStaticTuningConfig() {
+  mav_nonlinear_mpc::NonLinearMPCConfig config;
+  private_nh_.param("q_x", config.q_x, 50.0);
+  private_nh_.param("q_y", config.q_y, 50.0);
+  private_nh_.param("q_z", config.q_z, 80.0);
+  private_nh_.param("q_vx", config.q_vx, 20.0);
+  private_nh_.param("q_vy", config.q_vy, 20.0);
+  private_nh_.param("q_vz", config.q_vz, 35.0);
+  private_nh_.param("q_roll", config.q_roll, 20.0);
+  private_nh_.param("q_pitch", config.q_pitch, 20.0);
+  private_nh_.param("r_roll", config.r_roll, 30.0);
+  private_nh_.param("r_pitch", config.r_pitch, 30.0);
+  private_nh_.param("r_thrust", config.r_thrust, 5.0);
+  private_nh_.param("roll_max", config.roll_max, 0.45);
+  private_nh_.param("pitch_max", config.pitch_max, 0.45);
+  private_nh_.param("yaw_rate_max", config.yaw_rate_max, 1.5);
+  private_nh_.param("thrust_min", config.thrust_min, 5.0);
+  private_nh_.param("thrust_max", config.thrust_max, 15.0);
+  private_nh_.param("K_yaw", config.K_yaw, 0.5);
+  private_nh_.param("Ki_xy", config.Ki_xy, 0.2);
+  private_nh_.param("Ki_altitude", config.Ki_altitude, 0.2);
+  private_nh_.param("enable_offset_free", config.enable_offset_free, true);
+  private_nh_.param("enable_integrator", config.enable_integrator, false);
+  ApplyTuningConfig(config);
 }
 
 void NonLinearModelPredictiveControllerNode::CommandPoseCallback(

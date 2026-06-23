@@ -47,7 +47,7 @@ using namespace Eigen;
 using namespace std;
 // Constructor
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
-    : nh_(nh), nh_private_(nh_private), flightState_(WAITING_FOR_CONNECTED) {
+    : nh_(nh), nh_private_(nh_private), dyn_config_server_(nh_private_), flightState_(WAITING_FOR_CONNECTED) {
   referenceSub_ =
       nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   yawreferenceSub_ =
@@ -60,7 +60,7 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
                               ros::TransportHints().tcpNoDelay());
   mavtwistSub_ = nh_.subscribe<geometry_msgs::TwistStamped>("mavros/local_position/velocity_local", 1, &Se3LeeCtrl::mavtwistCallback, this,
                                ros::TransportHints().tcpNoDelay());
-  ctrltriggerServ_ = nh_.advertiseService("trigger_rlcontroller", &Se3LeeCtrl::ctrltriggerCallback, this);
+  // ctrltriggerServ_ = nh_.advertiseService("trigger_rlcontroller", &Se3LeeCtrl::ctrltriggerCallback, this);
   
   cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3LeeCtrl::cmdloopCallback,
                                    this);  // Define timer for constant loop rate
@@ -85,6 +85,7 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   nh_private_.param<bool>("enable_sim", sim_enable_, true);
   nh_private_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
   nh_private_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+  nh_private_.param<bool>("use_dynamic_reconfigure", use_dynamic_reconfigure_, false);
   nh_private_.param<bool>("auto_takeoff", auto_takeoff_, true);
   nh_private_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
   nh_private_.param<double>("request_interval", request_interval_, 1.0);
@@ -110,7 +111,7 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   nh_private_.param<double>("Kv_x", Kvel_x_, 1.5);
   nh_private_.param<double>("Kv_y", Kvel_y_, 1.5);
   nh_private_.param<double>("Kv_z", Kvel_z_, 3.3);
-  nh_private_.param<int>("posehistory_window", posehistory_window_, 200);
+  // nh_private_.param<int>("posehistory_window", posehistory_window_, 200);
   nh_private_.param<double>("takeoff_height", takeoff_height_, 2.0);
   nh_private_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
   nh_private_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
@@ -151,6 +152,14 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   } else {
     controller_ = std::make_shared<JerkTrackingControl>();
   }
+
+  if (use_dynamic_reconfigure_) {
+    dyn_config_callback_type_ = boost::bind(&Se3LeeCtrl::dynamicReconfigureCallback, this, _1, _2);
+    dyn_config_server_.setCallback(dyn_config_callback_type_);
+    ROS_INFO("se3_lee using dynamic_reconfigure for tuning parameters.");
+  } else {
+    ROS_INFO("se3_lee using static ROS parameters for tuning parameters.");
+  }
 }
 Se3LeeCtrl::~Se3LeeCtrl() {
   // Destructor
@@ -179,6 +188,10 @@ void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32::ConstPtr &msg) { // 
 
 void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) {
   // command/trajectory
+  if (msg->points.empty()) {
+    ROS_WARN("Received empty trajectory message");
+    return;
+  }
   trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
   reference_request_last_ = reference_request_now_;
 
@@ -484,15 +497,15 @@ void Se3LeeCtrl::pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector
 //   posehistoryPub_.publish(msg);
 // }
 
-void Se3LeeCtrl::pubSystemStatus() {
-  mavros_msgs::CompanionProcessStatus msg;
+// void Se3LeeCtrl::pubSystemStatus() {
+//   mavros_msgs::CompanionProcessStatus msg;
 
-  msg.header.stamp = ros::Time::now();
-  msg.component = 196;  // MAV_COMPONENT_ID_AVOIDANCE
-  msg.state = (int)companion_state_;
+//   msg.header.stamp = ros::Time::now();
+//   msg.component = 196;  // MAV_COMPONENT_ID_AVOIDANCE
+//   msg.state = (int)companion_state_;
 
-  systemstatusPub_.publish(msg);
-}
+//   systemstatusPub_.publish(msg);
+// }
 
 // void Se3LeeCtrl::appendPoseHistory() {
 //   posehistory_vector_.insert(posehistory_vector_.begin(), vector3d2PoseStampedMsg(mavPos_, mavAtt_));
@@ -584,36 +597,42 @@ Eigen::Vector4d Se3LeeCtrl::acc2quaternion(const Eigen::Vector3d &vector_acc, co
   return quat;
 }
 
-bool Se3LeeCtrl::ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
-  unsigned char mode = req.data;
+// bool Se3LeeCtrl::ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
+//   unsigned char mode = req.data;
 
-  ctrl_mode_ = mode;
-  res.success = ctrl_mode_;
-  res.message = "controller triggered";
-  return true;
-}
+//   ctrl_mode_ = mode;
+//   res.success = ctrl_mode_;
+//   res.message = "controller triggered";
+//   return true;
+// }
 
 void Se3LeeCtrl::dynamicReconfigureCallback(se3_lee::GeometricControllerConfig &config,
                                                uint32_t level) {
   if (max_fb_acc_ != config.max_acc) {
     max_fb_acc_ = config.max_acc;
     ROS_INFO("Reconfigure request : max_acc = %.2f ", config.max_acc);
-  } else if (Kpos_x_ != config.Kp_x) {
+  }
+  if (Kpos_x_ != config.Kp_x) {
     Kpos_x_ = config.Kp_x;
     ROS_INFO("Reconfigure request : Kp_x  = %.2f  ", config.Kp_x);
-  } else if (Kpos_y_ != config.Kp_y) {
+  } 
+  if (Kpos_y_ != config.Kp_y) {
     Kpos_y_ = config.Kp_y;
     ROS_INFO("Reconfigure request : Kp_y  = %.2f  ", config.Kp_y);
-  } else if (Kpos_z_ != config.Kp_z) {
+  } 
+  if (Kpos_z_ != config.Kp_z) {
     Kpos_z_ = config.Kp_z;
     ROS_INFO("Reconfigure request : Kp_z  = %.2f  ", config.Kp_z);
-  } else if (Kvel_x_ != config.Kv_x) {
+  } 
+  if (Kvel_x_ != config.Kv_x) {
     Kvel_x_ = config.Kv_x;
     ROS_INFO("Reconfigure request : Kv_x  = %.2f  ", config.Kv_x);
-  } else if (Kvel_y_ != config.Kv_y) {
+  } 
+  if (Kvel_y_ != config.Kv_y) {
     Kvel_y_ = config.Kv_y;
     ROS_INFO("Reconfigure request : Kv_y =%.2f  ", config.Kv_y);
-  } else if (Kvel_z_ != config.Kv_z) {
+  } 
+  if (Kvel_z_ != config.Kv_z) {
     Kvel_z_ = config.Kv_z;
     ROS_INFO("Reconfigure request : Kv_z  = %.2f  ", config.Kv_z);
   }

@@ -2,7 +2,8 @@
 
 using namespace std;
 
-pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
+pidCtrl::pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
+    : nh_(nh), private_nh_(private_nh), dyn_config_server_(private_nh_) {
 
     state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state",10,&pidCtrl::state_cb,this);
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -26,18 +27,17 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
 
     cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &pidCtrl::controlLoop,this);
     
-    int type;
-    nh_.param<bool>("enable_sim", sim_enable_, false);
-    nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
-    nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
-    nh_.param<bool>("auto_takeoff", autoTakeoff_, true);
-    nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
-    nh_.param<double>("request_interval", request_interval_, 1.0);
-    nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
-    nh_.param<int>("pid_type", type, 0);
-    nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
-    nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
-    nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
+    private_nh_.param<bool>("enable_sim", sim_enable_, false);
+    private_nh_.param<bool>("enable_auto_offboard", enable_auto_offboard_, sim_enable_);
+    private_nh_.param<bool>("enable_auto_arm", enable_auto_arm_, sim_enable_);
+    private_nh_.param<bool>("auto_takeoff", autoTakeoff_, true);
+    private_nh_.param<int>("offboard_warmup_count", offboard_warmup_count_, 80);
+    private_nh_.param<double>("request_interval", request_interval_, 1.0);
+    private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
+    private_nh_.param<int>("pid_type", pid_type_, CASCADE_PID);
+    private_nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
+    private_nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
+    private_nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
 
     // nh_.param<double>("mass", uavMass_, 1.0);
     // limit
@@ -64,7 +64,6 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     }
     last_mode_request_ = ros::Time(0);
     last_arm_request_ = ros::Time(0);
-    pid_type_ = static_cast<ControlType>(type);
     targetVel_.setZero();
     targetPos_.setZero();
     targetAtt_.setZero();
@@ -80,6 +79,16 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh):nh_(nh){
     
     yaw_ref_ = 0.0;
     init_pose_ << 0, 0, 0.5;
+
+    bool use_dynamic_reconfigure = false;
+    private_nh_.param("use_dynamic_reconfigure", use_dynamic_reconfigure, false);
+    if (use_dynamic_reconfigure) {
+        dyn_config_cb_type_ = boost::bind(&pidCtrl::dynamicReconfigureCallback, this, _1, _2);
+        dyn_config_server_.setCallback(dyn_config_cb_type_);
+        ROS_INFO("pid_controller using dynamic_reconfigure for tuning parameters.");
+    } else {
+        ROS_INFO("pid_controller using static ROS parameters for tuning parameters.");
+    }
 }
 
 void pidCtrl::controlLoop(const ros::TimerEvent &event)
@@ -200,6 +209,10 @@ void pidCtrl::computeTarget(const double dt)
         targetAtt_ = cascadeController.compute(currPose_, currVel_, targetPos_, yaw_ref_, dt);
         pubAttitudeTarget(targetAtt_, cascadeController.getDesiredThrust());
     }
+    else{
+        ROS_ERROR_ONCE("Invalid PID type! Defaulting to CASCADE_PID.");
+        pid_type_ = CASCADE_PID;
+    }
 }
 
 void pidCtrl::TrySetOffboard(const ros::Time &now)
@@ -269,8 +282,18 @@ void pidCtrl::pubLocalPose(const Eigen::Vector3d &pose)
     msg.pose.position.x = pose[0];
     msg.pose.position.y = pose[1];
     msg.pose.position.z = pose[2];
+    // 设置单位四元数，避免 MAVROS 提取 yaw 时产生 NaN
+    msg.pose.orientation.w = 1.0;
+    msg.pose.orientation.x = 0.0;
+    msg.pose.orientation.y = 0.0;
+    msg.pose.orientation.z = 0.0;
 
-    local_pos_pub_.publish(msg);
+    // 保护：确保发布的坐标不含 NaN/Inf
+    if (std::isfinite(pose[0]) && std::isfinite(pose[1]) && std::isfinite(pose[2])) {
+        local_pos_pub_.publish(msg);
+    } else {
+        ROS_WARN_THROTTLE(1.0, "pid_controller: NaN/Inf detected in position output, skipping publish");
+    }
 }
 
 void pidCtrl::pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const double thrust_des) {
@@ -279,7 +302,9 @@ void pidCtrl::pubAttitudeTarget(const Eigen::Vector4d &target_attitude, const do
   
     msg.header.stamp = ros::Time::now();
     msg.header.frame_id = "map";
-    msg.type_mask = 0b00000111;
+    msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE + 
+                    mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE + 
+                    mavros_msgs::AttitudeTarget::IGNORE_YAW_RATE;
     msg.orientation.w = target_attitude(0);
     msg.orientation.x = target_attitude(1);
     msg.orientation.y = target_attitude(2);
@@ -305,6 +330,10 @@ void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){
 
 void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
 {
+    if (msg->points.empty()) {
+        ROS_WARN("Received empty trajectory message");
+        return;
+    }
     // command/trajectory
     trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
     // reference_request_last_ = reference_request_now_;
