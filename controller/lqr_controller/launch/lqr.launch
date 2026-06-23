@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-  <!-- LQR Controller Type: 0=QUATERNION, 1=EULER -->
-  <arg name="lqr_control_type" default="0"/>
   <arg name="enable_sim" default="true"/>
   <arg name="takeoff_height" default="2.0"/>
   <arg name="mass" default="1.5"/>
@@ -11,8 +9,6 @@
   <arg name="init_pose_z" default="0.5"/>
 
   <node pkg="lqr_controller" type="lqr_controller_node" name="lqr_controller_node" output="screen" respawn="true" clear_params="true">
-    <!-- Control type: 0=QUATERNION (10 states), 1=EULER (9 states) -->
-    <param name="lqr_control_type" value="$(arg lqr_control_type)"/>
     <param name="enable_sim" value="$(arg enable_sim)"/>
     <param name="takeoff_height" value="$(arg takeoff_height)"/>
     <param name="mass" value="$(arg mass)"/>

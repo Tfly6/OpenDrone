@@ -1,0 +1,47 @@
+kp_px: 0.85
+kp_py: 0.85
+kp_pz: 1.5
+
+kp_vx: 1.5
+kp_vy: 1.5
+kp_vz: 1.5
+
+kp_ax: 1.5
+kp_ay: 1.5
+kp_az: 1.5
+
+kp_qx: 5.5
+kp_qy: 5.5
+kp_qz: 0.1
+
+kp_wx: 1.5
+kp_wy: 1.5
+kp_wz: 0.1
+
+kd_px: 0.1
+kd_py: 0.1
+kd_pz: 0.0
+
+kd_vx: 0.0
+kd_vy: 0.0
+kd_vz: 0.0
+
+kd_ax: 0.0
+kd_ay: 0.0
+kd_az: 0.0
+
+kd_qx: 0.0
+kd_qy: 0.0
+kd_qz: 0.0
+
+kd_wx: 0.0
+kd_wy: 0.0
+kd_wz: 0.0
+
+limit_err_p: 3.0
+limit_err_v: 2.0
+limit_err_a: 1.0
+
+limit_d_err_p: 3.5
+limit_d_err_v: 1.0
+limit_d_err_a: 1.0

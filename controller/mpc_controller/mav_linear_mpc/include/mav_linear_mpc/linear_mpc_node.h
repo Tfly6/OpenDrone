@@ -14,6 +14,8 @@
 #include <Eigen/Eigen>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <mav_linear_mpc/LinearMPCConfig.h>
 #include <mav_linear_mpc/linear_mpc.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
@@ -23,6 +25,8 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <std_msgs/Int8.h>
+#include <std_srvs/SetBool.h>
 
 namespace mav_control {
 
@@ -35,11 +39,13 @@ class LinearModelPredictiveControllerNode {
 
  private:
   void DynConfigCallback(mav_linear_mpc::LinearMPCConfig& config, uint32_t level);
+  void ApplyTuningConfig(const mav_linear_mpc::LinearMPCConfig& config);
+  void LoadStaticTuningConfig();
 
-  void CommandPoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
-  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
-  void OdometryCallback(const nav_msgs::OdometryConstPtr& msg);
-  void MavrosStateCallback(const mavros_msgs::StateConstPtr& msg);
+  void CommandPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
+  void OdometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void MavrosStateCallback(const mavros_msgs::State::ConstPtr& msg);
   void ControlTimerCallback(const ros::TimerEvent&);
 
   void TrySetOffboard(const ros::Time& now);
@@ -47,6 +53,7 @@ class LinearModelPredictiveControllerNode {
   void PublishAttitudeTarget(const Eigen::Vector4d& rpy_thrust);
   void GenerateTakeoffTrajectory();
   bool IsTakeoffReached() const;
+  bool LandCallback(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
 
   enum FlightState {
     WAITING_FOR_CONNECTED,
@@ -92,9 +99,14 @@ class LinearModelPredictiveControllerNode {
 
   ros::Publisher command_publisher_;
   ros::Publisher attitude_target_publisher_;
+  ros::Publisher reference_pose_publisher_;
+  ros::Publisher reference_velocity_publisher_;
+  ros::Publisher reference_accel_publisher_;
+  ros::Publisher flight_state_publisher_;
 
   ros::ServiceClient set_mode_client_;
   ros::ServiceClient arming_client_;
+  ros::ServiceServer land_service_;
 
   ros::Timer control_timer_;
 
@@ -106,6 +118,8 @@ class LinearModelPredictiveControllerNode {
   bool has_reference_;
   bool landing_locked_;
   bool takeoff_trajectory_sent_;
+  bool auto_takeoff_{false};
+  bool use_dynamic_reconfigure_{false};
   int offboard_warmup_counter_;
 
   ros::Time last_odometry_stamp_;

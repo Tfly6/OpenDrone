@@ -51,6 +51,8 @@
 #include <string>
 
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/AccelStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <mavros_msgs/AttitudeTarget.h>
@@ -95,6 +97,8 @@ class Se3LeeCtrl {
  private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
+  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig> dyn_config_server_;
+  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType dyn_config_callback_type_;
   ros::Subscriber referenceSub_;
   ros::Subscriber flatreferenceSub_;
   ros::Subscriber multiDOFJointSub_;
@@ -104,17 +108,21 @@ class Se3LeeCtrl {
   ros::Subscriber yawreferenceSub_;
   ros::Publisher rotorVelPub_, angularVelPub_, target_pose_pub_;
   ros::Publisher referencePosePub_;
+  ros::Publisher referencePoseEvalPub_;
+  ros::Publisher referenceVelEvalPub_;
+  ros::Publisher referenceAccEvalPub_;
   ros::Publisher posehistoryPub_;
   ros::Publisher systemstatusPub_;
   ros::ServiceClient arming_client_;
   ros::ServiceClient set_mode_client_;
-  ros::ServiceServer ctrltriggerServ_;
+  // ros::ServiceServer ctrltriggerServ_;
   ros::ServiceServer land_service_;
-  ros::Timer cmdloop_timer_, statusloop_timer_;
-  ros::Time last_request_, reference_request_now_, reference_request_last_;
+  ros::Timer cmdloop_timer_;
+  ros::Time reference_request_now_, reference_request_last_;
+  ros::Time last_mode_request_, last_arm_request_;
 
   //add
-  ros::Publisher nodeStatePub_;
+  ros::Publisher flight_state_pub_;
 
   string mav_name_;
   bool fail_detec_{false};
@@ -122,7 +130,15 @@ class Se3LeeCtrl {
   bool ctrl_enable_{true};
   int ctrl_mode_;
   bool landing_commanded_{false};
-  bool sim_enable_, takeoffFlag_{false};
+  bool landing_locked_{false};
+  bool use_dynamic_reconfigure_{false};
+  bool enable_auto_offboard_{true};
+  bool enable_auto_arm_{true};
+  bool auto_takeoff_{false};
+  int offboard_warmup_counter_{0};
+  int offboard_warmup_count_{80};
+  double request_interval_{1.0};
+  bool sim_enable_;
   bool debugFlag_;
   bool velocity_yaw_;
   double kp_rot_, kd_rot_;
@@ -146,48 +162,59 @@ class Se3LeeCtrl {
   Eigen::Vector4d cmdBodyRate_;  //{wx, wy, wz, Thrust}
   Eigen::Vector3d Kpos_, Kvel_, D_;
   double Kpos_x_, Kpos_y_, Kpos_z_, Kvel_x_, Kvel_y_, Kvel_z_;
-  int posehistory_window_;
+  // int posehistory_window_;
 
-  void pubMotorCommands();
+  // void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
   void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
   // void pubPoseHistory();
-  void pubSystemStatus();
+  // void pubSystemStatus();
   // void appendPoseHistory();
-  void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
-  void targetCallback(const geometry_msgs::TwistStamped &msg);
-  void yawtargetCallback(const std_msgs::Float32 &msg);
-  void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory &msg);
-  void keyboardCallback(const geometry_msgs::Twist &msg);
+  // void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
+  void targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
+  void yawtargetCallback(const std_msgs::Float32::ConstPtr &msg);
+  void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
+  // void keyboardCallback(const geometry_msgs::Twist &msg);
   void cmdloopCallback(const ros::TimerEvent &event);
   void mavstateCallback(const mavros_msgs::State::ConstPtr &msg);
-  void mavposeCallback(const geometry_msgs::PoseStamped &msg);
-  void mavtwistCallback(const geometry_msgs::TwistStamped &msg);
-  void statusloopCallback(const ros::TimerEvent &event);
-  bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+  void mavposeCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  void mavtwistCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
+  void TrySetOffboard(const ros::Time &now);
+  void TryArm(const ros::Time &now);
+  // bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
   geometry_msgs::PoseStamped vector3d2PoseStampedMsg(Eigen::Vector3d &position, Eigen::Vector4d &orientation);
   void computeBodyRateCmd(Eigen::Vector4d &bodyrate_cmd, const Eigen::Vector3d &target_acc);
   Eigen::Vector3d controlPosition(const Eigen::Vector3d &target_pos, const Eigen::Vector3d &target_vel,
                                   const Eigen::Vector3d &target_acc);
   Eigen::Vector3d poscontroller(const Eigen::Vector3d &pos_error, const Eigen::Vector3d &vel_error);
-  Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
-                                Eigen::Vector4d &curr_att);
+  // Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
+  //                               Eigen::Vector4d &curr_att);
 
-  enum FlightState { WAITING_FOR_HOME_POSE, MISSION_EXECUTION, LANDING, LANDED, TAKEOFF, EMERGENCY } flightState_, prev_flightState_;
+  enum FlightState {
+    WAITING_FOR_CONNECTED,
+    WAITING_FOR_OFFBOARD,
+    TAKEOFF,
+    MISSION_EXECUTION,
+    LANDING,
+    LANDED,
+    EMERGENCY
+  } flightState_, prev_flightState_;
 
   std::string state2string(FlightState state) {
     switch (state) {
-      case WAITING_FOR_HOME_POSE:
-        return "WAITING_FOR_HOME_POSE";
+      case WAITING_FOR_CONNECTED:
+        return "WAITING_FOR_CONNECTED";
+      case WAITING_FOR_OFFBOARD:
+        return "WAITING_FOR_OFFBOARD";
+      case TAKEOFF:
+        return "TAKEOFF";
       case MISSION_EXECUTION:
         return "MISSION_EXECUTION";
       case LANDING:
         return "LANDING";
       case LANDED:
         return "LANDED";
-      case TAKEOFF:
-        return "TAKEOFF";
       case EMERGENCY:
         return "EMERGENCY";
       default:

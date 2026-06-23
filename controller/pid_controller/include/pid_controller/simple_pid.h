@@ -5,6 +5,7 @@
 #define SIMPLE_PID_H
 
 #include <ros/ros.h>
+#include <cmath>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
@@ -35,6 +36,11 @@ class simplePID {
         }
 
         Eigen::Vector3d compute(const Eigen::Vector3d &currPose, Eigen::Vector3d &targetPose, double dt){
+            // 保护：防止 dt 过小或为零导致除零
+            if (dt < 1e-6) {
+                dt = 1e-3;
+            }
+
             // 计算误差项
             Eigen::Vector3d pos_error = targetPose - currPose;
 
@@ -44,9 +50,22 @@ class simplePID {
                 pos_error[i] = constrain_function(pos_error[i], pos_error_max_[i]);
             }
 
+            // 积分项：带 anti-windup 限幅
             integral_ += pos_error * dt;
-            
+            for (int i = 0; i < 3; i++) {
+                integral_[i] = std::max(-10.0, std::min(10.0, integral_[i]));
+                if (!std::isfinite(integral_[i])) {
+                    integral_[i] = 0.0;
+                }
+            }
+
+            // 微分项
             Eigen::Vector3d derivative = (pos_error - pre_error_) / dt;
+            for (int i = 0; i < 3; i++) {
+                if (!std::isfinite(derivative[i])) {
+                    derivative[i] = 0.0;
+                }
+            }
             pre_error_ = pos_error;
 
             // PID

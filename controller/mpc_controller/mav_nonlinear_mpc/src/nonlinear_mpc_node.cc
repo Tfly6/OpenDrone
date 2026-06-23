@@ -32,11 +32,10 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
       landing_locked_(false),
       takeoff_trajectory_sent_(false),
       offboard_warmup_counter_(0),
-      current_yaw_(0.0),
       mass_(1.0),
       hover_thrust_(0.5),
-      thrust_min_(0.0),
-      thrust_max_(1.0),
+      thrust_normalized_min_(0.0),
+      thrust_normalized_max_(1.0),
       yaw_rate_scale_(1.0),
       takeoff_height_(2.0),
       takeoff_target_z_(0.0),
@@ -73,13 +72,15 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
 
   private_nh_.param("mass", mass_, 1.0);
   private_nh_.param("hover_thrust", hover_thrust_, 0.5);
-  private_nh_.param("thrust_min", thrust_min_, 0.0);
-  private_nh_.param("thrust_max", thrust_max_, 1.0);
+  private_nh_.param("thrust_normalized_min", thrust_normalized_min_, 0.0);
+  private_nh_.param("thrust_normalized_max", thrust_normalized_max_, 1.0);
   private_nh_.param("yaw_rate_scale", yaw_rate_scale_, 1.0);
   private_nh_.param("control_rate", control_rate_, 100.0);
   private_nh_.param("odom_timeout", odom_timeout_, 0.5);
   private_nh_.param("enable_auto_offboard", enable_auto_offboard_, true);
   private_nh_.param("enable_auto_arm", enable_auto_arm_, true);
+  private_nh_.param("auto_takeoff", auto_takeoff_, true);
+  private_nh_.param("use_dynamic_reconfigure", use_dynamic_reconfigure_, false);
   private_nh_.param("offboard_warmup_count", offboard_warmup_count_, 80);
   private_nh_.param("request_interval", request_interval_, 1.0);
   private_nh_.param<double>("takeoff_height", takeoff_height_, 2.0);
@@ -92,11 +93,15 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
   takeoff_trajectory_points_ = std::max(2, std::min(3, takeoff_trajectory_points_));
   takeoff_duration_sec_ = std::max(0.5, takeoff_duration_sec_);
 
-  dynamic_reconfigure::Server<mav_nonlinear_mpc::NonLinearMPCConfig>::CallbackType f_controller;
-  f_controller = boost::bind(
-      &NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback,
-      this, _1, _2);
-  controller_dyn_config_server_.setCallback(f_controller);
+  if (use_dynamic_reconfigure_) {
+    dynamic_reconfigure::Server<mav_nonlinear_mpc::NonLinearMPCConfig>::CallbackType f_controller;
+    f_controller = boost::bind(
+        &NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback,
+        this, _1, _2);
+    controller_dyn_config_server_.setCallback(f_controller);
+  } else {
+    LoadStaticTuningConfig();
+  }
 
   command_pose_subscriber_ = nh_.subscribe(command_pose_topic, 1,
                                            &NonLinearModelPredictiveControllerNode::CommandPoseCallback,
@@ -113,9 +118,15 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
 
   command_publisher_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust>(command_output_topic, 1);
   attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>(attitude_target_topic, 1);
+  reference_pose_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 1);
+  reference_velocity_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 1);
+  reference_accel_publisher_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 1);
 
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_service);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_service);
+  land_service_ = nh_.advertiseService("/land", &NonLinearModelPredictiveControllerNode::LandCallback, this);
+
+  flight_state_publisher_ = nh_.advertise<std_msgs::Int8>("/flight_state", 1);
 
   control_rate_ = std::max(20.0, control_rate_);
   control_timer_ = nh_.createTimer(ros::Duration(1.0 / control_rate_),
@@ -134,6 +145,11 @@ NonLinearModelPredictiveControllerNode::~NonLinearModelPredictiveControllerNode(
 void NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback(
     mav_nonlinear_mpc::NonLinearMPCConfig& config, uint32_t level) {
   (void)level;
+  ApplyTuningConfig(config);
+}
+
+void NonLinearModelPredictiveControllerNode::ApplyTuningConfig(
+    const mav_nonlinear_mpc::NonLinearMPCConfig& config) {
   Eigen::Vector3d q_position;
   Eigen::Vector3d q_velocity;
   Eigen::Vector2d q_attitude;
@@ -166,8 +182,34 @@ void NonLinearModelPredictiveControllerNode::ControllerDynConfigCallback(
   nonlinear_mpc_.applyParameters();
 }
 
+void NonLinearModelPredictiveControllerNode::LoadStaticTuningConfig() {
+  mav_nonlinear_mpc::NonLinearMPCConfig config;
+  private_nh_.param("q_x", config.q_x, 50.0);
+  private_nh_.param("q_y", config.q_y, 50.0);
+  private_nh_.param("q_z", config.q_z, 80.0);
+  private_nh_.param("q_vx", config.q_vx, 20.0);
+  private_nh_.param("q_vy", config.q_vy, 20.0);
+  private_nh_.param("q_vz", config.q_vz, 35.0);
+  private_nh_.param("q_roll", config.q_roll, 20.0);
+  private_nh_.param("q_pitch", config.q_pitch, 20.0);
+  private_nh_.param("r_roll", config.r_roll, 30.0);
+  private_nh_.param("r_pitch", config.r_pitch, 30.0);
+  private_nh_.param("r_thrust", config.r_thrust, 5.0);
+  private_nh_.param("roll_max", config.roll_max, 0.45);
+  private_nh_.param("pitch_max", config.pitch_max, 0.45);
+  private_nh_.param("yaw_rate_max", config.yaw_rate_max, 1.5);
+  private_nh_.param("thrust_min", config.thrust_min, 5.0);
+  private_nh_.param("thrust_max", config.thrust_max, 15.0);
+  private_nh_.param("K_yaw", config.K_yaw, 0.5);
+  private_nh_.param("Ki_xy", config.Ki_xy, 0.2);
+  private_nh_.param("Ki_altitude", config.Ki_altitude, 0.2);
+  private_nh_.param("enable_offset_free", config.enable_offset_free, true);
+  private_nh_.param("enable_integrator", config.enable_integrator, false);
+  ApplyTuningConfig(config);
+}
+
 void NonLinearModelPredictiveControllerNode::CommandPoseCallback(
-    const geometry_msgs::PoseStampedConstPtr& msg) {
+    const geometry_msgs::PoseStamped::ConstPtr& msg) {
   mav_msgs::EigenTrajectoryPoint reference;
   mav_msgs::eigenTrajectoryPointFromPoseMsg(*msg, &reference);
   nonlinear_mpc_.setCommandTrajectoryPoint(reference);
@@ -175,7 +217,7 @@ void NonLinearModelPredictiveControllerNode::CommandPoseCallback(
 }
 
 void NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback(
-    const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
+    const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg) {
   if (msg->points.empty()) {
     return;
   }
@@ -187,7 +229,7 @@ void NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback(
 }
 
 void NonLinearModelPredictiveControllerNode::OdometryCallback(
-    const nav_msgs::OdometryConstPtr& msg) {
+    const nav_msgs::Odometry::ConstPtr& msg) {
   mav_msgs::EigenOdometry odometry;
   mav_msgs::eigenOdometryFromMsg(*msg, &odometry);
   odometry.timestamp_ns = ros::Time::now().toNSec();
@@ -200,7 +242,7 @@ void NonLinearModelPredictiveControllerNode::OdometryCallback(
 
   for (int i = 0; i < 3; ++i) {
     if (odometry.position_W[i] > geo_fence_[i] || odometry.position_W[i] < -geo_fence_[i]) {
-      if (flightState_ != LANDING && flightState_ != LANDED) 
+      if (flightState_ != LANDING && flightState_ != LANDED)
         flightState_ = EMERGENCY;
       break;
     }
@@ -208,7 +250,7 @@ void NonLinearModelPredictiveControllerNode::OdometryCallback(
 }
 
 void NonLinearModelPredictiveControllerNode::MavrosStateCallback(
-    const mavros_msgs::StateConstPtr& msg) {
+    const mavros_msgs::State::ConstPtr& msg) {
   current_mavros_state_ = *msg;
   if (current_mavros_state_.mode == "AUTO.LAND" && !landing_locked_) {
     landing_locked_ = true;
@@ -264,6 +306,16 @@ void NonLinearModelPredictiveControllerNode::TryArm(const ros::Time& now) {
   last_arm_request_ = now;
 }
 
+bool NonLinearModelPredictiveControllerNode::LandCallback(
+    std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+  (void)req;
+  ROS_INFO("Nonlinear MPC received /land request, triggering landing.");
+  flightState_ = LANDING;
+  res.success = true;
+  res.message = "Landing triggered";
+  return true;
+}
+
 void NonLinearModelPredictiveControllerNode::PublishAttitudeTarget(
     const Eigen::Vector4d& rpy_thrust) {
   mavros_msgs::AttitudeTarget target;
@@ -281,7 +333,7 @@ void NonLinearModelPredictiveControllerNode::PublishAttitudeTarget(
   target.orientation.w = q.w();
 
   const double normalized_thrust = hover_thrust_ * rpy_thrust(3) / 9.81;
-  target.thrust = std::max(thrust_min_, std::min(thrust_max_, normalized_thrust));
+  target.thrust = std::max(thrust_normalized_min_, std::min(thrust_normalized_max_, normalized_thrust));
   attitude_target_publisher_.publish(target);
 }
 
@@ -341,6 +393,36 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
     ROS_WARN_THROTTLE(1.0, "Nonlinear MPC node odometry timeout.");
     return;
   }
+ 
+  std_msgs::Int8 flight_state_msg;
+  flight_state_msg.data = static_cast<int8_t>(flightState_);
+  flight_state_publisher_.publish(flight_state_msg);
+
+  mav_msgs::EigenTrajectoryPoint ref_point;
+  if (nonlinear_mpc_.getCurrentReference(&ref_point)) {
+    geometry_msgs::PoseStamped ref_msg;
+    ref_msg.header.stamp = ros::Time::now();
+    ref_msg.header.frame_id = "map";
+    ref_msg.pose.position.x = ref_point.position_W.x();
+    ref_msg.pose.position.y = ref_point.position_W.y();
+    ref_msg.pose.position.z = ref_point.position_W.z();
+    ref_msg.pose.orientation.w = 1.0;
+    reference_pose_publisher_.publish(ref_msg);
+
+    geometry_msgs::TwistStamped ref_vel_msg;
+    ref_vel_msg.header = ref_msg.header;
+    ref_vel_msg.twist.linear.x = ref_point.velocity_W.x();
+    ref_vel_msg.twist.linear.y = ref_point.velocity_W.y();
+    ref_vel_msg.twist.linear.z = ref_point.velocity_W.z();
+    reference_velocity_publisher_.publish(ref_vel_msg);
+
+    geometry_msgs::AccelStamped ref_acc_msg;
+    ref_acc_msg.header = ref_msg.header;
+    ref_acc_msg.accel.linear.x = ref_point.acceleration_W.x();
+    ref_acc_msg.accel.linear.y = ref_point.acceleration_W.y();
+    ref_acc_msg.accel.linear.z = ref_point.acceleration_W.z();
+    reference_accel_publisher_.publish(ref_acc_msg);
+  }
 
   if (flightState_ != prev_flightState_) {
     ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to "
@@ -360,15 +442,19 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
     }
 
     case WAITING_FOR_OFFBOARD: {
+      ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
       PublishAttitudeTarget(Eigen::Vector4d(0.0, 0.0, 0.0, 9.81));
       ++offboard_warmup_counter_;
       TrySetOffboard(now);
       TryArm(now);
 
       if (current_mavros_state_.mode == "OFFBOARD" && current_mavros_state_.armed) {
-        ROS_INFO("Ready Takeoff");
-        takeoff_trajectory_sent_ = false;
-        flightState_ = TAKEOFF;
+        if(auto_takeoff_) {
+          takeoff_trajectory_sent_ = false;
+          flightState_ = TAKEOFF;
+        } else {
+          flightState_ = MISSION_EXECUTION;
+        }
       }
       break;
     }
@@ -377,7 +463,7 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
       if (!takeoff_trajectory_sent_) {
         GenerateTakeoffTrajectory();
       }
-
+      ROS_INFO_ONCE("Auto Taking off...");
       Eigen::Vector4d rpyrate_thrust;
       nonlinear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = nonlinear_mpc_.getCommandRollPitchYawThrust();
@@ -395,6 +481,7 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
         ROS_WARN_THROTTLE(1.0, "Nonlinear MPC node waiting for reference.");
         break;
       }
+      ROS_INFO_ONCE("Executing mission...");
       Eigen::Vector4d rpyrate_thrust;
       nonlinear_mpc_.calculateRollPitchYawrateThrustCommand(&rpyrate_thrust);
       const Eigen::Vector4d rpy_thrust = nonlinear_mpc_.getCommandRollPitchYawThrust();
@@ -406,9 +493,9 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
       mavros_msgs::SetMode land_set_mode;
       land_set_mode.request.custom_mode = "AUTO.LAND";
       if (set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent) {
+        flightState_ = LANDED;
         ROS_INFO("AUTO.LAND enabled");
       }
-      flightState_ = LANDED;
       break;
     }
 

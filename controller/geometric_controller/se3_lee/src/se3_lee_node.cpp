@@ -47,11 +47,6 @@ int main(int argc, char** argv) {
 
   Se3LeeCtrl* geometricController = new Se3LeeCtrl(nh, nh_private);
 
-  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig> srv;
-  dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType f;
-  f = boost::bind(&Se3LeeCtrl::dynamicReconfigureCallback, geometricController, _1, _2);
-  srv.setCallback(f);
-
   ros::spin();
   return 0;
 }

@@ -97,7 +97,7 @@ void TrajectoryGeneration::planTrajectory() {
     parameters.inequality_constraint_tolerance = 0.1;
 
     mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(
-        dimension_, parameters, false);
+      dimension_, parameters);
     opt.setupFromVertices(vertices, segment_times, derivative_to_optimize_);
     opt.addMaximumMagnitudeConstraint(
         mav_trajectory_generation::derivative_order::VELOCITY, max_v_);

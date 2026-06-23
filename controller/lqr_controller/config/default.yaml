@@ -1,0 +1,17 @@
+Q_pos_x: 100.0
+Q_pos_y: 100.0
+Q_pos_z: 80.0
+
+Q_quat_w: 0.5
+Q_quat_x: 0.5
+Q_quat_y: 0.5
+Q_quat_z: 5.0
+
+Q_vel_x: 5.0
+Q_vel_y: 5.0
+Q_vel_z: 3.0
+
+R_rate_x: 15.0
+R_rate_y: 15.0
+R_rate_z: 10.0
+R_thrust: 0.4

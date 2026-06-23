@@ -38,9 +38,9 @@ class cascadePID {
 
             nh_.param<double>("cascade_pid/maxVel", maxVel_, 2.0);
             nh_.param<double>("cascade_pid/maxAcc", maxAcc_, 3.0);
-            nh_.param<double>("cascade_pid/pos_err_max", pos_error_max_, 0.8);
+            nh_.param<double>("cascade_pid/pos_error_max", pos_error_max_, 0.8);
             nh_.param<double>("cascade_pid/pos_integral_max", pos_integral_max_, 0.8);
-            nh_.param<double>("cascade_pid/vel_err_max", vel_error_max_, 0.8);
+            nh_.param<double>("cascade_pid/vel_error_max", vel_error_max_, 0.8);
             nh_.param<double>("cascade_pid/vel_integral_max", vel_integral_max_, 0.8);
             
             integral_p_ <<0, 0, 0;
@@ -72,7 +72,7 @@ class cascadePID {
                 target_acc = (maxAcc_ / target_acc.norm()) * target_acc;
             }
 
-            target_acc[2] += GRAVITY;
+            target_acc[2] += GRAVITY; //World Frame
 
             Eigen::Vector4d target_att = acc2quaternion(target_acc, yaw_ref);
 
