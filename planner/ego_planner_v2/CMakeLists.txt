@@ -29,7 +29,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 # catkin_package(CATKIN_DEPENDS message_runtime)
 catkin_package(
- INCLUDE_DIRS include
  LIBRARIES ego_planner_v2
  CATKIN_DEPENDS  message_runtime
 #  DEPENDS system_lib

@@ -27,7 +27,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 # catkin_package(CATKIN_DEPENDS message_runtime)
 catkin_package(
- INCLUDE_DIRS include
  LIBRARIES ego_planner
  CATKIN_DEPENDS roscpp std_msgs geometry_msgs quadrotor_msgs message_runtime cv_bridge
  DEPENDS OpenCV

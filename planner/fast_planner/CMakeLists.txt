@@ -24,7 +24,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 # catkin_package(CATKIN_DEPENDS message_runtime)
 catkin_package(
- INCLUDE_DIRS include
  LIBRARIES fast_planner
  CATKIN_DEPENDS message_runtime visualization_msgs
 #  DEPENDS system_lib
