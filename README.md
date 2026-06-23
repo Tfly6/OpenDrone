@@ -84,7 +84,7 @@ OpenDrone/
 
 **Planners (planner folder)**
 
-- **polynomial trajectory generation**: Referenced from [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation). This is an optimization-based polynomial trajectory generator and does not support real-time planning and obstacle avoidance.
+- **polynomial trajectory generation**: Referenced from [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles.
 
   Launch:
 
@@ -124,6 +124,22 @@ OpenDrone/
   ```bash
   roslaunch opendrone sitl_airfar_planner.launch # depth camera
   roslaunch opendrone sitl_airfar_planner_mid360.launch # LiDAR
+  ```
+
+- **rpg_polynomial_trajectory**: Referenced from [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles. This planner is still experimental.
+
+  Launch:
+
+  ```bash
+  roslaunch opendrone sitl_rpg_trajectory.launch
+  ```
+
+- **super_planner**: Referenced from [hku-mars/SUPER](https://github.com/hku-mars/SUPER). Requires a UAV with 3D LiDAR. This planner is still experimental.
+
+  Launch:
+
+  ```bash
+  roslaunch opendrone sitl_super_planner_od.launch
   ```
 
 > Supported on Ubuntu 18.04 + ROS Melodic, and Ubuntu 20.04 + ROS Noetic.
@@ -302,23 +318,33 @@ Demo video:
 
 ## Related Papers
 
-[1] Lee, Taeyoung, Melvin Leoky, and N. Harris McClamroch. "Geometric tracking control of a quadrotor UAV on SE (3)." Decision and Control (CDC), 2010 49th IEEE Conference on. IEEE, 2010.
+[1] Lee, Taeyoung, Melvin Leoky, and N. Harris McClamroch. "**Geometric tracking control of a quadrotor UAV on SE (3).**" Decision and Control (CDC), 2010 49th IEEE Conference on. IEEE, 2010.
 
-[2] Faessler, Matthias, Antonio Franchi, and Davide Scaramuzza. "Differential flatness of quadrotor dynamics subject to rotor drag for accurate tracking of high-speed trajectories." IEEE Robot. Autom. Lett 3.2 (2018): 620-626.
+[2] Faessler, Matthias, Antonio Franchi, and Davide Scaramuzza. "**Differential flatness of quadrotor dynamics subject to rotor drag for accurate tracking of high-speed trajectories.**" IEEE Robot. Autom. Lett 3.2 (2018): 620-626.
 
-[3] D. Mellinger and V. Kumar, "Minimum snap trajectory generation and control for quadrotors," in Proc. of the IEEE Intl. Conf. on Robot. and Autom. (ICRA), Shanghai, China, May 2011, pp. 2520-2525.
+[3] D. Mellinger and V. Kumar, "**Minimum snap trajectory generation and control for quadrotors,**" in Proc. of the IEEE Intl. Conf. on Robot. and Autom. (ICRA), Shanghai, China, May 2011, pp. 2520-2525.
 
-[4] X. Zhou, Z. Wang, H. Ye, C. Xu, and F. Gao, "EGO-Planner: An ESDFfree gradient-based local planner for quadrotors," IEEE Robotics and Automation Letters, vol. 6, no. 2, pp. 478-485, 2021.
+[4] X. Zhou, Z. Wang, H. Ye, C. Xu, and F. Gao, "**EGO-Planner: An ESDFfree gradient-based local planner for quadrotors,**" IEEE Robotics and Automation Letters, vol. 6, no. 2, pp. 478-485, 2021.
 
-[5] Model Predictive Control for Trajectory Tracking of Unmanned Aerial Vehicles Using Robot Operating System. Mina Kamel, Thomas Stastny, Kostas Alexis and Roland Siegwart. Robot Operating System (ROS) The Complete Reference Volume 2. Springer 2017.
+[5] **Model Predictive Control for Trajectory Tracking of Unmanned Aerial Vehicles Using Robot Operating System.** Mina Kamel, Thomas Stastny, Kostas Alexis and Roland Siegwart. Robot Operating System (ROS) The Complete Reference Volume 2. Springer 2017.
 
-[6] Linear vs Nonlinear MPC for Trajectory Tracking Applied to Rotary Wing Micro Aerial Vehicles. Mina Kamel, Michael Burri and Roland Siegwart. arXiv:1611.09240.
+[6] **Linear vs Nonlinear MPC for Trajectory Tracking Applied to Rotary Wing Micro Aerial Vehicles.** Mina Kamel, Michael Burri and Roland Siegwart. arXiv:1611.09240.
 
-[7] B. He, G. Chen, C. Fermuller, Y. Aloimonos and J. Zhang, "Air-FAR: Fast and Adaptable Routing for Aerial Navigation in Large-Scale Complex Unknown Environments," 2025 IEEE International Conference on Robotics and Automation (ICRA).
+[7] B. He, G. Chen, C. Fermuller, Y. Aloimonos and J. Zhang, "**Air-FAR: Fast and Adaptable Routing for Aerial Navigation in Large-Scale Complex Unknown Environments,**" 2025 IEEE International Conference on Robotics and Automation (ICRA).
 
-[8] Xin Zhou et al., Swarm of micro flying robots in the wild. *Sci. Robot.* 7, eabm5954 (2022).
+[8] Xin Zhou et al., **Swarm of micro flying robots in the wild.** *Sci. Robot.* 7, eabm5954 (2022).
 
-[9] Foehn, Philipp and Scaramuzza, Davide. (2018). Onboard State Dependent LQR for Agile Quadrotors. 10.1109/ICRA.2018.8460885.
+[9] Foehn, Philipp & Scaramuzza, Davide. (2018). **Onboard State Dependent LQR for Agile Quadrotors.** 10.1109/ICRA.2018.8460885.
 
-[10] B. Zhou, F. Gao, L. Wang, C. Liu and S. Shen, "Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight," in *IEEE Robotics and Automation Letters*, vol. 4, no. 4, pp. 3529-3536, Oct. 2019.
+[10] B. Zhou, F. Gao, L. Wang, C. Liu and S. Shen, "**Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight,**" in *IEEE Robotics and Automation Letters*, vol. 4, no. 4, pp. 3529-3536, Oct. 2019.
+
+[11] M. Faessler, D. Falanga, and D. Scaramuzza, "**Thrust Mixing, Saturation, and Body-Rate Control for Accurate Aggressive Quadrotor Flight,**" IEEE Robot. Autom. Lett. (RA-L), vol. 2, no. 2, pp. 476-482, Apr. 2017.
+
+[12] Ren Y, Zhu F, Lu G, et al. **Safety-assured high-speed navigation for MAVs.** *Science Robotics*, 2025, 10(98). DOI:10.1126/scirobotics.ado6187.
+
+[13] Lu G, Ren Y, Zhu F, et al. **Autonomous Tail-Sitter Flights in Unknown Environments.** *IEEE Trans. on Robotics*, 2025. DOI:10.1109/TRO.2025.3526102.
+
+[14] Ren Y, Cai Y, Zhu F, et al. **ROG-Map: An Efficient Robocentric Occupancy Grid Map for Large-scene and High-resolution LiDAR-based Motion Planning.** *2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, 2024:8119-8125. DOI:10.1109/iros58592.2024.10802303.
+
+[15] M. Watterson, and V. Kumar, "**Control of Quadrotors Using the Hopf Fibration on SO(3),**" Robotics Research., pp. 199-215, 2020.
 
