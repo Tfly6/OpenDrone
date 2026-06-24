@@ -191,7 +191,7 @@ git clone --recursive https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
 # Building MPC-related packages may take more than 10 minutes.
 # If you do not need MPC, you can add them to the build skiplist (same idea for other unused packages).
-# catkin config --skiplist mav_control_interface mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
+# catkin config --skiplist mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
 catkin build
 ```
 

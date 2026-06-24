@@ -190,7 +190,7 @@ cd ~/catkin_ws/src
 git clone --recursive https://github.com/Tfly6/OpenDrone.git
 cd ~/catkin_ws
 # 编译 mpc 相关的包需要十几分钟，所以如果不用 mpc 可以用下面命令把它列入编译黑名单（其他不用的包也是类似操作）
-# catkin config --skiplist mav_control_interface mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
+# catkin config --skiplist mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
 catkin build
 ```
 ## 3. 运行
