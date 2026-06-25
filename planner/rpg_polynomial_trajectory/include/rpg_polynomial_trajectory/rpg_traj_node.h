@@ -51,6 +51,7 @@ class RpgTrajNode {
   void waypointCallback(const nav_msgs::Path::ConstPtr& msg);
   void cancelCallback(const std_msgs::Empty::ConstPtr& msg);
   void timerCallback(const ros::TimerEvent& event);
+  void planFromWaypoints(const nav_msgs::Path& path);
 
   polynomial_trajectories::TrajectoryPoint makeStartStateFromOdom(
       const nav_msgs::Odometry& odom) const;
@@ -83,8 +84,10 @@ class RpgTrajNode {
   std::mutex mtx_;
   bool has_odom_{false};
   bool has_traj_{false};
+  bool has_pending_waypoints_{false};
 
   nav_msgs::Odometry odom_;
+  nav_msgs::Path pending_waypoints_;
   polynomial_trajectories::Trajectory traj_;
   ros::Time traj_start_time_;
 

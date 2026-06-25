@@ -1,9 +1,86 @@
 #include "rpg_polynomial_trajectory/rpg_traj_node.h"
 
 #include <cmath>
+#include <chrono>
+#include <iterator>
 #include <utility>
 
 namespace polynomial_trajectories  {
+namespace {
+
+double DistanceBetweenPoses(const geometry_msgs::PoseStamped& a,
+                            const geometry_msgs::PoseStamped& b) {
+  const double dx = a.pose.position.x - b.pose.position.x;
+  const double dy = a.pose.position.y - b.pose.position.y;
+  const double dz = a.pose.position.z - b.pose.position.z;
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+bool HasLoopClosureHint(const nav_msgs::Path& path) {
+  if (path.poses.size() < 4) {
+    return false;
+  }
+
+  const auto& first = path.poses.front();
+  const auto& second = path.poses[1];
+  const auto& second_last = path.poses[path.poses.size() - 2];
+  const auto& last = path.poses.back();
+  constexpr double kClosureTolerance = 0.2;
+
+  return DistanceBetweenPoses(second_last, first) <= kClosureTolerance ||
+         DistanceBetweenPoses(last, second) <= kClosureTolerance ||
+         DistanceBetweenPoses(last, first) <= kClosureTolerance;
+}
+
+std::vector<geometry_msgs::PoseStamped> BuildRingWaypoints(
+    const nav_msgs::Path& path) {
+  std::vector<geometry_msgs::PoseStamped> ring_points(path.poses.begin(),
+                                                      path.poses.end());
+  if (ring_points.size() < 4) {
+    return ring_points;
+  }
+
+  const auto& first = ring_points.front();
+  const auto& second = ring_points[1];
+  constexpr double kClosureTolerance = 0.2;
+
+  while (ring_points.size() >= 3 &&
+         DistanceBetweenPoses(ring_points.back(), first) <=
+             kClosureTolerance) {
+    ring_points.pop_back();
+  }
+  while (ring_points.size() >= 3 &&
+         DistanceBetweenPoses(ring_points.back(), second) <=
+             kClosureTolerance) {
+    ring_points.pop_back();
+  }
+
+  return ring_points;
+}
+
+Trajectory ConcatenateTrajectories(const Trajectory& prefix,
+                                   const Trajectory& suffix) {
+  if (prefix.points.empty()) {
+    return suffix;
+  }
+  if (suffix.points.empty()) {
+    return prefix;
+  }
+
+  Trajectory combined = prefix;
+  combined.trajectory_type = Trajectory::TrajectoryType::GENERAL;
+
+  const ros::Duration offset = combined.points.back().time_from_start;
+  auto it = std::next(suffix.points.begin());
+  for (; it != suffix.points.end(); ++it) {
+    TrajectoryPoint shifted = *it;
+    shifted.time_from_start += offset;
+    combined.points.push_back(shifted);
+  }
+  return combined;
+}
+
+}  // namespace
 
 RpgTrajNode::RpgTrajNode(const ros::NodeHandle& nh, const ros::NodeHandle& pnh)
     : nh_(nh), pnh_(pnh) {
@@ -274,6 +351,13 @@ void RpgTrajNode::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
   std::lock_guard<std::mutex> lock(mtx_);
   odom_ = *msg;
   has_odom_ = true;
+  if (has_pending_waypoints_) {
+    ROS_INFO("[rpg_traj_node] odom ready, planning cached waypoints.");
+    nav_msgs::Path cached_path = pending_waypoints_;
+    has_pending_waypoints_ = false;
+    pending_waypoints_.poses.clear();
+    planFromWaypoints(cached_path);
+  }
 }
 
 void RpgTrajNode::cancelCallback(const std_msgs::Empty::ConstPtr& msg) {
@@ -309,21 +393,33 @@ void RpgTrajNode::goalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) 
 
 void RpgTrajNode::waypointCallback(const nav_msgs::Path::ConstPtr& msg) {
   std::lock_guard<std::mutex> lock(mtx_);
-  if (!has_odom_) {
-    ROS_WARN("[rpg_traj_node] waypoints received but odom not ready.");
-    return;
-  }
   if (msg->poses.empty()) {
     ROS_WARN("[rpg_traj_node] empty waypoint path.");
     return;
   }
+  if (!has_odom_) {
+    pending_waypoints_ = *msg;
+    has_pending_waypoints_ = true;
+    ROS_WARN("[rpg_traj_node] waypoints received but odom not ready, caching.");
+    return;
+  }
 
+  planFromWaypoints(*msg);
+}
+
+void RpgTrajNode::planFromWaypoints(const nav_msgs::Path& path) {
+  if (path.poses.empty()) {
+    ROS_WARN("[rpg_traj_node] cached waypoint path is empty.");
+    return;
+  }
+  ROS_WARN_STREAM("[rpg_traj_node] received " << path.poses.size() << " waypoints.");
+  const auto planning_started = std::chrono::steady_clock::now();
   const auto start = makeStartStateFromOdom(odom_);
 
   auto end = start;
-  end.position = Eigen::Vector3d(msg->poses.back().pose.position.x,
-                                 msg->poses.back().pose.position.y,
-                                 msg->poses.back().pose.position.z);
+  end.position = Eigen::Vector3d(path.poses.back().pose.position.x,
+                                 path.poses.back().pose.position.y,
+                                 path.poses.back().pose.position.z);
   if (std::abs(end.position.z()) < 1e-6) {
     end.position.z() = default_goal_z_;
   }
@@ -335,37 +431,107 @@ void RpgTrajNode::waypointCallback(const nav_msgs::Path::ConstPtr& msg) {
   try {
     polynomial_trajectories::Trajectory tr;
 
-    if (!use_minimum_snap_ || msg->poses.size() < 2) {
+    if (!use_minimum_snap_ || path.poses.size() < 2) {
+      ROS_INFO(
+          "[rpg_traj_node] planning direct trajectory: points=%zu, "
+          "use_minimum_snap=%s",
+          path.poses.size(), use_minimum_snap_ ? "true" : "false");
       tr = trajectory_generation_helper::polynomials::computeTimeOptimalTrajectory(
           start, end, order_of_continuity_, max_velocity_,
           max_normalized_thrust_, max_roll_pitch_rate_, sampling_frequency_);
     } else {
       polynomial_trajectories::PolynomialTrajectorySettings settings;
       settings.way_points.clear();
+      // Minimum-snap solver requires explicit weights/order settings.
+      settings.minimization_weights = Eigen::VectorXd::Zero(5);
+      settings.minimization_weights << 0.0, 1.0, 1.0, 1.0, 1.0;
+      settings.polynomial_order =
+          std::max(11, std::max(1, order_of_continuity_) + 1);
+      settings.continuity_order = std::max(1, order_of_continuity_);
 
-      for (size_t i = 0; i + 1 < msg->poses.size(); ++i) {
-        settings.way_points.emplace_back(msg->poses[i].pose.position.x,
-                                         msg->poses[i].pose.position.y,
-                                         msg->poses[i].pose.position.z);
+      for (size_t i = 0; i + 1 < path.poses.size(); ++i) {
+        settings.way_points.emplace_back(path.poses[i].pose.position.x,
+                                         path.poses[i].pose.position.y,
+                                         path.poses[i].pose.position.z);
       }
 
-      const Eigen::VectorXd seg_times =
-          buildInitialSegmentTimes(msg->poses.size());
+      const bool use_ring_trajectory = HasLoopClosureHint(path);
+      if (use_ring_trajectory) {
+        auto ring_points = BuildRingWaypoints(path);
+        settings.way_points.clear();
+        for (const auto& pose_stamped : ring_points) {
+          settings.way_points.emplace_back(pose_stamped.pose.position.x,
+                                           pose_stamped.pose.position.y,
+                                           pose_stamped.pose.position.z);
+        }
 
-      if (use_segment_refine_) {
-        tr = trajectory_generation_helper::polynomials::
-            generateMinimumSnapTrajectoryWithSegmentRefinement(
-                seg_times, start, end, settings, max_velocity_,
+        const Eigen::VectorXd ring_seg_times =
+            buildInitialSegmentTimes(settings.way_points.size());
+
+        ROS_INFO(
+            "[rpg_traj_node] planning minimum-snap ring trajectory: "
+            "raw_points=%zu, ring_points=%zu, segment_refine=%s, "
+            "max_velocity=%.2f",
+            path.poses.size(), settings.way_points.size(),
+            use_segment_refine_ ? "true" : "false",
+            max_velocity_);
+
+        auto approach_end =
+            makeEndStateFromPose(ring_points.front(), start.heading);
+        auto approach = trajectory_generation_helper::polynomials::
+            computeTimeOptimalTrajectory(
+                start, approach_end, order_of_continuity_, max_velocity_,
                 max_normalized_thrust_, max_roll_pitch_rate_,
                 sampling_frequency_);
+
+        polynomial_trajectories::Trajectory ring;
+        if (use_segment_refine_) {
+          ring = trajectory_generation_helper::polynomials::
+              generateMinimumSnapRingTrajectoryWithSegmentRefinement(
+                  ring_seg_times, settings, max_velocity_,
+                  max_normalized_thrust_, max_roll_pitch_rate_,
+                  sampling_frequency_);
+        } else {
+          ring = trajectory_generation_helper::polynomials::
+              generateMinimumSnapRingTrajectory(
+                  ring_seg_times, settings, max_velocity_,
+                  max_normalized_thrust_, max_roll_pitch_rate_,
+                  sampling_frequency_);
+        }
+        tr = ConcatenateTrajectories(approach, ring);
       } else {
-        tr = trajectory_generation_helper::polynomials::
-            generateMinimumSnapTrajectory(seg_times, start, end, settings,
-                                          max_velocity_, max_normalized_thrust_,
-                                          max_roll_pitch_rate_,
-                                          sampling_frequency_);
+        const Eigen::VectorXd seg_times =
+            buildInitialSegmentTimes(path.poses.size());
+
+        ROS_INFO(
+            "[rpg_traj_node] planning minimum-snap trajectory: points=%zu, "
+            "intermediate=%zu, segment_refine=%s, max_velocity=%.2f",
+            path.poses.size(), settings.way_points.size(),
+            use_segment_refine_ ? "true" : "false", max_velocity_);
+
+        if (use_segment_refine_) {
+          tr = trajectory_generation_helper::polynomials::
+              generateMinimumSnapTrajectoryWithSegmentRefinement(
+                  seg_times, start, end, settings, max_velocity_,
+                  max_normalized_thrust_, max_roll_pitch_rate_,
+                  sampling_frequency_);
+        } else {
+          tr = trajectory_generation_helper::polynomials::
+              generateMinimumSnapTrajectory(
+                  seg_times, start, end, settings, max_velocity_,
+                  max_normalized_thrust_, max_roll_pitch_rate_,
+                  sampling_frequency_);
+        }
       }
     }
+
+    const auto planning_finished = std::chrono::steady_clock::now();
+    const double planning_ms = std::chrono::duration<double, std::milli>(
+                                   planning_finished - planning_started)
+                                   .count();
+    ROS_INFO(
+        "[rpg_traj_node] planning finished in %.1f ms, sampled points=%zu",
+        planning_ms, tr.points.size());
 
     preemptAndActivateTrajectory(std::move(tr));
   } catch (const std::exception& e) {

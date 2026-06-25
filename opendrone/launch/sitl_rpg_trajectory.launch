@@ -1,9 +1,20 @@
 <launch>
+  <arg name="use_preset_waypoints" default="true" />
+  <arg name="waypoint_type" default="circle" />
+
+  <node if="$(arg use_preset_waypoints)" pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
+    <param name="waypoint_type" value="$(arg waypoint_type)"/>
+    <param name="num_points" value="8"/>
+    <param name="closure_points" value="1"/>
+    <param name="autoTrigger" value="true" />
+    <remap from="~odom" to="/mavros/local_position/odom"/>
+  </node>
+
   <node pkg="rpg_polynomial_trajectory" type="rpg_traj_node" name="rpg_traj_node" output="screen">
     <param name="world_frame" value="world"/>
     <param name="odom_topic" value="/mavros/local_position/odom"/>
     <param name="goal_topic" value="/move_base_simple/goal"/>
-    <param name="waypoint_topic" value="/rpg_traj/waypoints"/>
+    <param name="waypoint_topic" value="/waypoint_generator/waypoints"/>
     <param name="cancel_topic" value="/rpg_traj/cancel"/>
 
     <param name="path_topic" value="/rpg_traj/path"/>
@@ -13,7 +24,7 @@
     <param name="use_segment_refine" value="true"/>
 
     <param name="order_of_continuity" value="4"/>
-    <param name="max_velocity" value="3.0"/>
+    <param name="max_velocity" value="1.0"/>
     <param name="max_normalized_thrust" value="15.0"/>
     <param name="max_roll_pitch_rate" value="2.0"/>
     <param name="sampling_frequency" value="50.0"/>
