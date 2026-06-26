@@ -30,10 +30,8 @@
 
 
 #rosbuild_add_executable(multi_map_server src/multi_map_server.cc)
-#target_link_libraries(multi_map_server pose_utils)
 
 #rosbuild_add_executable(multi_map_visualization src/multi_map_visualization.cc)
-#target_link_libraries(multi_map_visualization pose_utils)
 
 #----------------------------------
 cmake_minimum_required(VERSION 2.8.3)
@@ -42,17 +40,18 @@ project(multi_map_server)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
-  pose_utils
+  math_utils
   message_generation
   roscpp
   visualization_msgs
   tf
   std_srvs
   laser_geometry
-  pose_utils
   quadrotor_msgs
 )
 
@@ -136,19 +135,13 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-###########
-## Build ##
-###########
-find_package(Armadillo REQUIRED)
-include_directories(${ARMADILLO_INCLUDE_DIRS})
-
-
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # message(WARNING "check: ${catkin_INCLUDE_DIRS}")
 include_directories(
   ${catkin_INCLUDE_DIRS}
   include
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -166,8 +159,6 @@ add_dependencies(multi_map_visualization multi_map_server_gencpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(multi_map_visualization 
    ${catkin_LIBRARIES}
-   ${ARMADILLO_LIBRARIES}
-   ${pose_utils__LIBRARIES}
 )
 
 #############

@@ -8,37 +8,44 @@
 
 #include "mav_trajectory_generation_ros/trajectory_generation.h"
 
-TrajectoryGeneration::TrajectoryGeneration(ros::NodeHandle& nh)
+TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
     : nh_(nh),
+      nh_private_(nh_private),
+      has_current_odom_(false),
       max_v_(2.0),
       max_a_(2.0),
+      ignore_current_odom_start_(true),
       use_nonlinear_opt_(false),
       nonlinear_max_iterations_(200),
       nonlinear_time_penalty_(500.0),
       dimension_(3),
       current_velocity_(Eigen::Vector3d::Zero()),
       current_pose_(Eigen::Affine3d::Identity()) {
-  nh.param("max_v", max_v_, 2.0);
-  nh.param("max_a", max_a_, 2.0);
-  nh.param("use_nonlinear_opt", use_nonlinear_opt_, false);
-  nh.param("nonlinear_max_iterations", nonlinear_max_iterations_, 200);
-  nh.param("nonlinear_time_penalty", nonlinear_time_penalty_, 500.0);
 
   pub_trajectory_ =
-      nh.advertise<mav_planning_msgs::PolynomialTrajectory4D>("/trajectory_generation/trajectory", 1);
-  pub_trigger_ =
-      nh.advertise<geometry_msgs::PoseStamped>("/waypoint_generator/traj_start_trigger", 0);
+      nh_.advertise<mav_planning_msgs::PolynomialTrajectory4D>("/trajectory_generation/trajectory", 1);
+  // pub_trigger_ =
+  //     nh_.advertise<geometry_msgs::PoseStamped>("/waypoint_generator/traj_start_trigger", 0);
 
   sub_odom_ =
-      nh.subscribe("/mavros/local_position/odom", 1, &TrajectoryGeneration::uavOdomCallback, this);
+      nh_.subscribe("/mavros/local_position/odom", 1, &TrajectoryGeneration::uavOdomCallback, this);
   sub_waypoint_ =
-      nh.subscribe("/trajectory_generation/waypoint", 1, &TrajectoryGeneration::waypointCallback, this);
+      nh_.subscribe("/trajectory_generation/waypoint", 1, &TrajectoryGeneration::waypointCallback, this);
+  
+  nh_private_.param("max_v", max_v_, 2.0);
+  nh_private_.param("max_a", max_a_, 2.0);
+  nh_private_.param("ignore_current_odom_start", ignore_current_odom_start_, true);
+  nh_private_.param("use_nonlinear_opt", use_nonlinear_opt_, false);
+  nh_private_.param("nonlinear_max_iterations", nonlinear_max_iterations_, 200);
+  nh_private_.param("nonlinear_time_penalty", nonlinear_time_penalty_, 500.0);
+
 }
 
 // Callback to get current Pose of UAV
 void TrajectoryGeneration::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
   tf::poseMsgToEigen(odom->pose.pose, current_pose_);
   tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
+  has_current_odom_ = true;
 }
 
 void TrajectoryGeneration::waypointCallback(const nav_msgs::Path::ConstPtr& msg) {
@@ -54,16 +61,36 @@ void TrajectoryGeneration::waypointCallback(const nav_msgs::Path::ConstPtr& msg)
 }
 
 void TrajectoryGeneration::planTrajectory() {
+  if (waypoints_.empty()) {
+    ROS_WARN("[TrajectoryGeneration] No waypoints available for planning.");
+    return;
+  }
+
   mav_trajectory_generation::Vertex::Vector vertices;
   mav_trajectory_generation::Vertex start(dimension_), end(dimension_);
 
-  start.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                      current_pose_.translation());
-  start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                      current_velocity_);
+  if (!ignore_current_odom_start_ && !has_current_odom_) {
+    ROS_WARN("[TrajectoryGeneration] No odometry received yet, cannot use current odom as trajectory start.");
+    return;
+  }
+
+  if (ignore_current_odom_start_) {
+    const geometry_msgs::Pose& first_waypoint = waypoints_.front();
+    start.makeStartOrEnd(
+        Eigen::Vector3d(first_waypoint.position.x,
+                        first_waypoint.position.y,
+                        first_waypoint.position.z),
+        derivative_to_optimize_);
+  } else {
+    start.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
+                        current_pose_.translation());
+    start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                        current_velocity_);
+  }
 
   vertices.push_back(start);
-  for (size_t i = 0; i < waypoints_.size(); ++i) {
+  const size_t first_waypoint_index = ignore_current_odom_start_ ? 1 : 0;
+  for (size_t i = first_waypoint_index; i < waypoints_.size(); ++i) {
     if (i == waypoints_.size() - 1) {
       end.makeStartOrEnd(
           Eigen::Vector3d(waypoints_[i].position.x,
@@ -106,14 +133,16 @@ void TrajectoryGeneration::planTrajectory() {
     opt.optimize();
     opt.getTrajectory(&trajectory);
 
-    ROS_INFO("[TrajectoryGeneration] Using nonlinear optimization.");
+    ROS_INFO("[TrajectoryGeneration] Using nonlinear optimization. start_mode=%s",
+             ignore_current_odom_start_ ? "first_waypoint" : "current_odom");
   } else {
     mav_trajectory_generation::PolynomialOptimization<N> opt(dimension_);
     opt.setupFromVertices(vertices, segment_times, derivative_to_optimize_);
     opt.solveLinear();
     opt.getTrajectory(&trajectory);
 
-    ROS_INFO("[TrajectoryGeneration] Using linear optimization.");
+    ROS_INFO("[TrajectoryGeneration] Using linear optimization. start_mode=%s",
+             ignore_current_odom_start_ ? "first_waypoint" : "current_odom");
   }
 
   publishTrajectory(trajectory);
@@ -128,9 +157,9 @@ bool TrajectoryGeneration::publishTrajectory(
   return true;
 }
 
-void TrajectoryGeneration::triggerWaypoints() {
-  geometry_msgs::PoseStamped pose;
-  pose.header.stamp = ros::Time::now();
-  tf::poseEigenToMsg(current_pose_, pose.pose);
-  pub_trigger_.publish(pose);
-}
+// void TrajectoryGeneration::triggerWaypoints() {
+//   geometry_msgs::PoseStamped pose;
+//   pose.header.stamp = ros::Time::now();
+//   tf::poseEigenToMsg(current_pose_, pose.pose);
+//   pub_trigger_.publish(pose);
+// }

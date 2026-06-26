@@ -23,6 +23,8 @@ string waypoint_type = string("manual");
 string frame;
 bool auto_trigger;
 bool is_odom_ready;
+int num_points;
+int closure_points;
 nav_msgs::Odometry odom;
 nav_msgs::Path waypoints;
 
@@ -171,11 +173,11 @@ void goal_callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
     // n.param("waypoint_type", waypoint_type, string("manual"));
     
     if (waypoint_type == string("circle")) {
-        waypoints = circle();
+        waypoints = circle(num_points, closure_points);
         publish_waypoints_vis();
         publish_waypoints();
     } else if (waypoint_type == string("eight")) {
-        waypoints = eight();
+        waypoints = eight(num_points, closure_points);
         publish_waypoints_vis();
         publish_waypoints();
     } else if (waypoint_type == string("points")) {
@@ -240,11 +242,11 @@ void traj_start_trigger_callback(const geometry_msgs::PoseStamped& msg) {
         publish_waypoints_vis();
         publish_waypoints();
     } else if (waypoint_type == string("circle")) {
-        waypoints = circle();
+        waypoints = circle(num_points, closure_points);
         publish_waypoints_vis();
         publish_waypoints();
     } else if (waypoint_type == string("eight")) {
-        waypoints = eight();
+        waypoints = eight(num_points, closure_points);
         publish_waypoints_vis();
         publish_waypoints();
    } else if (waypoint_type == string("point")) {
@@ -262,11 +264,15 @@ int main(int argc, char** argv) {
     n.param<string>("waypoint_type", waypoint_type, "manual");
     n.param<string>("frame", frame, "map");
     n.param<bool>("autoTrigger", auto_trigger, false);
+    n.param<int>("num_points", num_points, 30);
+    n.param<int>("closure_points", closure_points, 2);
+    num_points = std::max(3, num_points);
+    closure_points = std::max(0, closure_points);
     ros::Subscriber odom_sub = n.subscribe("odom", 10, odom_callback);
     ros::Subscriber goal_sub = n.subscribe("goal", 10, goal_callback);
     ros::Subscriber traj_sub = n.subscribe("traj_start_trigger", 10, traj_start_trigger_callback);
     pub_autoTrigger = n.advertise<geometry_msgs::PoseStamped>("traj_start_trigger", 10);
-    pub_waypoints = n.advertise<nav_msgs::Path>("waypoints", 50);
+    pub_waypoints = n.advertise<nav_msgs::Path>("waypoints", 50, true);
     pub_vis = n.advertise<geometry_msgs::PoseArray>("waypoints_vis", 10);
 
     trigged_time = ros::Time(0);

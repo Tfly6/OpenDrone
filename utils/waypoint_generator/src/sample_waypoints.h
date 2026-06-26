@@ -60,11 +60,10 @@ nav_msgs::Path point()
 }
 
 // Circle trajectory
-nav_msgs::Path circle()
+nav_msgs::Path circle(int num_points = 30, int closure_points = 2)
 {
     double radius = 5.0;  // 圆半径
     double h = 2.0;       // 飞行高度
-    int num_points = 30; // 采样点数（越大越平滑）
     double center_x = 0.0; // 圆心X坐标
     double center_y = 0.0; // 圆心Y坐标
 
@@ -93,23 +92,23 @@ nav_msgs::Path circle()
         waypoints.poses.push_back(pt);
     }
     
-    if (num_points > 0)
+    if (num_points > 0 && closure_points > 0)
     {
         // 重复前两个点，让多项式在接缝处平滑过渡，不强制飞回圆心
-        waypoints.poses.push_back(waypoints.poses[0]);
-        waypoints.poses.push_back(waypoints.poses[1]);
+        for (int i = 0; i < closure_points; ++i) {
+            waypoints.poses.push_back(waypoints.poses[i]);
+        }
     }
 
     return waypoints;
 }
 
-nav_msgs::Path eight()
+nav_msgs::Path eight(int num_points = 30, int closure_points = 2)
 {
     double offset_x = 0.0;  // 轨迹整体偏移
     double offset_y = 0.0;
     double r = 10.0;        // 半径
     double h = 2.0;         // 高度
-    int num_points = 30;   // 循环的采样点数
 
     nav_msgs::Path waypoints;
     geometry_msgs::PoseStamped pt;

@@ -5,13 +5,17 @@
 #ifndef MATH_UTILS_H
 #define MATH_UTILS_H
 
-#include <Eigen/Eigen>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+#include <algorithm>
 #include <math.h>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Vector3.h>
 
 using namespace std;
+
+using Vector6d = Eigen::Matrix<double, 6, 1>;
 
 // 四元数转欧拉角
 inline Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
@@ -122,6 +126,118 @@ inline Eigen::Matrix3d quat2RotMatrix(const Eigen::Vector4d &q) {
       2 * q(1) * q(3) - 2 * q(0) * q(2), 2 * q(0) * q(1) + 2 * q(2) * q(3),
       q(0) * q(0) - q(1) * q(1) - q(2) * q(2) + q(3) * q(3);
   return rotmat;
+}
+
+inline Eigen::Matrix3d ypr_to_R(const Eigen::Vector3d &ypr)
+{
+    const double y = ypr(0);
+    const double p = ypr(1);
+    const double r = ypr(2);
+
+    const double cy = cos(y);
+    const double sy = sin(y);
+    const double cp = cos(p);
+    const double sp = sin(p);
+    const double cr = cos(r);
+    const double sr = sin(r);
+
+    Eigen::Matrix3d R;
+    R << cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr,
+         sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr,
+         -sp,     cp * sr,                cp * cr;
+    return R;
+}
+
+inline Eigen::Matrix2d yaw_to_R(double yaw)
+{
+    const double c = cos(yaw);
+    const double s = sin(yaw);
+
+    Eigen::Matrix2d R;
+    R << c, -s,
+         s, c;
+    return R;
+}
+
+inline Eigen::Vector3d R_to_ypr(const Eigen::Matrix3d &R)
+{
+    const Eigen::Vector3d n = R.col(0);
+    const Eigen::Vector3d o = R.col(1);
+    const Eigen::Vector3d a = R.col(2);
+
+    Eigen::Vector3d ypr;
+    const double y = atan2(n(1), n(0));
+    const double p = atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
+    const double r = atan2(a(0) * sin(y) - a(1) * cos(y),
+                           -o(0) * sin(y) + o(1) * cos(y));
+    ypr << y, p, r;
+    return ypr;
+}
+
+inline Eigen::Matrix3d quaternion_to_R(const Eigen::Quaterniond &q)
+{
+    return q.normalized().toRotationMatrix();
+}
+
+inline Eigen::Quaterniond R_to_quaternion(const Eigen::Matrix3d &R)
+{
+    return Eigen::Quaterniond(R).normalized();
+}
+
+inline Eigen::Quaterniond quaternion_mul(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2)
+{
+    return (q1 * q2).normalized();
+}
+
+inline Eigen::Quaterniond quaternion_inv(const Eigen::Quaterniond &q)
+{
+    return q.normalized().conjugate();
+}
+
+inline Vector6d pose_update(const Vector6d &X1, const Vector6d &X2)
+{
+    const Eigen::Matrix3d R1 = ypr_to_R(X1.tail<3>());
+    const Eigen::Matrix3d R2 = ypr_to_R(X2.tail<3>());
+    Vector6d X3;
+    X3.head<3>() = X1.head<3>() + R1 * X2.head<3>();
+    X3.tail<3>() = R_to_ypr(R1 * R2);
+    return X3;
+}
+
+inline Vector6d pose_inverse(const Vector6d &X)
+{
+    const Eigen::Matrix3d R = ypr_to_R(X.tail<3>());
+    Vector6d XI;
+    XI.head<3>() = -R.transpose() * X.head<3>();
+
+    const Eigen::Vector3d n = R.col(0);
+    const Eigen::Vector3d o = R.col(1);
+    const Eigen::Vector3d a = R.col(2);
+    const double XIy = atan2(o(0), n(0));
+    const double XIp = atan2(-a(0), n(0) * cos(XIy) + o(0) * sin(XIy));
+    const double XIr = atan2(n(2) * sin(XIy) - o(2) * cos(XIy),
+                             -n(1) * sin(XIy) + o(1) * cos(XIy));
+    XI.tail<3>() << XIy, XIp, XIr;
+    return XI;
+}
+
+inline Eigen::Vector3d pose_update_2d(const Eigen::Vector3d &X1, const Eigen::Vector3d &X2)
+{
+    Eigen::Vector3d X3;
+    X3.head<2>() = yaw_to_R(X1(2)) * X2.head<2>() + X1.head<2>();
+    X3(2) = X1(2) + X2(2);
+    return X3;
+}
+
+inline Eigen::Vector3d pose_inverse_2d(const Eigen::Vector3d &X)
+{
+    const double c = cos(X(2));
+    const double s = sin(X(2));
+    Eigen::Vector3d XI;
+    XI << -X(0) * c - X(1) * s,
+           X(0) * s - X(1) * c,
+          -X(2);
+    return XI;
 }
 
 // geometry_msgs to Eigen
@@ -238,4 +354,3 @@ inline bool is_arrive(const Eigen::Vector3d &pos1, const Eigen::Vector3d &pos2){
 }
 
 #endif
-

@@ -12,20 +12,23 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build_depend>eigen</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
   <build_depend>visualization_msgs</build_depend>
   <build_depend>tf</build_depend>
-  <build_depend>pose_utils</build_depend>
+  <build_depend>math_utils</build_depend>
+  <build_depend>quadrotor_msgs</build_depend>
 
+  <run_depend>eigen</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>nav_msgs</run_depend>
   <run_depend>visualization_msgs</run_depend>
   <run_depend>tf</run_depend>
-  <run_depend>pose_utils</run_depend>
+  <run_depend>math_utils</run_depend>
+  <run_depend>quadrotor_msgs</run_depend>
 
 </package>
-
 

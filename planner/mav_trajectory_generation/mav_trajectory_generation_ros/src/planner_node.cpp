@@ -13,10 +13,11 @@ int main(int argc, char** argv) {
 
   ros::init(argc, argv, "planner");
 
-  ros::NodeHandle n;
-  TrajectoryGeneration planner(n);
+  ros::NodeHandle nh;
+  ros::NodeHandle nh_private("~");
+  TrajectoryGeneration planner(nh, nh_private);
   ROS_INFO("Initialized trajectory.");
-  // ros::Subscriber state_sub = n.subscribe<std_msgs::Int8>("geometric_controller/state", 10, state_cb);
+  // ros::Subscriber state_sub = nh.subscribe<std_msgs::Int8>("geometric_controller/state", 10, state_cb);
 
   // while(ros::ok()){
   //   if(state.data == 1){
