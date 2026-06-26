@@ -30,7 +30,6 @@
 #target_link_libraries(example ${PROJECT_NAME})
 
 #rosbuild_add_executable(odom_visualization src/odom_visualization.cpp)
-#target_link_libraries(odom_visualization pose_utils)
 
 #----------------------------------
 cmake_minimum_required(VERSION 2.8.3)
@@ -44,14 +43,16 @@ ADD_COMPILE_OPTIONS(-std=c++14 )
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
+  math_utils
   roscpp
   sensor_msgs
   nav_msgs
   visualization_msgs
   quadrotor_msgs
   tf
-  pose_utils
 )
 
 ## System dependencies are found with CMake's conventions
@@ -134,18 +135,12 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-###########
-## Build ##
-###########
-find_package(Armadillo REQUIRED)
-include_directories(${ARMADILLO_INCLUDE_DIRS})
-
-
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -164,8 +159,6 @@ add_dependencies(odom_visualization ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 ## Specify libraries to link a library or executable target against
 target_link_libraries(odom_visualization
    ${catkin_LIBRARIES}
-   ${ARMADILLO_LIBRARIES}
-   ${pose_utils_LIBRARIES}
 )
 
 #############

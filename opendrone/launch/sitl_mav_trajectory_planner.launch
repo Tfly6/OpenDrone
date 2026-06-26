@@ -2,13 +2,17 @@
   <arg name="max_acc" default="4" />
   <arg name="max_vel" default="2.5" />
   <arg name="use_nonlinear_opt" default="false" />
+  <arg name="ignore_current_odom_start" default="true" />
   <arg name="nonlinear_max_iterations" default="200" />
   <arg name="nonlinear_time_penalty" default="500.0" />
+  <arg name="use_preset_waypoints" default="true" />
+  <arg name="waypoint_type" default="circle" />
 
   <!--- Trajectory planner -->
   <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen">
         <param name="max_a" value="$(arg max_acc)" />
         <param name="max_v" value="$(arg max_vel)" />
+        <param name="ignore_current_odom_start" value="$(arg ignore_current_odom_start)" />
         <param name="use_nonlinear_opt" value="$(arg use_nonlinear_opt)" />
         <param name="nonlinear_max_iterations" value="$(arg nonlinear_max_iterations)" />
         <param name="nonlinear_time_penalty" value="$(arg nonlinear_time_penalty)" />
@@ -22,8 +26,10 @@
         <remap from="traj_start_trigger" to="/waypoint_generator/traj_start_trigger"/>
   </node>
 
-  <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
-        <param name="waypoint_type" value="circle"/>
+  <node if="$(arg use_preset_waypoints)" pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
+        <param name="waypoint_type" value="$(arg waypoint_type)"/>
+        <!-- <param name="num_points" value="2"/> -->
+        <param name="closure_points" value="1"/>
         <param name="autoTrigger" value="true" />
         <remap from="~odom" to="/mavros/local_position/odom"/>
   </node>

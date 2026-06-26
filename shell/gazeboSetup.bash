@@ -48,9 +48,9 @@ echo "PX4 directory         : $PX4_DIR"
 echo "SITL config directory : $SITL_CONFIG_DIR"
 echo "Gazebo target dir     : $PX4_GAZEBO_DIR"
 
-cp -r "$SITL_CONFIG_DIR/models/." "$PX4_GAZEBO_DIR/models/"
-cp "$SITL_CONFIG_DIR/worlds/." "$PX4_GAZEBO_DIR/worlds/"
-cp "$SITL_CONFIG_DIR/launch/." "$PX4_DIR/launch/"
+cp -r "$SITL_CONFIG_DIR"/models/* "$PX4_GAZEBO_DIR/models/"
+cp -f "$SITL_CONFIG_DIR"/worlds/* "$PX4_GAZEBO_DIR/worlds/"
+cp -f "$SITL_CONFIG_DIR"/launch/* "$PX4_DIR/launch/"
 
 BUILD_PLUGIN_DIR=""
 if [ -d "$PX4_DIR/build/px4_sitl_default/build_gazebo-classic" ]; then

@@ -2,9 +2,10 @@
 #define MAP3D_H
 
 #include <iostream>
+
+#include <Eigen/Dense>
 #include <ros/ros.h>
 #include <tf/tf.h>
-#include <armadillo>
 #include <multi_map_server/SparseMap3D.h>
 
 using namespace std;
@@ -450,7 +451,7 @@ public:
       mapBase[my*mapX+mx]->DeleteOccupancyGrid(mz);
   }
 
-  vector<arma::colvec>& GetOccupancyWorldFrame(int type = OCCUPIED)
+  vector<Eigen::Vector3d>& GetOccupancyWorldFrame(int type = OCCUPIED)
   {
     pts.clear();
     for (int mx = 0; mx < mapX; mx++)
@@ -470,10 +471,7 @@ public:
               {
                 double x, y, z;
                 MapFrameToWorldFrame(mx, my, mz, x, y, z);
-                arma::colvec pt(3);
-                pt(0) = x;
-                pt(1) = y;
-                pt(2) = z;
+                Eigen::Vector3d pt(x, y, z);
                 pts.push_back(pt);
               }
             }
@@ -602,7 +600,7 @@ private:
   int expandStep;
   vector<OccupancyGridList*> mapBase;
 
-  vector<arma::colvec> pts;
+  vector<Eigen::Vector3d> pts;
 
 };
 #endif

@@ -22,7 +22,7 @@
 
 class TrajectoryGeneration {
  public:
-  TrajectoryGeneration(ros::NodeHandle& nh);
+  TrajectoryGeneration(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private);
 
   void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
   void waypointCallback(const nav_msgs::Path::ConstPtr& msg);
@@ -33,21 +33,24 @@ class TrajectoryGeneration {
 
  private:
   ros::Publisher pub_trajectory_;
-  ros::Publisher pub_trigger_;
+  // ros::Publisher pub_trigger_;
   ros::Subscriber sub_odom_;
   ros::Subscriber sub_waypoint_;
 
-  ros::NodeHandle& nh_;
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
 
   std::vector<geometry_msgs::Pose> waypoints_;
   Eigen::Affine3d current_pose_;
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;
+  bool has_current_odom_;
   double max_v_;  // m/s
   double max_a_;  // m/s^2
   double max_ang_v_;
   double max_ang_a_;
 
+  bool ignore_current_odom_start_;
   bool use_nonlinear_opt_;
   int nonlinear_max_iterations_;
   double nonlinear_time_penalty_;
