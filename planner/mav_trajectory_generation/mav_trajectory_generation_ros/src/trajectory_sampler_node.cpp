@@ -62,7 +62,7 @@ void TrajectorySamplerNode::pathSegmentsCallback(
     ROS_WARN("Trajectory sampler: received empty waypoint message");
     return;
   } else {
-    ROS_INFO("Trajectory sampler: received %lu waypoints",
+    ROS_INFO("Trajectory sampler: received %lu segments",
              segments_message.segments.size());
   }
 
@@ -80,7 +80,7 @@ void TrajectorySamplerNode::pathSegments4DCallback(
     ROS_WARN("Trajectory sampler: received empty waypoint message");
     return;
   } else {
-    ROS_INFO("Trajectory sampler: received %lu waypoints",
+    ROS_INFO("Trajectory sampler: received %lu segments",
              segments_message.segments.size());
   }
 

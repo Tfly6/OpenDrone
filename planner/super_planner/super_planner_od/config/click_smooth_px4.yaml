@@ -1,8 +1,10 @@
 fsm:
   click_goal_en: true
   click_goal_topic: "/goal"
+  mission_goal_topic: "/planning/mission_goal"
   click_height: 1.5
   click_yaw_en: true
+  mission_goal_force_new_threshold: 1.5
   replan_rate: 15.0
   cmd_topic: "/planning/pos_cmd"
   mpc_cmd_topic: "/planning_cmd/poly_traj"
@@ -185,4 +187,3 @@ rog_map:
     #             the cell will be considered as unknown.
     # in all, 1.0 is more aggressive while 0.0 is more conservative.
     unk_thresh: 1.0
-

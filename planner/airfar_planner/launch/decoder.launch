@@ -1,4 +1,9 @@
 <launch>
+    <!--
+      Legacy graph inspection/persistence tool.  It is intentionally not
+      included by airfar.launch: the current Air-FAR planner publishes NavGraph
+      while this upstream decoder consumes VisGraph.
+    -->
     <arg name="graph_topic" default="/planner_nav_graph"/>
     <node pkg="airfar_planner" type="graph_decoder" name="graph_decoder" output="screen">
         <rosparam command="load" file="$(find airfar_planner)/config/graph_decoder.yaml" />

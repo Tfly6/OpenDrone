@@ -2,17 +2,19 @@
   <arg name="max_acc" default="4" />
   <arg name="max_vel" default="2.5" />
   <arg name="use_nonlinear_opt" default="false" />
-  <arg name="ignore_current_odom_start" default="true" />
   <arg name="nonlinear_max_iterations" default="200" />
   <arg name="nonlinear_time_penalty" default="500.0" />
   <arg name="use_preset_waypoints" default="true" />
   <arg name="waypoint_type" default="circle" />
+  <arg name="auto_trigger_waypoints" default="false" />
+  <arg name="start_from_current_position" default="true" />
 
-  <!--- Trajectory planner -->
-  <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen">
+  <!-- Behaviour: vehicle limits and linear/nonlinear planner selection. -->
+  <!-- The two nonlinear solver tuning values remain here because this launch
+       is their only consumer; a two-key YAML would add indirection only. -->
+  <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen" clear_params="true">
         <param name="max_a" value="$(arg max_acc)" />
         <param name="max_v" value="$(arg max_vel)" />
-        <param name="ignore_current_odom_start" value="$(arg ignore_current_odom_start)" />
         <param name="use_nonlinear_opt" value="$(arg use_nonlinear_opt)" />
         <param name="nonlinear_max_iterations" value="$(arg nonlinear_max_iterations)" />
         <param name="nonlinear_time_penalty" value="$(arg nonlinear_time_penalty)" />
@@ -26,12 +28,13 @@
         <remap from="traj_start_trigger" to="/waypoint_generator/traj_start_trigger"/>
   </node>
 
-  <node if="$(arg use_preset_waypoints)" pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
-        <param name="waypoint_type" value="$(arg waypoint_type)"/>
-        <!-- <param name="num_points" value="2"/> -->
-        <param name="closure_points" value="1"/>
-        <param name="autoTrigger" value="true" />
-        <remap from="~odom" to="/mavros/local_position/odom"/>
-  </node>
+  <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="closure_points" value="1" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+        <arg name="trigger_topic" value="/waypoint_generator/traj_start_trigger" />
+  </include>
 
 </launch>

@@ -37,6 +37,7 @@ FastPlannerManager::~FastPlannerManager() { std::cout << "des manager" << std::e
 
 void FastPlannerManager::initPlanModules(ros::NodeHandle& nh) {
   /* read algorithm parameters */
+  nh.param("debug/verbose", debug_verbose_, false);
 
   nh.param("manager/max_vel", pp_.max_vel_, -1.0);
   nh.param("manager/max_acc", pp_.max_acc_, -1.0);
@@ -86,6 +87,17 @@ void FastPlannerManager::initPlanModules(ros::NodeHandle& nh) {
     topo_prm_->setEnvironment(edt_environment_);
     topo_prm_->init(nh);
   }
+
+  ROS_INFO_STREAM("[FastPlanner Manager] init"
+                  << " max_vel=" << pp_.max_vel_
+                  << " max_acc=" << pp_.max_acc_
+                  << " max_jerk=" << pp_.max_jerk_
+                  << " ctrl_pt_dist=" << pp_.ctrl_pt_dist
+                  << " local_traj_len=" << pp_.local_traj_len_
+                  << " clearance=" << pp_.clearance_
+                  << " use_kinodynamic=" << (use_kinodynamic_path ? "true" : "false")
+                  << " use_optimization=" << (use_optimization ? "true" : "false")
+                  << " debug_verbose=" << (debug_verbose_ ? "true" : "false"));
 }
 
 void FastPlannerManager::setGlobalWaypoints(vector<Eigen::Vector3d>& waypoints) {
@@ -174,6 +186,11 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   }
 
   plan_data_.kino_path_ = kino_path_finder_->getKinoTraj(0.01);
+  if (debug_verbose_) {
+    ROS_INFO_STREAM("[FastPlanner Manager] kino search result"
+                    << " status=" << status
+                    << " path_samples=" << plan_data_.kino_path_.size());
+  }
 
   t_search = (ros::Time::now() - t1).toSec();
 
@@ -182,10 +199,22 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   double                  ts = pp_.ctrl_pt_dist / pp_.max_vel_;
   vector<Eigen::Vector3d> point_set, start_end_derivatives;
   kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);
+  ROS_INFO_STREAM("[FastPlanner Manager] parameterize"
+                  << " ts=" << ts
+                  << " sample_count=" << point_set.size()
+                  << " derivative_count=" << start_end_derivatives.size());
+  if (debug_verbose_ && !point_set.empty()) {
+    ROS_INFO_STREAM("[FastPlanner Manager] sample endpoints"
+                    << " first=(" << point_set.front().transpose() << ")"
+                    << " last=(" << point_set.back().transpose() << ")");
+  }
 
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
   NonUniformBspline init(ctrl_pts, 3, ts);
+  ROS_INFO_STREAM("[FastPlanner Manager] initial bspline"
+                  << " ctrl_pts=" << ctrl_pts.rows()
+                  << " duration=" << init.getTimeSum());
 
   // bspline trajectory optimization
 

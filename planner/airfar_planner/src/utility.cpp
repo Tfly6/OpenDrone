@@ -169,8 +169,8 @@ void DPUtil::TransformPoint3DFrame(const std::string& from_frame_id,
 bool DPUtil::IsSameFrameID(const std::string& cur_frame, const std::string& ref_frame) {
   std::string str1 = cur_frame;
   std::string str2 = ref_frame;
-  if (cur_frame[0] == '/') str1 = cur_frame.substr(1);
-  if (ref_frame[0] == '/') str2 = ref_frame.substr(1);
+  if (!cur_frame.empty() && cur_frame[0] == '/') str1 = cur_frame.substr(1);
+  if (!ref_frame.empty() && ref_frame[0] == '/') str2 = ref_frame.substr(1);
   return str1 == str2;
 }
 

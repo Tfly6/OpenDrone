@@ -259,7 +259,6 @@ namespace ego_planner
   void EGOReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr &msg)
   {
     Eigen::Vector3d new_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-    Eigen::Vector3d new_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
 
     if (has_last_odom_ && odom_jump_thresh_ > 0.0)
     {
@@ -277,14 +276,17 @@ namespace ego_planner
     }
 
     odom_pos_ = new_pos;
-    odom_vel_ = new_vel;
-
-    //odom_acc_ = estimateAcc( msg );
 
     odom_orient_.w() = msg->pose.pose.orientation.w;
     odom_orient_.x() = msg->pose.pose.orientation.x;
     odom_orient_.y() = msg->pose.pose.orientation.y;
     odom_orient_.z() = msg->pose.pose.orientation.z;
+
+    const Eigen::Vector3d body_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y,
+                                   msg->twist.twist.linear.z);
+    odom_vel_ = odom_orient_ * body_vel;
+
+    //odom_acc_ = estimateAcc( msg );
 
     last_odom_pos_ = new_pos;
     last_odom_time_ = msg->header.stamp;

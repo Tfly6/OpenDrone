@@ -24,17 +24,18 @@ public:
         : tf_buffer_(), tf_listener_(tf_buffer_)
     {
         ros::NodeHandle nh;
+        ros::NodeHandle pnh("~");
 
-        nh.param("input_topic", input_topic_, std::string("/camera/depth/points"));
-        nh.param("output_topic", output_topic_, std::string("/scan_cloud"));
-        nh.param("target_frame", target_frame_, std::string("world"));
-        nh.param("source_frame", source_frame_, std::string("camera_link"));
-        nh.param("intensity_value", intensity_value_, 255.0f);
+        pnh.param("input_topic", input_topic_, std::string("/camera/depth/points"));
+        pnh.param("output_topic", output_topic_, std::string("/scan_cloud"));
+        pnh.param("target_frame", target_frame_, std::string("world"));
+        pnh.param("source_frame", source_frame_, std::string("camera_link"));
+        pnh.param("intensity_value", intensity_value_, 255.0f);
 
         sub_ = nh.subscribe(input_topic_, 1, &DepthCameraProcessor::callback, this);
         pub_ = nh.advertise<sensor_msgs::PointCloud2>(output_topic_, 1);
 
-        ROS_INFO("depth_camera_processor: %s (%s) -> %s (%s), intensity=%.1f",
+        ROS_INFO("depth_camera_processor: %s (expected source=%s) -> %s (target=%s), intensity=%.1f",
                  input_topic_.c_str(), source_frame_.c_str(),
                  output_topic_.c_str(), target_frame_.c_str(), intensity_value_);
 
@@ -44,6 +45,8 @@ public:
 private:
     void callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
     {
+        ROS_INFO_ONCE("DCBP: received cloud frame_id=%s", msg->header.frame_id.c_str());
+
         // Step 1: Add intensity field if missing (replaces rgb to keep point_step=32)
         sensor_msgs::PointCloud2::Ptr cloud_with_intensity;
         if (!hasIntensityField(*msg))
@@ -122,7 +125,11 @@ private:
             // If transform fails, still publish with intensity but in original frame
             cloud_with_intensity->header.stamp = ros::Time::now();
             pub_.publish(cloud_with_intensity);
-            ROS_WARN_THROTTLE(1.0, "TF transform failed, publishing in original frame: %s", e.what());
+            ROS_WARN_THROTTLE(1.0,
+                              "TF transform failed (%s -> %s), publishing in original frame: %s",
+                              cloud_with_intensity->header.frame_id.c_str(),
+                              target_frame_.c_str(),
+                              e.what());
         }
     }
 

@@ -1,23 +1,26 @@
 <launch>
-  <node pkg="rpg_polynomial_trajectory" type="rpg_traj_node" name="rpg_traj_node" output="screen">
-    <param name="world_frame" value="world"/>
-    <param name="odom_topic" value="/mavros/local_position/odom"/>
-    <param name="goal_topic" value="/move_base_simple/goal"/>
-    <param name="waypoint_topic" value="/rpg_traj/waypoints"/>
-    <param name="cancel_topic" value="/rpg_traj/cancel"/>
+  <!-- Behaviour and integration parameters. -->
+  <arg name="world_frame" default="world"/>
+  <arg name="odom_topic" default="/mavros/local_position/odom"/>
+  <arg name="goal_topic" default="/move_base_simple/goal"/>
+  <arg name="waypoint_topic" default="/rpg_traj/waypoints"/>
+  <arg name="cancel_topic" default="/rpg_traj/cancel"/>
+  <arg name="path_topic" default="/rpg_traj/path"/>
+  <arg name="planner_output_topic" default="/planner/output"/>
+  <arg name="use_minimum_snap" default="true"/>
+  <arg name="split_trajectory_publish" default="false"/>
 
-    <param name="path_topic" value="/rpg_traj/path"/>
-    <param name="command_traj_topic" value="/command/trajectory"/>
-
-    <param name="use_minimum_snap" value="true"/>
-    <param name="use_segment_refine" value="true"/>
-
-    <param name="order_of_continuity" value="4"/>
-    <param name="max_velocity" value="3.0"/>
-    <param name="max_normalized_thrust" value="15.0"/>
-    <param name="max_roll_pitch_rate" value="2.0"/>
-    <param name="sampling_frequency" value="50.0"/>
-    <param name="exec_frequency" value="50.0"/>
-    <param name="default_segment_time" value="1.0"/>
+  <node pkg="rpg_polynomial_trajectory" type="rpg_traj_node" name="rpg_traj_node"
+        output="screen" clear_params="true">
+    <rosparam file="$(find rpg_polynomial_trajectory)/config/default.yaml"/>
+    <param name="world_frame" value="$(arg world_frame)"/>
+    <param name="odom_topic" value="$(arg odom_topic)"/>
+    <param name="goal_topic" value="$(arg goal_topic)"/>
+    <param name="waypoint_topic" value="$(arg waypoint_topic)"/>
+    <param name="cancel_topic" value="$(arg cancel_topic)"/>
+    <param name="path_topic" value="$(arg path_topic)"/>
+    <param name="planner_output_topic" value="$(arg planner_output_topic)"/>
+    <param name="use_minimum_snap" value="$(arg use_minimum_snap)"/>
+    <param name="split_trajectory_publish" value="$(arg split_trajectory_publish)" type="bool"/>
   </node>
 </launch>

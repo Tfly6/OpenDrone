@@ -68,6 +68,7 @@ public:
   GlobalTrajData global_data_;
   MidPlanData plan_data_;
   EDTEnvironment::Ptr edt_environment_;
+  bool debug_verbose_{ false };
 
 private:
   /* main planning algorithms & modules */

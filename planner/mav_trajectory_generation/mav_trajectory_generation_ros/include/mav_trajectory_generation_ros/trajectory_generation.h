@@ -50,7 +50,6 @@ class TrajectoryGeneration {
   double max_ang_v_;
   double max_ang_a_;
 
-  bool ignore_current_odom_start_;
   bool use_nonlinear_opt_;
   int nonlinear_max_iterations_;
   double nonlinear_time_penalty_;

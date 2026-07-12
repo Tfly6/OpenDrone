@@ -1,0 +1,80 @@
+<launch>
+  <arg name="odom_topic" default="/mavros/local_position/odom" />
+  <!-- <arg name="goal_topic" default="/move_base_simple/goal" /> -->
+  <arg name="trigger_topic" default="/waypoint_generator/traj_start_trigger" />
+
+  <arg name="frame" default="map" />
+  <arg name="visualize" default="false" />
+  <arg name="auto_trigger" default="false" />
+  <arg name="start_from_current_position" default="true" />
+  <arg name="enable_mission_manager" default="false" />
+  <arg name="goal_topic" default="/planning/mission_goal" />
+  <arg name="mission_timer_dt" default="0.05" />
+  <arg name="mission_republish_dt" default="0.5" />
+  <arg name="mission_lookahead_distance" default="2.0" />
+  <arg name="mission_goal_reached_distance" default="0.4" />
+  <arg name="mission_goal_update_distance" default="0.35" />
+  <arg name="mission_goal_update_yaw" default="0.26" />
+  <arg name="use_final_waypoint_orientation" default="true" />
+
+  <!-- waypoint_type: manual, circle, eight, point -->
+  <arg name="waypoint_type" default="circle" />
+  <arg name="num_points" default="30" />
+  <arg name="closure_points" default="1" />
+
+  <!-- manual waypoints -->
+  <arg name="waypoint_num" default="3" />
+
+  <arg name="waypoint0_x" default="4.0" />
+  <arg name="waypoint0_y" default="0.0" />
+  <arg name="waypoint0_z" default="1.5" />
+
+  <arg name="waypoint1_x" default="8.0" />
+  <arg name="waypoint1_y" default="4.0" />
+  <arg name="waypoint1_z" default="1.5" />
+
+  <arg name="waypoint2_x" default="12.0" />
+  <arg name="waypoint2_y" default="0.0" />
+  <arg name="waypoint2_z" default="1.5" />
+
+  <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
+    <remap from="~odom" to="$(arg odom_topic)" />
+    <!-- <remap from="~goal" to="$(arg goal_topic)" /> -->
+    <remap from="~traj_start_trigger" to="$(arg trigger_topic)" />
+
+    <param name="frame" value="$(arg frame)" />
+    <param name="visualize" value="$(arg visualize)" />
+    <param name="autoTrigger" value="$(arg auto_trigger)" />
+    <param name="startFromCurrentPosition" value="$(arg start_from_current_position)" />
+
+    <param name="waypoint_type" value="$(arg waypoint_type)" />
+    <param name="num_points" value="$(arg num_points)" />
+    <param name="closure_points" value="$(arg closure_points)" />
+
+    <param name="waypoint_num" value="$(arg waypoint_num)" />
+    <param name="waypoint0_x" value="$(arg waypoint0_x)" />
+    <param name="waypoint0_y" value="$(arg waypoint0_y)" />
+    <param name="waypoint0_z" value="$(arg waypoint0_z)" />
+    <param name="waypoint1_x" value="$(arg waypoint1_x)" />
+    <param name="waypoint1_y" value="$(arg waypoint1_y)" />
+    <param name="waypoint1_z" value="$(arg waypoint1_z)" />
+    <param name="waypoint2_x" value="$(arg waypoint2_x)" />
+    <param name="waypoint2_y" value="$(arg waypoint2_y)" />
+    <param name="waypoint2_z" value="$(arg waypoint2_z)" />
+  </node>
+
+  <node if="$(arg enable_mission_manager)"
+        pkg="waypoint_generator" type="mission_manager" name="mission_manager" output="screen">
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="waypoint_topic" value="/waypoint_generator/waypoints" />
+    <param name="goal_topic" value="$(arg goal_topic)" />
+    <param name="frame" value="$(arg frame)" />
+    <param name="timer_dt" value="$(arg mission_timer_dt)" />
+    <param name="republish_dt" value="$(arg mission_republish_dt)" />
+    <param name="lookahead_distance" value="$(arg mission_lookahead_distance)" />
+    <param name="goal_reached_distance" value="$(arg mission_goal_reached_distance)" />
+    <param name="goal_update_distance" value="$(arg mission_goal_update_distance)" />
+    <param name="goal_update_yaw" value="$(arg mission_goal_update_yaw)" />
+    <param name="use_final_waypoint_orientation" value="$(arg use_final_waypoint_orientation)" />
+  </node>
+</launch>

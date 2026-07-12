@@ -10,5 +10,8 @@ log.txt
 *.patch
 analysis_out/
 eval_runs/
+planner/super_planner/super_planner_od/log/*.csv
+planner/super_planner/super_planner_od/log/cmd_logs/*.csv
+planner/super_planner/rog_map/log/*.csv
 temp.md
 *.info

@@ -81,6 +81,7 @@ namespace ego_planner
     Eigen::Vector3d final_goal_;                             // goal state
     Eigen::Vector3d local_target_pt_, local_target_vel_; // local target state
     Eigen::Vector3d odom_pos_, odom_vel_, odom_acc_;     // odometry state
+    Eigen::Quaterniond odom_orient_;
     std::vector<Eigen::Vector3d> wps_;
 
     /* ROS utils */
