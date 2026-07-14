@@ -1,85 +1,84 @@
 <launch>
-  <!-- global parameters -->
+  <!-- Behaviour and integration parameters. -->
   <arg name="map_size_x" default="40.0"/>
   <arg name="map_size_y" default="20.0"/>
-  <arg name="map_size_z" default=" 5.0"/>
-
-  <arg name="odom_topic" default="/state_ukf/odom" />
-
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="odom_topic" default="/state_ukf/odom"/>
   <arg name="camera_pose_topic" default="/camera/pose"/>
   <arg name="depth_topic" default="/camera/depth/image_raw"/>
+  <arg name="cloud_topic" default="/pcl_render_node/cloud"/>
   <arg name="cx" default="321.04638671875"/>
   <arg name="cy" default="243.44969177246094"/>
   <arg name="fx" default="387.229248046875"/>
   <arg name="fy" default="387.229248046875"/>
+  <arg name="max_vel" default="1.0"/>
+  <arg name="max_acc" default="2.5"/>
+  <arg name="debug_verbose" default="false"/>
+  <arg name="flight_type" default="1"/>
+  <arg name="point_num" default="3"/>
+  <arg name="point0_x" default="19.0"/>
+  <arg name="point0_y" default="0.0"/>
+  <arg name="point0_z" default="1.0"/>
+  <arg name="point1_x" default="19.0"/>
+  <arg name="point1_y" default="10.0"/>
+  <arg name="point1_z" default="1.0"/>
+  <arg name="point2_x" default="-19.0"/>
+  <arg name="point2_y" default="0.0"/>
+  <arg name="point2_z" default="1.0"/>
 
-  <arg name="max_vel" default="1.0" />
-  <arg name="max_acc" default="2.5" />
-
-  <!-- main algorithm params -->
-  <include file="$(find fast_planner)/launch/topo_algorithm.xml">
-    <!-- size of map -->
-    <arg name="map_size_x_" value="$(arg map_size_x)"/>
-    <arg name="map_size_y_" value="$(arg map_size_y)"/>
-    <arg name="map_size_z_" value="$(arg map_size_z)"/>
-    <arg name="odometry_topic" value="$(arg odom_topic)"/>
-
-    <!-- camera pose: transform of camera frame in the world frame -->
-    <!-- depth topic: depth image, 640x480 by default -->
-    <!-- don't set cloud_topic if you already set these ones! -->
-    <arg name="camera_pose_topic" value="$(arg camera_pose_topic)"/>
-    <arg name="depth_topic" value="$(arg depth_topic)"/>
-
-    <!-- topic of point cloud measurement, such as from LIDAR  -->
-    <!-- don't set camera pose and depth, if you already set this one! -->
-    <arg name="cloud_topic" value="/pcl_render_node/cloud"/>
-
-    <!-- intrinsic params of the depth camera -->
-    <arg name="cx" value="$(arg cx)"/>
-    <arg name="cy" value="$(arg cy)"/>
-    <arg name="fx" value="$(arg fx)"/>
-    <arg name="fy" value="$(arg fx)"/>
-
-    <!-- maximum velocity and acceleration the drone will reach -->
-    <arg name="max_vel" value="$(arg max_vel)" />
-    <arg name="max_acc" value="$(arg max_acc)" />
-
-
-    <!-- 1: use 2D Nav Goal to select goal  -->
-    <!-- 2: use global waypoints below  -->
-    <!-- 3: use global waypoints below to set reference path --> 
-    <arg name="flight_type" value="1" />
-
-    <!-- global waypoints -->
-    <arg name="point_num" value="3" />
-
-    <arg name="point0_x" value="19.0" />
-    <arg name="point0_y" value="0.0" />
-    <arg name="point0_z" value="1.0" />
-
-    <!-- set more waypoints if you need -->
-    <arg name="point1_x" value="19.0" />
-    <arg name="point1_y" value="10.0" />
-    <arg name="point1_z" value="1.0" />
-
-    <arg name="point2_x" value="-19.0" />
-    <arg name="point2_y" value="0.0" />
-    <arg name="point2_z" value="1.0" />
-  </include>
-
-  <!-- trajectory server -->
-  <node pkg="fast_planner" name="fast_planner_traj_server" type="fast_planner_traj_server" output="screen">
-    <remap from="/position_cmd" to="planning/pos_cmd"/>
-
+  <node pkg="fast_planner" name="fast_planner_node" type="fast_planner_node"
+        output="screen" clear_params="true">
+    <rosparam file="$(find fast_planner)/config/topo.yaml"/>
     <remap from="/odom_world" to="$(arg odom_topic)"/>
-    <param name="traj_server/time_forward" value="1.5" type="double"/>
+    <remap from="/sdf_map/odom" to="$(arg odom_topic)"/>
+    <remap from="/sdf_map/cloud" to="$(arg cloud_topic)"/>
+    <remap from="/sdf_map/pose" to="$(arg camera_pose_topic)"/>
+    <remap from="/sdf_map/depth" to="$(arg depth_topic)"/>
+
+    <param name="planner_node/planner" value="2" type="int"/>
+    <param name="debug/verbose" value="$(arg debug_verbose)" type="bool"/>
+    <param name="fsm/flight_type" value="$(arg flight_type)" type="int"/>
+    <param name="fsm/waypoint_num" value="$(arg point_num)" type="int"/>
+    <param name="fsm/waypoint0_x" value="$(arg point0_x)" type="double"/>
+    <param name="fsm/waypoint0_y" value="$(arg point0_y)" type="double"/>
+    <param name="fsm/waypoint0_z" value="$(arg point0_z)" type="double"/>
+    <param name="fsm/waypoint1_x" value="$(arg point1_x)" type="double"/>
+    <param name="fsm/waypoint1_y" value="$(arg point1_y)" type="double"/>
+    <param name="fsm/waypoint1_z" value="$(arg point1_z)" type="double"/>
+    <param name="fsm/waypoint2_x" value="$(arg point2_x)" type="double"/>
+    <param name="fsm/waypoint2_y" value="$(arg point2_y)" type="double"/>
+    <param name="fsm/waypoint2_z" value="$(arg point2_z)" type="double"/>
+    <param name="sdf_map/map_size_x" value="$(arg map_size_x)" type="double"/>
+    <param name="sdf_map/map_size_y" value="$(arg map_size_y)" type="double"/>
+    <param name="sdf_map/map_size_z" value="$(arg map_size_z)" type="double"/>
+    <param name="sdf_map/cx" value="$(arg cx)" type="double"/>
+    <param name="sdf_map/cy" value="$(arg cy)" type="double"/>
+    <param name="sdf_map/fx" value="$(arg fx)" type="double"/>
+    <param name="sdf_map/fy" value="$(arg fy)" type="double"/>
+    <param name="sdf_map/frame_id" value="world"/>
+    <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
+    <param name="manager/max_acc" value="$(arg max_acc)" type="double"/>
+    <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
+    <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>
+    <param name="bspline/limit_vel" value="$(arg max_vel)" type="double"/>
+    <param name="bspline/limit_acc" value="$(arg max_acc)" type="double"/>
   </node>
 
-  <!-- <node pkg="waypoint_generator" name="waypoint_generator" type="waypoint_generator" output="screen">
-    <remap from="~odom" to="$(arg odom_topic)"/>        
-    <remap from="~goal" to="/move_base_simple/goal"/>
-    <remap from="~traj_start_trigger" to="/traj_start_trigger" />
-    <param name="waypoint_type" value="manual-lonely-waypoint"/>    
-  </node> -->
+  <node pkg="fast_planner" name="fast_planner_traj_server" type="fast_planner_traj_server"
+        output="screen" clear_params="true">
+    <remap from="/position_cmd" to="planning/pos_cmd"/>
+    <remap from="/odom_world" to="$(arg odom_topic)"/>
+    <param name="traj_server/time_forward" value="1.5" type="double"/>
+    <param name="verbose" value="$(arg debug_verbose)" type="bool"/>
+  </node>
 
+  <node pkg="odom_visualization" name="odom_visualization" type="odom_visualization" output="screen">
+    <remap from="~odom" to="$(arg odom_topic)"/>
+    <param name="color/a" value="1.0"/>
+    <param name="color/r" value="0.0"/>
+    <param name="color/g" value="0.0"/>
+    <param name="color/b" value="1.0"/>
+    <param name="covariance_scale" value="100.0"/>
+    <param name="robot_scale" value="1.0"/>
+  </node>
 </launch>

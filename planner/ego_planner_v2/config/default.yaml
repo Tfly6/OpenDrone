@@ -1,0 +1,67 @@
+# EGO Planner v2 tuning profile.  The single_run_in_sim launch supplies all
+# ROS interfaces, sensor calibration, map dimensions, and mission behaviour.
+limits:
+  max_vel: &max_vel 1.5
+  max_acc: &max_acc 6.0
+  max_jer: &max_jer 20.0
+
+fsm:
+  thresh_replan_time: 1.0
+  planning_horizon: 7.5
+  emergency_time: 1.0
+  realworld_experiment: false
+  fail_safe: true
+
+grid_map:
+  resolution: 0.1
+  local_update_range_x: 5.5
+  local_update_range_y: 5.5
+  local_update_range_z: 2.0
+  obstacles_inflation: 0.1
+  local_map_margin: 10
+  enable_virtual_wall: true
+  virtual_ceil: 3.0
+  virtual_ground: -0.1
+  ground_height: -0.01
+  use_depth_filter: true
+  depth_filter_tolerance: 0.15
+  depth_filter_maxdist: 5.0
+  depth_filter_mindist: 0.2
+  depth_filter_margin: 2
+  k_depth_scaling_factor: 1000.0
+  skip_pixel: 2
+  p_hit: 0.65
+  p_miss: 0.35
+  p_min: 0.12
+  p_max: 0.90
+  p_occ: 0.80
+  fading_time: 1000.0
+  min_ray_length: 0.1
+  max_ray_length: 4.5
+  visualization_truncate_height: 1.9
+  show_occ_time: false
+  pose_type: 1
+
+manager:
+  max_vel: *max_vel
+  max_acc: *max_acc
+  polyTraj_piece_length: 1.5
+  feasibility_tolerance: 0.05
+  planning_horizon: 7.5
+  use_multitopology_trajs: false
+
+optimization:
+  constraint_points_perPiece: 5
+  weight_obstacle: 10000.0
+  weight_obstacle_soft: 5000.0
+  weight_swarm: 10000.0
+  weight_feasibility: 10000.0
+  weight_sqrvariance: 10000.0
+  weight_time: 10.0
+  obstacle_clearance: 0.1
+  obstacle_clearance_soft: 0.5
+  swarm_clearance: 0.15
+  max_vel: *max_vel
+  max_acc: *max_acc
+  max_jer: *max_jer
+  record_opt: true

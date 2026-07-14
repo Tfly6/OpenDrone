@@ -100,7 +100,7 @@ namespace ego_planner
     /* ROS utils */
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
-    ros::Subscriber waypoint_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
+    ros::Subscriber waypoint_sub_, waypoint_list_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
     ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
 
   bool debug_fsm_{false};
@@ -127,6 +127,7 @@ namespace ego_planner
     void execFSMCallback(const ros::TimerEvent &e);
     void checkCollisionCallback(const ros::TimerEvent &e);
     void waypointCallback(const geometry_msgs::PoseStampedPtr &msg);
+    void waypointListCallback(const nav_msgs::PathConstPtr &msg);
     void triggerCallback(const geometry_msgs::PoseStampedPtr &msg);
     void odometryCallback(const nav_msgs::OdometryConstPtr &msg);
     void swarmTrajsCallback(const quadrotor_msgs::MultiBsplinesPtr &msg);

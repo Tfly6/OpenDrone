@@ -1,5 +1,9 @@
 <launch>
     <arg name="use_mpc" default="false" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
     <!-- Planner configs -->
     <arg name="use_kino_planner" default="true" />
     <arg name="debug_verbose" default="false" />
@@ -25,6 +29,14 @@
         <param name="child_frame" value="camera_link" />
         <param name="pose_topic" value="camera/pose" />
     </node>
+
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="closure_points" value="1" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    </include>
 
     <!-- Fast planner -->
     <include unless="$(arg use_kino_planner)" file="$(find fast_planner)/launch/topo_replan.launch" >

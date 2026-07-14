@@ -286,9 +286,14 @@ namespace fsm {
         }
 
         void init(const ros::NodeHandle &nh, const std::string &cfg_path) {
-            // 初始化参数读取
             nh_ = nh;
             cfg_ = Config(cfg_path);
+            // Interface names are launch-time behaviour.  The YAML profile
+            // deliberately contains only planner and map tuning.
+            nh_.param("interface/click_goal_topic", cfg_.click_goal_topic, cfg_.click_goal_topic);
+            nh_.param("interface/mission_goal_topic", cfg_.mission_goal_topic, cfg_.mission_goal_topic);
+            nh_.param("interface/position_command_topic", cfg_.cmd_topic, cfg_.cmd_topic);
+            nh_.param("interface/polynomial_trajectory_topic", cfg_.mpc_cmd_topic, cfg_.mpc_cmd_topic);
             map_ptr_ = std::make_shared<rog_map::ROGMapROS>(nh, cfg_path);
             // 初始化Planner
             ros_ptr_ = std::make_shared<ros_interface::Ros1Interface>(nh_);

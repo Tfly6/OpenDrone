@@ -57,6 +57,8 @@ void TopoReplanFSM::init(ros::NodeHandle& nh) {
 
   waypoint_sub_ =
       nh.subscribe("/move_base_simple/goal", 1, &TopoReplanFSM::waypointCallback, this);
+  waypointList_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &TopoReplanFSM::waypointListCallback, this);
+  
   odom_sub_ = nh.subscribe("/odom_world", 1, &TopoReplanFSM::odometryCallback, this);
 
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 20);
@@ -95,6 +97,34 @@ void TopoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& m
 
     global_wp.push_back(target_point_);
     visualization_->drawGoal(target_point_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
+  }
+
+  planner_manager_->setGlobalWaypoints(global_wp);
+  end_vel_.setZero();
+  have_target_ = true;
+  trigger_     = true;
+
+  if (exec_state_ == WAIT_TARGET) {
+    changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
+  }
+}
+
+void TopoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
+  if (msg->poses.empty())
+  {
+    ROS_WARN("Received empty waypoint list on /waypoint_generator/waypoints.");
+    return;
+  }
+  
+  cout << "Triggered!" << endl;
+
+  vector<Eigen::Vector3d> global_wp;
+  for (int i = 0; i < msg->poses.size(); ++i) {
+    Eigen::Vector3d pt;
+    pt(0) = msg->poses[i].pose.position.x;
+    pt(1) = msg->poses[i].pose.position.y;
+    pt(2) = msg->poses[i].pose.position.z;
+    global_wp.push_back(pt);
   }
 
   planner_manager_->setGlobalWaypoints(global_wp);

@@ -2,6 +2,13 @@
     <arg name="odom_topic" default="/mavros/local_position/odom" />
     <arg name="camera_depth_topic" default="/camera/depth/points" />
     <arg name="config_file" default="default" />
+    <arg name="world_frame" default="map" />
+    <arg name="is_simulation" default="true" />
+    <arg name="use_rviz" default="true" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
 
     <!-- Static transforms: world -> base_link -> camera_link -->
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_map_linker"
@@ -26,6 +33,15 @@
         <arg name="terrain_local_topic" value="/terrain_local_cloud" />
         <arg name="scan_cloud_topic" value="/scan_cloud" />
         <arg name="config_file" value="$(arg config_file)" />
+        <arg name="world_frame" value="$(arg world_frame)" />
+        <arg name="is_simulation" value="$(arg is_simulation)" />
+    </include>
+
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
     </include>
 
     <!-- Waypoint to trajectory converter -->
@@ -36,6 +52,6 @@
     </node>
 
     <!-- RViz -->
-    <node name="rviz" pkg="rviz" type="rviz"
+    <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz"
           args="-d $(find opendrone)/rviz/airfar_planner.rviz" required="true" />
 </launch>

@@ -87,7 +87,7 @@ namespace ego_planner
     /* ROS utils */
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
-    ros::Subscriber waypoint_sub_, odom_sub_, trigger_sub_, broadcast_ploytraj_sub_, mandatory_stop_sub_;
+    ros::Subscriber waypoint_sub_, waypoint_list_sub_, odom_sub_, trigger_sub_, broadcast_ploytraj_sub_, mandatory_stop_sub_;
     ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_;
 
     /* state machine functions */
@@ -107,6 +107,7 @@ namespace ego_planner
 
     /* global trajectory */
     void waypointCallback(const quadrotor_msgs::GoalSetPtr &msg);
+    void waypointListCallback(const nav_msgs::PathConstPtr &msg);
     void readGivenWpsAndPlan();
     bool planNextWaypoint(const Eigen::Vector3d next_wp);
     bool mondifyInCollisionFinalGoal();

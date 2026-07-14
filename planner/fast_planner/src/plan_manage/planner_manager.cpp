@@ -227,6 +227,9 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   }
 
   ctrl_pts = bspline_optimizers_[0]->BsplineOptimizeTraj(ctrl_pts, ts, cost_function, 1, 1);
+  ROS_INFO_STREAM("[FastPlanner Manager] optimized bspline"
+                  << " ctrl_pts=" << ctrl_pts.rows()
+                  << " cost_function=" << cost_function);
 
   t_opt = (ros::Time::now() - t1).toSec();
 
@@ -238,6 +241,9 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   double to = pos.getTimeSum();
   pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
   bool feasible = pos.checkFeasibility(false);
+  ROS_INFO_STREAM("[FastPlanner Manager] feasibility before adjust"
+                  << " feasible=" << (feasible ? "true" : "false")
+                  << " duration=" << to);
 
   int iter_num = 0;
   while (!feasible && ros::ok()) {
@@ -254,6 +260,12 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   cout << "[kino replan]: Reallocate ratio: " << tn / to << endl;
   if (tn / to > 3.0) ROS_ERROR("reallocate error.");
+  ROS_INFO_STREAM("[FastPlanner Manager] time adjustment"
+                  << " feasible_after=" << (feasible ? "true" : "false")
+                  << " iter_num=" << iter_num
+                  << " duration_before=" << to
+                  << " duration_after=" << tn
+                  << " ratio=" << (tn / to));
 
   t_adjust = (ros::Time::now() - t1).toSec();
 
@@ -270,6 +282,14 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   pp_.time_adjust_   = t_adjust;
 
   updateTrajInfo();
+  const Eigen::Vector3d local_end_pos =
+      local_data_.position_traj_.evaluateDeBoorT(local_data_.duration_);
+
+  ROS_INFO_STREAM("[FastPlanner Manager] local traj updated"
+                  << " traj_id=" << local_data_.traj_id_
+                  << " duration=" << local_data_.duration_
+                  << " start_pos=(" << local_data_.start_pos_.transpose() << ")"
+                  << " end_pos=(" << local_end_pos.transpose() << ")");
 
   return true;
 }

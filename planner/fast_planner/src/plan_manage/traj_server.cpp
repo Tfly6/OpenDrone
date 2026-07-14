@@ -49,6 +49,7 @@ vector<NonUniformBspline> traj_;
 double traj_duration_;
 ros::Time start_time_;
 int traj_id_;
+bool verbose_log_ = false;
 
 // yaw control
 double last_yaw_;
@@ -167,6 +168,20 @@ void bsplineCallback(quadrotor_msgs::BsplineConstPtr msg) {
   traj_duration_ = traj_[0].getTimeSum();
 
   receive_traj_ = true;
+
+  ROS_INFO_STREAM("[Traj server] received bspline"
+                  << " traj_id=" << traj_id_
+                  << " pos_ctrl_pts=" << msg->pos_pts.size()
+                  << " yaw_ctrl_pts=" << msg->yaw_pts.size()
+                  << " knot_count=" << msg->knots.size()
+                  << " duration=" << traj_duration_);
+  if (verbose_log_ && !msg->pos_pts.empty()) {
+    const auto& first = msg->pos_pts.front();
+    const auto& last = msg->pos_pts.back();
+    ROS_INFO_STREAM("[Traj server] bspline endpoints"
+                    << " first=(" << first.x << ", " << first.y << ", " << first.z << ")"
+                    << " last=(" << last.x << ", " << last.y << ", " << last.z << ")");
+  }
 }
 
 void replanCallback(std_msgs::Empty msg) {
@@ -175,6 +190,7 @@ void replanCallback(std_msgs::Empty msg) {
   ros::Time time_now = ros::Time::now();
   double t_stop = (time_now - start_time_).toSec() + time_out;
   traj_duration_ = min(t_stop, traj_duration_);
+  ROS_WARN_STREAM("[Traj server] replan requested, truncating current traj to duration=" << traj_duration_);
 }
 
 void newCallback(std_msgs::Empty msg) {
@@ -267,6 +283,17 @@ void cmdCallback(const ros::TimerEvent& e) {
 
   pos_cmd_pub.publish(cmd);
 
+  if (verbose_log_) {
+    ROS_INFO_STREAM_THROTTLE(0.5, "[Traj server] cmd"
+                                      << " traj_id=" << traj_id_
+                                      << " t_cur=" << t_cur << "/" << traj_duration_
+                                      << " pos=(" << pos.transpose() << ")"
+                                      << " vel=(" << vel.transpose() << ")"
+                                      << " acc=(" << acc.transpose() << ")"
+                                      << " yaw=" << yaw
+                                      << " yawdot=" << yawdot);
+  }
+
   // draw cmd
 
   // drawCmd(pos, vel, 0, Eigen::Vector4d(0, 1, 0, 1));
@@ -307,11 +334,12 @@ int main(int argc, char** argv) {
   cmd.kv[2] = vel_gain[2];
 
   nh.param("traj_server/time_forward", time_forward_, -1.0);
+  nh.param("verbose", verbose_log_, false);
   last_yaw_ = 0.0;
 
   ros::Duration(1.0).sleep();
 
-  ROS_WARN("[Traj server]: ready.");
+  ROS_WARN_STREAM("[Traj server]: ready. verbose=" << (verbose_log_ ? "true" : "false"));
 
   ros::spin();
 

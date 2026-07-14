@@ -1,0 +1,10 @@
+# Polynomial trajectory generation and execution tuning.  Topics, frames, and
+# output-mode selection remain launch-time behaviour parameters.
+use_segment_refine: true
+order_of_continuity: 4
+default_segment_time: 1.0
+max_velocity: 3.0
+max_normalized_thrust: 15.0
+max_roll_pitch_rate: 2.0
+sampling_frequency: 50.0
+exec_frequency: 50.0

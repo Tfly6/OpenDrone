@@ -16,8 +16,10 @@ void DPMaster::Init() {
   odom_sub_          = nh.subscribe("/odom_world", 5, &DPMaster::OdomCallBack, this);
   terrain_sub_       = nh.subscribe("/terrain_cloud", 1, &DPMaster::TerrainCallBack, this);
   scan_sub_          = nh.subscribe("/scan_cloud", 5, &DPMaster::ScanCallBack, this);
-  waypoint_sub_      = nh.subscribe("/goal", 1, &DPMaster::WaypointCallBack, this);
+  waypoint_sub_      = nh.subscribe("/planner/goal", 1, &DPMaster::WaypointCallBack, this);
+  waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &DPMaster::WaypointListCallBack, this);
   target_sub_        = nh.subscribe("/move_base_simple/goal", 1, &DPMaster::TargetCallBack, this);
+  reach_goal_sub_    = nh.subscribe("/far_reach_goal_status", 5, &DPMaster::ReachGoalStatusCallBack, this);
   terrian_local_sub_ = nh.subscribe("/terrain_local_cloud", 1, &DPMaster::TerrainLocalCallBack, this);
   joy_command_sub_   = nh.subscribe("/joy", 5, &DPMaster::JoyCommandCallBack, this);
 
@@ -307,7 +309,10 @@ Point3D DPMaster::ProjectNavWaypoint(const Point3D& nav_waypoint, const Point3D&
 }
 
 void DPMaster::LoadROSParams() {
-  const std::string master_prefix   = "/airfar_planner/";
+  // Parameters are loaded inside the airfar_planner node, so use its private
+  // namespace.  Topic names intentionally continue to use the public handle.
+  ros::NodeHandle& nh = pnh;
+  const std::string master_prefix = "";
   const std::string map_prefix      = master_prefix + "MapHandler/";
   const std::string scan_prefix     = master_prefix + "ScanHandler/";
   const std::string cdetect_prefix  = master_prefix + "CDetector/";
@@ -594,43 +599,93 @@ void DPMaster::ExtractDynamicObsFromScan(const PointCloudPtr& scanCloudIn,
   scan_handler_.ExtractDyObsCloud(obsCloudIn, dyObsCloudOut);
 }
 
-void DPMaster::WaypointCallBack(const geometry_msgs::PointStampedConstPtr & msg) {
-  Point3D goal_p(msg->point.x, msg->point.y, msg->point.z);
-  const std::string goal_frame = msg->header.frame_id;
-  if (!DPUtil::IsSameFrameID(goal_frame, master_params_.world_frame)) {
-    ROS_WARN("DPMaster: waypoint published is not on world frame!");
-    DPUtil::TransformPoint3DFrame(goal_frame, master_params_.world_frame, tf_listener_, goal_p); 
+void DPMaster::ClearWaypointQueue() {
+  queued_waypoints_.clear();
+  is_waypoint_queue_active_ = false;
+}
+
+bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav) {
+  std::string resolved_goal_frame = goal_frame;
+  if (resolved_goal_frame.empty()) {
+    ROS_WARN("DPMaster: received waypoint with empty frame_id, assuming %s.", master_params_.world_frame.c_str());
+    resolved_goal_frame = master_params_.world_frame;
   }
+
+  if (!DPUtil::IsSameFrameID(resolved_goal_frame, master_params_.world_frame)) {
+    ROS_WARN("DPMaster: goal published is not on world frame!");
+    DPUtil::TransformPoint3DFrame(resolved_goal_frame, master_params_.world_frame, tf_listener_, goal_p);
+  }
+
   const int layer_id = map_handler_.GetLayerId(goal_p);
-  goal_p.z = DPUtil::layerIdx2Height_[layer_id];
-  if (layer_id != -1) {
-    graph_planner_.UpdateGoal(goal_p, layer_id, false);
-    is_goal_update_  = true;
-    // visualize original goal
-    // planner_viz_.VizPoint3D(goal_node_ptr_->position, "goal_node", VizColor::BLUE, 2.5);
-    planner_viz_.VizPoint3D(goal_p, "original_goal", VizColor::RED, 1.5);
-  } else {
+  if (layer_id == -1) {
     ROS_WARN("DPMaster: goal layer id assign failed.");
+    return false;
   }
+
+  goal_p.z = DPUtil::layerIdx2Height_[layer_id];
+  graph_planner_.UpdateGoal(goal_p, layer_id, is_free_nav);
+  is_goal_update_ = true;
+  planner_viz_.VizPoint3D(goal_p, "original_goal", VizColor::RED, 1.5);
+  return true;
+}
+
+bool DPMaster::DispatchNextQueuedWaypoint() {
+  while (!queued_waypoints_.empty()) {
+    const geometry_msgs::PointStamped waypoint_msg = queued_waypoints_.front();
+    queued_waypoints_.pop_front();
+    Point3D goal_p(waypoint_msg.point.x, waypoint_msg.point.y, waypoint_msg.point.z);
+    if (this->UpdateGoalFromPoint(goal_p, waypoint_msg.header.frame_id, false)) {
+      is_waypoint_queue_active_ = !queued_waypoints_.empty();
+      ROS_INFO("DPMaster: dispatched queued waypoint, %zu remaining.", queued_waypoints_.size());
+      return true;
+    }
+  }
+
+  is_waypoint_queue_active_ = false;
+  return false;
+}
+
+void DPMaster::WaypointCallBack(const geometry_msgs::PointStampedConstPtr & msg) {
+  this->ClearWaypointQueue();
+  Point3D goal_p(msg->point.x, msg->point.y, msg->point.z);
+  this->UpdateGoalFromPoint(goal_p, msg->header.frame_id, false);
+}
+
+void DPMaster::WaypointListCallBack(const nav_msgs::PathConstPtr& msg) {
+  this->ClearWaypointQueue();
+
+  if (msg->poses.empty()) {
+    ROS_WARN("DPMaster: received empty waypoint list on /waypoint_generator/waypoints.");
+    return;
+  }
+
+  const ros::Time queue_stamp = ros::Time::now();
+  for (const auto& pose_stamped : msg->poses) {
+    geometry_msgs::PointStamped waypoint_msg;
+    waypoint_msg.header.frame_id = master_params_.world_frame;
+    waypoint_msg.header.stamp = queue_stamp;
+    waypoint_msg.point = pose_stamped.pose.position;
+    queued_waypoints_.push_back(waypoint_msg);
+  }
+
+  is_waypoint_queue_active_ = true;
+  ROS_INFO("DPMaster: loaded %zu queued waypoints from /waypoint_generator/waypoints.", queued_waypoints_.size());
+  this->DispatchNextQueuedWaypoint();
 }
 
 void DPMaster::TargetCallBack(const geometry_msgs::PoseStampedConstPtr & msg) {
+  this->ClearWaypointQueue();
   Point3D goal_p(msg->pose.position.x, msg->pose.position.y, 2.0);
-  const std::string goal_frame = msg->header.frame_id;
-  if (!DPUtil::IsSameFrameID(goal_frame, master_params_.world_frame)) {
-    ROS_WARN("DPMaster: target pose published is not on world frame!");
-    DPUtil::TransformPoint3DFrame(goal_frame, master_params_.world_frame, tf_listener_, goal_p); 
+  this->UpdateGoalFromPoint(goal_p, msg->header.frame_id, true);
+}
+
+void DPMaster::ReachGoalStatusCallBack(const std_msgs::BoolConstPtr& msg) {
+  if (!msg->data || !is_waypoint_queue_active_) {
+    return;
   }
-  const int layer_id = map_handler_.GetLayerId(goal_p);
-  goal_p.z = DPUtil::layerIdx2Height_[layer_id];
-  if (layer_id != -1) {
-    graph_planner_.UpdateGoal(goal_p, layer_id, true);
-    is_goal_update_  = true;
-    // visualize original goal
-    // planner_viz_.VizPoint3D(goal_node_ptr_->position, "goal_node", VizColor::BLUE, 2.5);
-    planner_viz_.VizPoint3D(goal_p, "original_goal", VizColor::RED, 1.5);
-  } else {
-    ROS_WARN("DPMaster: goal layer id assign failed.");
+
+  if (!this->DispatchNextQueuedWaypoint()) {
+    ROS_INFO("DPMaster: waypoint queue completed.");
   }
 }
 

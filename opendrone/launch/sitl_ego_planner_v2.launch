@@ -1,5 +1,9 @@
 <launch>
     <arg name="use_mpc" default="false" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
     <node pkg="tf" type="static_transform_publisher" name="world_map_linker" args="0 0 0 0 0 0 world map 100" />
     <node pkg="tf" type="static_transform_publisher" name="tf_camera" args="0.1 0 0.0 -1.57 0 -1.57 base_link camera_link 33"/>
 
@@ -11,7 +15,14 @@
         <param name="pose_topic" value="camera/pose" />
     </node>
 
-     <include file="$(find ego_planner_v2)/launch/include/run_in_sim.xml">
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    </include>
+
+     <include file="$(find ego_planner_v2)/launch/single_run_in_sim.launch">
         <arg name="drone_id" value="0"/>
         <arg name="map_size_x" value="100"/>
         <arg name="map_size_y" value="100"/>
@@ -19,8 +30,6 @@
         <arg name="odom_topic" value="mavros/local_position/odom"/>
         <arg name="camera_pose_topic" value="camera/pose"/>
         <arg name="depth_topic" value="camera/depth/image_raw"/>
-        <arg name="max_vel" value="1.5" />
-        <arg name="max_acc" value="6.0" />
         <arg name="flight_type" value="1"/>
     </include>
 

@@ -78,6 +78,7 @@ namespace ego_planner
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
+    waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
 
     if (planner_manager_->pp_.drone_id >= 1)
     {
@@ -254,6 +255,39 @@ namespace ego_planner
     Eigen::Vector3d end_wp(msg->pose.position.x, msg->pose.position.y, 2);
 
     planNextWaypoint(end_wp);
+  }
+
+  void EGOReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr &msg)
+  {
+    if (msg->poses.empty())
+    {
+      ROS_WARN("Received empty waypoint list on /waypoint_generator/waypoints.");
+      return;
+    }
+
+    wps_.clear();
+    wps_.reserve(msg->poses.size());
+    for (const auto &pose_stamped : msg->poses)
+    {
+      wps_.emplace_back(pose_stamped.pose.position.x,
+                        pose_stamped.pose.position.y,
+                        pose_stamped.pose.position.z);
+    }
+
+    waypoint_num_ = static_cast<int>(wps_.size());
+    wp_id_ = 0;
+    target_type_ = TARGET_TYPE::PRESET_TARGET;
+
+    for (size_t i = 0; i < wps_.size(); i++)
+    {
+      visualization_->displayGoalPoint(wps_[i], Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, i);
+      ros::Duration(0.001).sleep();
+    }
+
+    have_trigger_ = true;
+    init_pt_ = odom_pos_;
+    planNextWaypoint(wps_[wp_id_]);
+    ROS_INFO("Loaded %d queued waypoints from /waypoint_generator/waypoints.", waypoint_num_);
   }
 
   void EGOReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr &msg)

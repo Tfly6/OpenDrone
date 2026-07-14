@@ -1,5 +1,9 @@
 <launch>
     <arg name="use_mpc" default="false" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
     <arg name="odom_topic" default="/mavros/local_position/odom" />
     <arg name="lidar_topic" default="/livox/lidar" />
     <arg name="lidar_frame" default="livox_link" />
@@ -17,8 +21,23 @@
         <param name="filter_enable" value="false" />
     </node>
 
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+        <arg name="enable_mission_manager" value="true" />
+        <arg name="goal_topic" value="/planning/mission_goal" />
+    </include>
+
     <include file="$(find super_planner_od)/launch/super_planner_od.launch">
         <arg name="config_path" value="$(arg super_cfg)" />
+        <arg name="cloud_topic" value="/registered_scan" />
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="click_goal_topic" value="/goal" />
+        <arg name="mission_goal_topic" value="/planning/mission_goal" />
+        <arg name="position_command_topic" value="/planning/pos_cmd" />
+        <arg name="polynomial_trajectory_topic" value="/planning_cmd/poly_traj" />
         <arg name="use_rviz" value="false" />
     </include>
 

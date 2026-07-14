@@ -10,6 +10,7 @@
 #include "planner_visualizer.h"
 #include "scan_handler.h"
 #include "graph_msger.h"
+#include <deque>
 
 
 struct DPMasterParams {
@@ -32,7 +33,7 @@ struct DPMasterParams {
 
 class DPMaster {
 public:
-    DPMaster() = default;
+    DPMaster() : pnh("~") {}
     ~DPMaster() = default;
 
     void Init(); // Node initialization
@@ -40,8 +41,11 @@ public:
 
 private:
     ros::NodeHandle nh;
+    // Keep algorithm topics on the existing public handle.  Only configuration
+    // belongs to the node-private namespace loaded by the launch file.
+    ros::NodeHandle pnh;
     ros::Subscriber reset_graph_sub_, joy_command_sub_;
-    ros::Subscriber odom_sub_, terrain_sub_, terrian_local_sub_, scan_sub_, waypoint_sub_, target_sub_;
+    ros::Subscriber odom_sub_, terrain_sub_, terrian_local_sub_, scan_sub_, waypoint_sub_, waypoint_list_sub_, target_sub_, reach_goal_sub_;
     ros::Publisher  goal_pub_;
     ros::Publisher  vertices_PCL_pub_, obs_world_pub_, new_PCL_pub_;
     ros::Publisher  dynamic_obs_pub_, surround_free_debug_, surround_obs_debug_, scan_grid_debug_, ground_pc_debug_;
@@ -49,6 +53,8 @@ private:
     ros::Publisher mapping_time_pub_;
 
     Point3D robot_pos_, robot_heading_, nav_heading_, nav_goal_;
+    std::deque<geometry_msgs::PointStamped> queued_waypoints_;
+    bool is_waypoint_queue_active_{false};
 
     bool is_robot_stop_, is_new_iter_, is_reset_env_;
 
@@ -124,7 +130,12 @@ private:
     void ScanCallBack(const sensor_msgs::PointCloud2ConstPtr& pc);
     // void WaypointCallBack(const route_goal_msg::RouteGoal& routepoint);
     void WaypointCallBack(const geometry_msgs::PointStampedConstPtr & msg);
+    void WaypointListCallBack(const nav_msgs::PathConstPtr& msg);
     void TargetCallBack(const geometry_msgs::PoseStampedConstPtr & msg);
+    void ReachGoalStatusCallBack(const std_msgs::BoolConstPtr& msg);
+    bool UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav);
+    void ClearWaypointQueue();
+    bool DispatchNextQueuedWaypoint();
 
     void ExtractDynamicObsFromScan(const PointCloudPtr& scanCloudIn, 
                                    const PointCloudPtr& obsCloudIn, 

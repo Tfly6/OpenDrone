@@ -3,6 +3,13 @@
     <arg name="lidar_topic" default="/livox/lidar" />  <!-- 你的LiDAR话题 -->
     <arg name="lidar_frame" default="livox_link" />    <!-- 你的LiDAR frame -->
     <arg name="config_file" default="default" />
+    <arg name="world_frame" default="map" />
+    <arg name="is_simulation" default="true" />
+    <arg name="use_rviz" default="true" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
 
     <!-- TF: world -> map, base_link -> livox_link -->
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_map_linker"
@@ -27,16 +34,21 @@
         <arg name="terrain_local_topic" value="/terrain_local_cloud" />
         <arg name="scan_cloud_topic" value="/registered_scan" />
         <arg name="config_file" value="$(arg config_file)" />
+        <arg name="world_frame" value="$(arg world_frame)" />
+        <arg name="is_simulation" value="$(arg is_simulation)" />
         <!-- terrain_cloud 和 terrain_local_topic 根据需要调整 -->
     </include>
 
-     <node pkg="opendrone" name="waypoint_msg_converter"
-          type="waypoint_msg_converter.py" output="screen">
-        <param name="waypoint_topic" value="/way_point" />
-        <param name="traj_pub_topic" value="/command/trajectory" />
+     <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    </include>
+
     </node>
 
     <!-- RViz -->
-    <node name="rviz" pkg="rviz" type="rviz"
+    <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz"
           args="-d $(find opendrone)/rviz/airfar_planner.rviz" required="true" />
 </launch>

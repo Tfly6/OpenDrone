@@ -1,132 +1,73 @@
 <launch>
-    <!-- number of moving objects -->
-    <arg name="obj_num" value="10" />
-    <arg name="drone_id" value="0"/>
+  <!-- Integration and mission behaviour. -->
+  <arg name="drone_id" default="0"/>
+  <arg name="map_size_x" default="110.0"/>
+  <arg name="map_size_y" default="100.0"/>
+  <arg name="map_size_z" default="6.0"/>
+  <arg name="odom_topic" default="/mavros/local_position/odom"/>
+  <arg name="camera_pose_topic" default="/camera/pose"/>
+  <arg name="depth_topic" default="/camera/depth/image_raw"/>
+  <arg name="cloud_topic" default="pcl_render_node/cloud"/>
+  <arg name="world_frame" default="world"/>
+  <arg name="pose_type" default="1"/>
+  <arg name="cx" default="320"/>
+  <arg name="cy" default="240"/>
+  <arg name="fx" default="319.9348449707031"/>
+  <arg name="fy" default="319.9348449707031"/>
+  <arg name="flight_type" default="1"/>
+  <arg name="point_num" default="1"/>
+  <arg name="point0_x" default="2.0"/><arg name="point0_y" default="2.0"/><arg name="point0_z" default="1.0"/>
+  <arg name="point1_x" default="-5.0"/><arg name="point1_y" default="0.0"/><arg name="point1_z" default="1.0"/>
+  <arg name="point2_x" default="6.0"/><arg name="point2_y" default="0.0"/><arg name="point2_z" default="1.0"/>
+  <arg name="point3_x" default="-7.0"/><arg name="point3_y" default="0.0"/><arg name="point3_z" default="1.0"/>
+  <arg name="point4_x" default="6.0"/><arg name="point4_y" default="0.0"/><arg name="point4_z" default="1.0"/>
 
-    <arg name="map_size_x" value="110.0"/>
-    <arg name="map_size_y" value="100.0"/>
-    <arg name="map_size_z" value="6.0"/>
-    <arg name="max_vel" default="2.0" />
-    <arg name="max_acc" default="6.0" />
-    <arg name="odom_topic" default="visual_slam/odom" />
-    <arg name="camera_pose_topic" default="/camera/pose"/>
-    <arg name="depth_topic" default="/camera/depth/image_raw"/>
-    <arg name="cloud_topic" default="pcl_render_node/cloud"/>
-    <arg name="pose_type" default="1"/>
-    <arg name="obstacles_inflation" default="0.099"/>
-    <arg name="local_update_range_x" default="5.5" />
-    <arg name="local_update_range_y" default="5.5" />
-    <arg name="local_update_range_z" default="4.5" />
-    <arg name="local_map_margin" default="10" />
-    <arg name="p_occ" default="0.80" />
-    <arg name="p_hit" default="0.65" />
-    <arg name="max_ray_length" default="4.5" />
-    <arg name="ground_height" default="-0.15" />
-    <arg name="debug_map" default="false"/>
-    <arg name="debug_fsm" default="false"/>
-    <arg name="debug_planner" default="false"/>
-    <arg name="debug_astar" default="false"/>
-    
-    <!-- map -->
-    <!-- <node pkg ="map_generator" name ="random_forest" type ="random_forest" output = "screen">
-        <param name="map/x_size" value="26" />
-        <param name="map/y_size" value="20" />
-        <param name="map/z_size" value="3" />
-        <param name="map/resolution" value="0.1"/>
-        <param name="ObstacleShape/seed" value="1"/>
-        <param name="map/obs_num" value="250"/>
-        <param name="ObstacleShape/lower_rad" value="0.5"/>
-        <param name="ObstacleShape/upper_rad" value="0.7"/>
-        <param name="ObstacleShape/lower_hei" value="0.0"/>
-        <param name="ObstacleShape/upper_hei" value="3.0"/>
-        <param name="map/circle_num" value="250"/>
-        <param name="ObstacleShape/radius_l" value="0.7"/>
-        <param name="ObstacleShape/radius_h" value="0.5"/>
-        <param name="ObstacleShape/z_l" value="0.7"/>
-        <param name="ObstacleShape/z_h" value="0.8"/>
-        <param name="ObstacleShape/theta" value="0.5"/>
-        <param name="pub_rate" value="1.0"/>
-        <param name="min_distance" value="0.8"/>
-    </node> -->
+  <!-- Algorithm, physical-limit, and optimizer tuning profile. -->
+  <arg name="config_file" default="$(find ego_planner)/config/default.yaml"/>
 
-    <!-- main algorithm params -->
-    <include file="$(find ego_planner)/launch/advanced_param.xml">
-        <arg name="drone_id" value="$(arg drone_id)"/>
-        <arg name="map_size_x_" value="$(arg map_size_x)"/>
-        <arg name="map_size_y_" value="$(arg map_size_y)"/>
-        <arg name="map_size_z_" value="$(arg map_size_z)"/>
-        <arg name="odometry_topic" value="$(arg odom_topic)"/>
-        <arg name="obj_num_set" value="$(arg obj_num)" />
-        <!-- camera pose: transform of camera frame in the world frame -->
-        <!-- depth topic: depth image, 640x480 by default -->
-        <arg name="pose_type" value="$(arg pose_type)"/>
-        <!-- don't set cloud_topic if you already set these ones! -->
-        <arg name="camera_pose_topic" value="$(arg camera_pose_topic)"/>
-        <arg name="depth_topic" value="$(arg depth_topic)"/>
-        <!-- topic of point cloud measurement, such as from LIDAR  -->
-        <!-- don't set camera pose and depth, if you already set this one! -->
-        <arg name="cloud_topic" value="$(arg cloud_topic)"/>
-        <!-- intrinsic params of the depth camera -->
-        <arg name="cx" value="320"/>
-        <arg name="cy" value="240"/>
-        <arg name="fx" value="319.9348449707031"/>
-        <arg name="fy" value="319.9348449707031"/>
-        <!-- maximum velocity and acceleration the drone will reach -->
-        <arg name="max_vel" value="$(arg max_vel)" />
-        <arg name="max_acc" value="$(arg max_acc)" />
-        <!--always set to 1.5 times grater than sensing horizen-->
-        <arg name="planning_horizon" value="7.5" />
-        <arg name="use_distinctive_trajs" value="true" />
-        <arg name="obstacles_inflation" value="$(arg obstacles_inflation)" />
-        <arg name="local_update_range_x" value="$(arg local_update_range_x)" />
-        <arg name="local_update_range_y" value="$(arg local_update_range_y)" />
-        <arg name="local_update_range_z" value="$(arg local_update_range_z)" />
-        <arg name="local_map_margin" value="$(arg local_map_margin)" />
-        <arg name="ground_height" value="$(arg ground_height)" />  
-        <arg name="p_occ" value="$(arg p_occ)" />
-        <arg name="p_hit" value="$(arg p_hit)" />
-        <arg name="max_ray_length" value="$(arg max_ray_length)" />
-        <arg name="debug_map" value="$(arg debug_map)"/>
-        <arg name="debug_fsm" value="$(arg debug_fsm)"/>
-        <arg name="debug_planner" value="$(arg debug_planner)"/>
-        <arg name="debug_astar" value="$(arg debug_astar)"/>
-        <!-- 1: use 2D Nav Goal to select goal  -->
-        <!-- 2: use global waypoints below  -->
-        <arg name="flight_type" value="1" />
-        <!-- global waypoints -->
-        <!-- It generates a piecewise min-snap traj passing all waypoints -->
-        <arg name="point_num" value="1" />
-        <arg name="point0_x" value="2" />
-        <arg name="point0_y" value="2" />
-        <arg name="point0_z" value="1" />
-        <arg name="point1_x" value="-5.0" />
-        <arg name="point1_y" value="0.0" />
-        <arg name="point1_z" value="1.0" />
-        <arg name="point2_x" value="6.0" />
-        <arg name="point2_y" value="0.0" />
-        <arg name="point2_z" value="1.0" />
-        <arg name="point3_x" value="-7.0" />
-        <arg name="point3_y" value="0.0" />
-        <arg name="point3_z" value="1.0" />
-        <arg name="point4_x" value="6.0" />
-        <arg name="point4_y" value="0.0" />
-        <arg name="point4_z" value="1.0" />
-    </include>
-    <!-- trajectory server -->
-    <node pkg="ego_planner" name="drone_$(arg drone_id)_traj_server" type="traj_server" output="screen">
-        <remap from="position_cmd" to="drone_$(arg drone_id)_planning/pos_cmd"/>
-        <remap from="~planning/bspline" to="drone_$(arg drone_id)_planning/bspline"/>
-        <param name="traj_server/time_forward" value="1.0" type="double"/>
-    </node>
-    <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization" type="odom_visualization" output="screen">
-        <remap from="~odom" to="$(arg odom_topic)"/>
-        <param name="color/a" value="1.0"/>
-        <param name="color/r" value="0.0"/>
-        <param name="color/g" value="0.0"/>
-        <param name="color/b" value="0.0"/>
-        <param name="covariance_scale" value="100.0"/>
-        <param name="robot_scale" value="0.35"/>
-        <param name="tf45" value="false"/>
-        <param name="drone_id" value="$(arg drone_id)"/>
-    </node>
+  <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node"
+        type="ego_planner_node" output="screen" clear_params="true">
+    <rosparam command="load" file="$(arg config_file)"/>
+    <param name="fsm/flight_type" value="$(arg flight_type)" type="int"/>
+    <param name="fsm/waypoint_num" value="$(arg point_num)" type="int"/>
+    <param name="fsm/waypoint0_x" value="$(arg point0_x)" type="double"/>
+    <param name="fsm/waypoint0_y" value="$(arg point0_y)" type="double"/>
+    <param name="fsm/waypoint0_z" value="$(arg point0_z)" type="double"/>
+    <param name="fsm/waypoint1_x" value="$(arg point1_x)" type="double"/><param name="fsm/waypoint1_y" value="$(arg point1_y)" type="double"/><param name="fsm/waypoint1_z" value="$(arg point1_z)" type="double"/>
+    <param name="fsm/waypoint2_x" value="$(arg point2_x)" type="double"/><param name="fsm/waypoint2_y" value="$(arg point2_y)" type="double"/><param name="fsm/waypoint2_z" value="$(arg point2_z)" type="double"/>
+    <param name="fsm/waypoint3_x" value="$(arg point3_x)" type="double"/><param name="fsm/waypoint3_y" value="$(arg point3_y)" type="double"/><param name="fsm/waypoint3_z" value="$(arg point3_z)" type="double"/>
+    <param name="fsm/waypoint4_x" value="$(arg point4_x)" type="double"/><param name="fsm/waypoint4_y" value="$(arg point4_y)" type="double"/><param name="fsm/waypoint4_z" value="$(arg point4_z)" type="double"/>
+    <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
+    <param name="grid_map/map_size_y" value="$(arg map_size_y)"/>
+    <param name="grid_map/map_size_z" value="$(arg map_size_z)"/>
+    <param name="grid_map/cx" value="$(arg cx)"/><param name="grid_map/cy" value="$(arg cy)"/>
+    <param name="grid_map/fx" value="$(arg fx)"/><param name="grid_map/fy" value="$(arg fy)"/>
+    <param name="grid_map/pose_type" value="$(arg pose_type)" type="int"/>
+    <param name="grid_map/frame_id" value="$(arg world_frame)"/>
+    <param name="manager/drone_id" value="$(arg drone_id)" type="int"/>
+    <remap from="~odom_world" to="$(arg odom_topic)"/>
+    <remap from="~grid_map/odom" to="$(arg odom_topic)"/>
+    <remap from="~grid_map/cloud" to="$(arg cloud_topic)"/>
+    <remap from="~grid_map/pose" to="$(arg camera_pose_topic)"/>
+    <remap from="~grid_map/depth" to="$(arg depth_topic)"/>
+    <remap from="~planning/bspline" to="/drone_$(arg drone_id)_planning/bspline"/>
+    <remap from="~planning/data_display" to="/drone_$(arg drone_id)_planning/data_display"/>
+    <remap from="~planning/broadcast_bspline_from_planner" to="/broadcast_bspline"/>
+    <remap from="~planning/broadcast_bspline_to_planner" to="/broadcast_bspline"/>
+  </node>
+
+  <!-- Two server parameters do not justify a separate YAML profile. -->
+  <node pkg="ego_planner" name="drone_$(arg drone_id)_traj_server" type="traj_server" output="screen" clear_params="true">
+    <remap from="position_cmd" to="drone_$(arg drone_id)_planning/pos_cmd"/>
+    <remap from="~planning/bspline" to="drone_$(arg drone_id)_planning/bspline"/>
+    <param name="traj_server/time_forward" value="1.0" type="double"/>
+  </node>
+
+  <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization" type="odom_visualization" output="screen">
+    <remap from="~odom" to="$(arg odom_topic)"/>
+    <param name="color/a" value="1.0"/><param name="color/r" value="0.0"/>
+    <param name="color/g" value="0.0"/><param name="color/b" value="0.0"/>
+    <param name="covariance_scale" value="100.0"/><param name="robot_scale" value="0.35"/>
+    <param name="tf45" value="false"/><param name="drone_id" value="$(arg drone_id)"/>
+  </node>
 </launch>

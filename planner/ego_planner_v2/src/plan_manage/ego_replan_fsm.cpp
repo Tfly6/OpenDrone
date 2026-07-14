@@ -44,6 +44,7 @@ namespace ego_planner
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
+    waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<quadrotor_msgs::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -591,6 +592,40 @@ namespace ego_planner
     if (planNextWaypoint(end_wp))
     {
       have_trigger_ = true;
+    }
+  }
+
+  void EGOReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr &msg)
+  {
+    if (msg->poses.empty())
+    {
+      ROS_WARN("Received empty waypoint list on /waypoint_generator/waypoints.");
+      return;
+    }
+
+    wps_.clear();
+    wps_.reserve(msg->poses.size());
+    for (const auto &pose_stamped : msg->poses)
+    {
+      wps_.emplace_back(pose_stamped.pose.position.x,
+                        pose_stamped.pose.position.y,
+                        pose_stamped.pose.position.z);
+    }
+
+    waypoint_num_ = static_cast<int>(wps_.size());
+    wpt_id_ = 0;
+    target_type_ = TARGET_TYPE::PRESET_TARGET;
+
+    for (size_t i = 0; i < wps_.size(); i++)
+    {
+      visualization_->displayGoalPoint(wps_[i], Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, i);
+      ros::Duration(0.001).sleep();
+    }
+
+    if (planNextWaypoint(wps_[wpt_id_]))
+    {
+      have_trigger_ = true;
+      ROS_INFO("Loaded %d queued waypoints from /waypoint_generator/waypoints.", waypoint_num_);
     }
   }
 
