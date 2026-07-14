@@ -99,15 +99,15 @@ class Se3LeeCtrl {
   ros::NodeHandle nh_private_;
   dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig> dyn_config_server_;
   dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType dyn_config_callback_type_;
-  ros::Subscriber referenceSub_;
-  ros::Subscriber flatreferenceSub_;
-  ros::Subscriber multiDOFJointSub_;
+  // ros::Subscriber referenceSub_;
+  // ros::Subscriber flatreferenceSub_;
+  ros::Subscriber plannerOutputSub_;
   ros::Subscriber mavstateSub_;
   ros::Subscriber mavposeSub_, gzmavposeSub_;
   ros::Subscriber mavtwistSub_;
-  ros::Subscriber yawreferenceSub_;
+  // ros::Subscriber yawreferenceSub_;
   ros::Publisher rotorVelPub_, angularVelPub_, target_pose_pub_;
-  ros::Publisher referencePosePub_;
+  // ros::Publisher referencePosePub_;
   ros::Publisher referencePoseEvalPub_;
   ros::Publisher referenceVelEvalPub_;
   ros::Publisher referenceAccEvalPub_;
@@ -148,8 +148,8 @@ class Se3LeeCtrl {
 
   mavros_msgs::State current_state_;
   mavros_msgs::CommandBool arm_cmd_;
-  std::vector<geometry_msgs::PoseStamped> posehistory_vector_;
-  MAV_STATE companion_state_ = MAV_STATE::MAV_STATE_ACTIVE;
+  // std::vector<geometry_msgs::PoseStamped> posehistory_vector_;
+  // MAV_STATE companion_state_ = MAV_STATE::MAV_STATE_ACTIVE;
 
   // double initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;
   double takeoff_height_;
@@ -166,7 +166,7 @@ class Se3LeeCtrl {
 
   // void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
-  void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
+  // void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
   // void pubPoseHistory();
   // void pubSystemStatus();
   // void appendPoseHistory();

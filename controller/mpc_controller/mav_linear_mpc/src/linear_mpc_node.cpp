@@ -20,7 +20,6 @@ constexpr double kTakeoffMidpointRatio = 0.5;
 constexpr double kTakeoffReachTolerance = 0.15;
 }  // namespace
 
-
 LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
     const ros::NodeHandle& nh, const ros::NodeHandle& private_nh)
     : nh_(nh),
@@ -409,7 +408,7 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
     ref_msg.pose.position.x = ref_point.position_W.x();
     ref_msg.pose.position.y = ref_point.position_W.y();
     ref_msg.pose.position.z = ref_point.position_W.z();
-    ref_msg.pose.orientation.w = 1.0;
+    ref_msg.pose.orientation = tf::createQuaternionMsgFromYaw(ref_point.getYaw());
     reference_pose_publisher_.publish(ref_msg);
 
     geometry_msgs::TwistStamped ref_vel_msg;

@@ -47,8 +47,6 @@
 #include <iostream>
 #include <unsupported/Eigen/MatrixFunctions>
 
-#include <solver.h>
-
 namespace mav_control {
 
 class LinearModelPredictiveController

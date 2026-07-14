@@ -1,4 +1,5 @@
 <launch>
+  <arg name="takeoff_height" default="2.0"/>
   <arg name="mass" default="1.5"/>
   <arg name="hover_thrust" default="0.7"/>
   <arg name="use_dynamic_reconfigure" default="false"/>
@@ -9,8 +10,7 @@
     <rosparam file="$(find mav_nonlinear_mpc)/config/default.yaml" />
     <rosparam file="$(find mav_disturbance_observer)/resources/disturbance_observer_iris.yaml"/>
 
-    <param name="verbose" value="true" />
-
+    <param name="verbose" value="false" />
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
     <param name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)"/>
@@ -25,7 +25,7 @@
     <param name="offboard_warmup_count" value="50"/>
     <param name="request_interval" value="1.0"/>
 
-    <param name="takeoff_height" value="2.0" />
+    <param name="takeoff_height" value="$(arg takeoff_height)" />
     <param name="takeoff_point_count" value="3" />
     <param name="takeoff_duration" value="2.5" />
     <param name="geo_fence/x" value="50.0"/>

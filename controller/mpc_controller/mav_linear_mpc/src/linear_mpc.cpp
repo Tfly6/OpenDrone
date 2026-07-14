@@ -31,6 +31,7 @@
  */
 
 #include <mav_linear_mpc/linear_mpc.h>
+#include <solver.h>
 
 namespace mav_control {
 

@@ -39,20 +39,22 @@
  */
 
 #include "se3_lee/se3_lee.h"
+#include "opendrone/planner_output_utils.h"
 #include "se3_lee/jerk_tracking_control.h"
 #include "se3_lee/nonlinear_attitude_control.h"
 #include "se3_lee/nonlinear_geometric_control.h"
+#include <tf/transform_datatypes.h>
 
 using namespace Eigen;
 using namespace std;
 // Constructor
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
     : nh_(nh), nh_private_(nh_private), dyn_config_server_(nh_private_), flightState_(WAITING_FOR_CONNECTED) {
-  referenceSub_ =
-      nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
-  yawreferenceSub_ =
-      nh_.subscribe<std_msgs::Float32>("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
-  multiDOFJointSub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, &Se3LeeCtrl::multiDOFJointCallback, this,
+  // referenceSub_ =
+  //     nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
+  // yawreferenceSub_ =
+  //     nh_.subscribe<std_msgs::Float32>("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
+  plannerOutputSub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 1, &Se3LeeCtrl::plannerOutputCallback, this,
                                     ros::TransportHints().tcpNoDelay());
   mavstateSub_ =
       nh_.subscribe<mavros_msgs::State>("mavros/state", 1, &Se3LeeCtrl::mavstateCallback, this, ros::TransportHints().tcpNoDelay());
@@ -66,15 +68,15 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
                                    this);  // Define timer for constant loop rate
 
   angularVelPub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 1);
-  referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 1);
+  // referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 1);
   referencePoseEvalPub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 1);
   referenceVelEvalPub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 1);
   referenceAccEvalPub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 1);
-  target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
+  target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
   // posehistoryPub_ = nh_.advertise<nav_msgs::Path>("se3_lee/path", 10);
   // systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
-  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
-  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
+  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
+  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
   land_service_ = nh_.advertiseService("/land", &Se3LeeCtrl::landCallback, this);
 
   // add
@@ -165,26 +167,26 @@ Se3LeeCtrl::~Se3LeeCtrl() {
   // Destructor
 }
 
-void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg) { // reference/setpoint
-  reference_request_last_ = reference_request_now_;
-  targetPos_prev_ = targetPos_;
-  targetVel_prev_ = targetVel_;
+// void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg) { // reference/setpoint
+//   reference_request_last_ = reference_request_now_;
+//   targetPos_prev_ = targetPos_;
+//   targetVel_prev_ = targetVel_;
 
-  reference_request_now_ = ros::Time::now();
-  reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
+//   reference_request_now_ = ros::Time::now();
+//   reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
 
-  targetPos_ = toEigen(msg->twist.angular);
-  targetVel_ = toEigen(msg->twist.linear);
+//   targetPos_ = toEigen(msg->twist.angular);
+//   targetVel_ = toEigen(msg->twist.linear);
 
-  if (reference_request_dt_ > 0)
-    targetAcc_ = (targetVel_ - targetVel_prev_) / reference_request_dt_;
-  else
-    targetAcc_ = Eigen::Vector3d::Zero();
-}
+//   if (reference_request_dt_ > 0)
+//     targetAcc_ = (targetVel_ - targetVel_prev_) / reference_request_dt_;
+//   else
+//     targetAcc_ = Eigen::Vector3d::Zero();
+// }
 
-void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32::ConstPtr &msg) { // reference/yaw
-  if (!velocity_yaw_) mavYaw_ = double(msg->data); // false
-}
+// void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32::ConstPtr &msg) { // reference/yaw
+//   if (!velocity_yaw_) mavYaw_ = double(msg->data); // false
+// }
 
 void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) {
   // command/trajectory
@@ -380,7 +382,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
   ref_eval_msg.pose.position.x = targetPos_(0);
   ref_eval_msg.pose.position.y = targetPos_(1);
   ref_eval_msg.pose.position.z = targetPos_(2);
-  ref_eval_msg.pose.orientation.w = 1.0;
+  ref_eval_msg.pose.orientation = tf::createQuaternionMsgFromYaw(mavYaw_);
   referencePoseEvalPub_.publish(ref_eval_msg);
 
   geometry_msgs::TwistStamped ref_vel_msg;
@@ -454,20 +456,20 @@ void Se3LeeCtrl::TryArm(const ros::Time &now) {
   last_arm_request_ = now;
 }
 
-void Se3LeeCtrl::pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude) {
-  geometry_msgs::PoseStamped msg;
+// void Se3LeeCtrl::pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude) {
+//   geometry_msgs::PoseStamped msg;
 
-  msg.header.stamp = ros::Time::now();
-  msg.header.frame_id = "map";
-  msg.pose.position.x = target_position(0);
-  msg.pose.position.y = target_position(1);
-  msg.pose.position.z = target_position(2);
-  msg.pose.orientation.w = target_attitude(0);
-  msg.pose.orientation.x = target_attitude(1);
-  msg.pose.orientation.y = target_attitude(2);
-  msg.pose.orientation.z = target_attitude(3);
-  referencePosePub_.publish(msg);
-}
+//   msg.header.stamp = ros::Time::now();
+//   msg.header.frame_id = "map";
+//   msg.pose.position.x = target_position(0);
+//   msg.pose.position.y = target_position(1);
+//   msg.pose.position.z = target_position(2);
+//   msg.pose.orientation.w = target_attitude(0);
+//   msg.pose.orientation.x = target_attitude(1);
+//   msg.pose.orientation.y = target_attitude(2);
+//   msg.pose.orientation.z = target_attitude(3);
+//   referencePosePub_.publish(msg);
+// }
 
 void Se3LeeCtrl::pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude) {
   mavros_msgs::AttitudeTarget msg;

@@ -10,7 +10,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/AccelStamped.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <opendrone/PlannerOutput.h>
 
 #include "se3_hopf/se3_hopf.hpp"
 #include "se3_hopf/se3_dynamic_tuneConfig.h"

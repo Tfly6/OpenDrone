@@ -4,13 +4,9 @@ project(mav_linear_mpc)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-set(CMAKE_BUILD_TYPE Release)
-
 if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" AND NOT APPLE)
   add_definitions(-fPIC)
 endif()
-
-include_directories(lib)
 
 #############
 # LIBRARIES #
@@ -29,8 +25,14 @@ cs_add_library(cvxgen_solver
   lib/variables_definition.c
 )
 
+target_include_directories(cvxgen_solver PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)
 
 target_link_libraries(mav_linear_mpc cvxgen_solver)
+target_include_directories(mav_linear_mpc PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)
 
 
 ############
@@ -39,7 +41,7 @@ target_link_libraries(mav_linear_mpc cvxgen_solver)
 cs_add_executable(mav_linear_mpc_node
   src/linear_mpc_node.cpp
 )
-target_link_libraries(mav_linear_mpc_node ${PROJECT_NAME})
+target_link_libraries(mav_linear_mpc_node mav_linear_mpc)
 
 ##########
 # EXPORT #

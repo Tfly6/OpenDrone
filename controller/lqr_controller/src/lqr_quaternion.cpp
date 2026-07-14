@@ -114,7 +114,7 @@ void LQR_Quaternion::computeLQR()
     }
     else
     {
-      ROS_WARN_THROTTLE(1.0, "LQR Quaternion: solver did not converge, K may be stale");
+      ROS_WARN_THROTTLE(5.0, "LQR Quaternion: solver did not converge, K may be stale");
     }
 
     // Debug: print reference and some state info periodically

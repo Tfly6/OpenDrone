@@ -114,7 +114,7 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         // pose.pose.position.z = initPose_[2];
         // localPosPub_.publish(pose);
         ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
-        publishAttitude(Eigen::Vector4d(0, 0, 0, hoverThrust_));  // Publish hover command to help transition to OFFBOARD
+        publishAttitude(Eigen::Vector4d(0, 0, 0, 9.81));  // Publish hover command to help transition to OFFBOARD
 
         ++offboardWarmupCounter_;
         TrySetOffboard(ros::Time::now());
@@ -139,7 +139,7 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         Eigen::Vector4d cmd_body_rate_thrust;
         computeControlCommands(cmd_body_rate_thrust);
         publishAttitude(cmd_body_rate_thrust);
-        if (isAtPosition(targetPos_, 0.3)) {
+        if (isAtPosition(targetPos_, 0.15)) {
             flightState_ = MISSION_EXECUTION;
             ROS_INFO("Takeoff complete! Current pos [%.2f, %.2f, %.2f], target [%.2f, %.2f, %.2f]",
                      currentPos_[0], currentPos_[1], currentPos_[2],
@@ -190,18 +190,21 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     }
     }
 
+    auto ref = lqr_quaternion_.getRefStates();
     geometry_msgs::PoseStamped ref_msg;
     ref_msg.header.stamp = ros::Time::now();
     ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = targetPos_(0);
-    ref_msg.pose.position.y = targetPos_(1);
-    ref_msg.pose.position.z = targetPos_(2);
-    ref_msg.pose.orientation.w = 1.0;
+    ref_msg.pose.position.x = ref(0);
+    ref_msg.pose.position.y = ref(1);
+    ref_msg.pose.position.z = ref(2);
+    ref_msg.pose.orientation.w = ref(3);
+    ref_msg.pose.orientation.x = ref(4);
+    ref_msg.pose.orientation.y = ref(5);
+    ref_msg.pose.orientation.z = ref(6);
     referencePosePub_.publish(ref_msg);
 
     geometry_msgs::TwistStamped ref_vel_msg;
     ref_vel_msg.header = ref_msg.header;
-    auto ref = lqr_quaternion_.getRefStates();
     ref_vel_msg.twist.linear.x = ref(7);
     ref_vel_msg.twist.linear.y = ref(8);
     ref_vel_msg.twist.linear.z = ref(9);
@@ -219,7 +222,7 @@ void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
 {
     // This function can be used to compute control commands based on the current state and trajectory
     // For now, the control computation is done in the odom callback via the LQR controllers
-     Eigen::Matrix<double, 4, 1> output;
+    Eigen::Matrix<double, 4, 1> output;
 
         auto traj_control = lqr_quaternion_.getTrajectoryControl();
         auto gain = lqr_quaternion_.getGain();
@@ -236,16 +239,24 @@ void LQR_Controller::publishAttitude(Eigen::Vector4d bodyRatesThrustCmd)
    
 
     // Clamp outputs
-    // for (int i = 0; i < 3; i++) {
-    //     if (output(i) > 2.0) output(i) = 2.0;
-    //     else if (output(i) < -2.0) output(i) = -2.0;
-    // }
+    for (int i = 0; i < 3; i++) {
+        if (bodyRatesThrustCmd(i) > 2.0) bodyRatesThrustCmd(i) = 2.0;
+        else if (bodyRatesThrustCmd(i) < -2.0) bodyRatesThrustCmd(i) = -2.0;
+    }
 
     double thrust_raw = bodyRatesThrustCmd(3);
 
     // Compute thrust
     double normalized_thrust = (hoverThrust_ * thrust_raw) / gravity_;
     normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+
+    if (normalized_thrust <= 0.1001 || normalized_thrust >= 0.8999) {
+        ROS_WARN_THROTTLE(
+            0.5,
+            "LQR thrust clamp active: raw_thrust=%.3f normalized=%.3f body_rates [%.3f, %.3f, %.3f]",
+            thrust_raw, normalized_thrust,
+            bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2));
+    }
 
     // Publish body rate command
     bodyrateMsg.header.stamp = ros::Time::now();

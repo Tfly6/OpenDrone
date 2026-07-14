@@ -4,11 +4,13 @@ project(opendrone)
 find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  message_generation
   mavros_msgs
   roscpp
   rospy
   sensor_msgs
   std_msgs
+  trajectory_msgs
   tf2_ros
   tf2_sensor_msgs
   pcl_ros

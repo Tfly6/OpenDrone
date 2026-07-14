@@ -181,7 +181,10 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     ref_msg.pose.position.x = desired_state_.p(0);
     ref_msg.pose.position.y = desired_state_.p(1);
     ref_msg.pose.position.z = desired_state_.p(2);
-    ref_msg.pose.orientation.w = 1.0;
+    ref_msg.pose.orientation.w = desired_state_.q.w();
+    ref_msg.pose.orientation.x = desired_state_.q.x();
+    ref_msg.pose.orientation.y = desired_state_.q.y();
+    ref_msg.pose.orientation.z = desired_state_.q.z();
     reference_pose_pub_.publish(ref_msg);
 
     geometry_msgs::TwistStamped ref_vel_msg;

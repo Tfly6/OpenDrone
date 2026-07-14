@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mav_nonlinear_mpc)
 
-set(CMAKE_BUILD_TYPE Release)
-
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake/Modules)
 
 # On os x we need to use openblas for the lapacke library
@@ -34,9 +32,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 #############
 # LIBRARIES #
 #############
-cs_add_library(mav_nonlinear_mpc_lib
-  src/nonlinear_mpc.cc
-  src/mpc_queue.cpp
+cs_add_library(mav_nonlinear_mpc_solver
   solver/qpoases/SRC/Bounds.cpp
   solver/qpoases/SRC/Constraints.cpp
   solver/qpoases/SRC/CyclingManager.cpp
@@ -51,14 +47,23 @@ cs_add_library(mav_nonlinear_mpc_lib
   solver/acado_integrator.c
   solver/acado_solver.c
   solver/acado_auxiliary_functions.c
-  )
+)
 
-target_include_directories(mav_nonlinear_mpc_lib PUBLIC
-	solver/
-	solver/qpoases
-	solver/qpoases/INCLUDE
-	solver/qpoases/SRC
-	)
+target_include_directories(mav_nonlinear_mpc_solver PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver/qpoases
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver/qpoases/INCLUDE
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver/qpoases/SRC
+)
+
+target_link_libraries(mav_nonlinear_mpc_solver ${lapacke_LIBRARIES})
+
+cs_add_library(mav_nonlinear_mpc_lib
+  src/nonlinear_mpc.cc
+  src/mpc_queue.cpp
+)
+
+target_link_libraries(mav_nonlinear_mpc_lib mav_nonlinear_mpc_solver)
 
 ############
 # BINARIES #
@@ -66,8 +71,6 @@ target_include_directories(mav_nonlinear_mpc_lib PUBLIC
 cs_add_executable(nonlinear_mpc_node
   src/nonlinear_mpc_node.cc
 )
-
-target_link_libraries(mav_nonlinear_mpc_lib ${lapacke_LIBRARIES})
 
 target_link_libraries(nonlinear_mpc_node mav_nonlinear_mpc_lib)
 

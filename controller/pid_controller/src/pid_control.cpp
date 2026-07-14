@@ -103,7 +103,7 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
     ref_msg.pose.position.x = targetPos_(0);
     ref_msg.pose.position.y = targetPos_(1);
     ref_msg.pose.position.z = targetPos_(2);
-    ref_msg.pose.orientation.w = 1.0;
+    ref_msg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw_ref_);
     referencePosePub_.publish(ref_msg);
 
     geometry_msgs::TwistStamped ref_vel_msg;

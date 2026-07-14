@@ -406,7 +406,7 @@ void NonLinearModelPredictiveControllerNode::ControlTimerCallback(const ros::Tim
     ref_msg.pose.position.x = ref_point.position_W.x();
     ref_msg.pose.position.y = ref_point.position_W.y();
     ref_msg.pose.position.z = ref_point.position_W.z();
-    ref_msg.pose.orientation.w = 1.0;
+    ref_msg.pose.orientation = tf::createQuaternionMsgFromYaw(ref_point.getYaw());
     reference_pose_publisher_.publish(ref_msg);
 
     geometry_msgs::TwistStamped ref_vel_msg;
