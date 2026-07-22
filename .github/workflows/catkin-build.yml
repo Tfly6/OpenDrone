@@ -1,0 +1,60 @@
+name: ROS Noetic Catkin Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  catkin-build:
+    name: Ubuntu 20.04 / ROS Noetic
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Check out source and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up ROS Noetic
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: noetic
+
+      - name: Install build tools and native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            python3-catkin-tools \
+            python3-rosdep \
+            libgoogle-glog-dev \
+            libgflags-dev \
+            libeigen3-dev \
+            libarmadillo-dev \
+            liblapacke-dev \
+            libdw-dev \
+            libnlopt-dev \
+            libopenblas-dev \
+            liblapack-dev \
+            libopencv-dev \
+            libyaml-cpp-dev
+
+      - name: Install ROS package dependencies
+        run: |
+          source /opt/ros/noetic/setup.bash
+          rosdep update
+          rosdep install --from-paths . --ignore-src --rosdistro noetic -r -y
+
+      - name: Build workspace
+        shell: bash
+        run: |
+          source /opt/ros/noetic/setup.bash
+          mkdir -p "$HOME/catkin_ws/src"
+          ln -s "$GITHUB_WORKSPACE" "$HOME/catkin_ws/src/OpenDrone"
+          cd "$HOME/catkin_ws/src/OpenDrone"
+          git submodule update --init --recursive
+          cd "$HOME/catkin_ws"
+          catkin init
+          catkin build --no-status
