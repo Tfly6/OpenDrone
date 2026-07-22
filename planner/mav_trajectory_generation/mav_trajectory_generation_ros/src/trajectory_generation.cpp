@@ -14,6 +14,7 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
       has_current_odom_(false),
       max_v_(2.0),
       max_a_(2.0),
+      duplicate_start_waypoint_distance_(0.1),
       use_nonlinear_opt_(false),
       nonlinear_max_iterations_(200),
       nonlinear_time_penalty_(500.0),
@@ -33,6 +34,8 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
   
   nh_private_.param("max_v", max_v_, 2.0);
   nh_private_.param("max_a", max_a_, 2.0);
+  nh_private_.param("duplicate_start_waypoint_distance",
+                    duplicate_start_waypoint_distance_, 0.1);
   nh_private_.param("use_nonlinear_opt", use_nonlinear_opt_, false);
   nh_private_.param("nonlinear_max_iterations", nonlinear_max_iterations_, 200);
   nh_private_.param("nonlinear_time_penalty", nonlinear_time_penalty_, 500.0);
@@ -73,6 +76,29 @@ void TrajectoryGeneration::planTrajectory() {
 
   if (!has_current_odom_) {
     ROS_WARN("[TrajectoryGeneration] No odometry received yet, cannot use current odom as trajectory start.");
+    return;
+  }
+
+  if (duplicate_start_waypoint_distance_ < 0.0) {
+    ROS_WARN("[TrajectoryGeneration] duplicate_start_waypoint_distance must be non-negative; got %.3f.",
+             duplicate_start_waypoint_distance_);
+    return;
+  }
+
+  const Eigen::Vector3d first_waypoint(waypoints_.front().position.x,
+                                       waypoints_.front().position.y,
+                                       waypoints_.front().position.z);
+  const double start_waypoint_distance =
+      (first_waypoint - current_pose_.translation()).norm();
+  if (start_waypoint_distance < duplicate_start_waypoint_distance_) {
+    ROS_INFO("[TrajectoryGeneration] Dropping first waypoint %.4f m from current odom; "
+             "current odom is already the trajectory start vertex.",
+             start_waypoint_distance);
+    waypoints_.erase(waypoints_.begin());
+  }
+
+  if (waypoints_.empty()) {
+    ROS_WARN("[TrajectoryGeneration] No waypoint remains after removing the duplicate start waypoint.");
     return;
   }
 

@@ -1,6 +1,7 @@
 <launch>
   <arg name="max_acc" default="4" />
   <arg name="max_vel" default="2.5" />
+  <arg name="duplicate_start_waypoint_distance" default="0.1" />
   <arg name="use_nonlinear_opt" default="false" />
   <arg name="nonlinear_max_iterations" default="200" />
   <arg name="nonlinear_time_penalty" default="500.0" />
@@ -15,6 +16,7 @@
   <node pkg="mav_trajectory_generation_ros" type="planner_node" name="planner_node" output="screen" clear_params="true">
         <param name="max_a" value="$(arg max_acc)" />
         <param name="max_v" value="$(arg max_vel)" />
+        <param name="duplicate_start_waypoint_distance" value="$(arg duplicate_start_waypoint_distance)" />
         <param name="use_nonlinear_opt" value="$(arg use_nonlinear_opt)" />
         <param name="nonlinear_max_iterations" value="$(arg nonlinear_max_iterations)" />
         <param name="nonlinear_time_penalty" value="$(arg nonlinear_time_penalty)" />

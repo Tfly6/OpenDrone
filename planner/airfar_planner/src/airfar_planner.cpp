@@ -63,6 +63,8 @@ void DPMaster::Init() {
   is_robot_stop_      = false;
   is_new_iter_        = false;
   is_reset_env_       = false;
+  is_pending_goal_    = false;
+  pending_goal_is_free_nav_ = false;
 
   // allocate memory to pointers
   new_vertices_ptr_  = PointCloudPtr(new pcl::PointCloud<PCLPoint>());
@@ -464,7 +466,8 @@ void DPMaster::OdomCallBack(const nav_msgs::OdometryConstPtr& msg) {
   tf_odom_pose.getBasis().getRPY(roll, pitch, yaw);
   robot_heading_ = Point3D(cos(yaw), sin(yaw), 0);
 
-  if (!is_odom_init_) {
+  const bool is_first_odom = !is_odom_init_;
+  if (is_first_odom) {
     // system start time
     DPUtil::systemStartTime = ros::Time::now().toSec();
     DPUtil::map_origin = robot_pos_;
@@ -472,6 +475,15 @@ void DPMaster::OdomCallBack(const nav_msgs::OdometryConstPtr& msg) {
   }
 
   is_odom_init_ = true;
+
+  // Latched mission topics can deliver goals before the first odometry
+  // callback creates the map grid.  Apply retained goals once layers exist.
+  if (is_first_odom) {
+    this->DispatchPendingGoal();
+    if (is_waypoint_queue_active_) {
+      this->DispatchNextQueuedWaypoint();
+    }
+  }
 }
 
 void DPMaster::PrcocessCloud(const sensor_msgs::PointCloud2ConstPtr& pc,
@@ -544,6 +556,11 @@ void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
     // extract surround cloud
     map_handler_.GetSurroundObsCloud(DPUtil::surround_obs_cloud_);
     map_handler_.GetSurroundFreeCloud(DPUtil::surround_free_cloud_);
+    ROS_INFO_THROTTLE(
+        1.0,
+        "DPMaster map input: terrain=%zu scan=%zu free=%zu obs=%zu surround_free=%zu surround_obs=%zu",
+        temp_cloud_ptr_->size(), DPUtil::cur_scan_cloud_->size(), temp_free_ptr_->size(),
+        temp_obs_ptr_->size(), DPUtil::surround_free_cloud_->size(), DPUtil::surround_obs_cloud_->size());
   }
   // extract dynamic obstacles
   DPUtil::cur_dyobs_cloud_->clear();
@@ -602,9 +619,21 @@ void DPMaster::ExtractDynamicObsFromScan(const PointCloudPtr& scanCloudIn,
 void DPMaster::ClearWaypointQueue() {
   queued_waypoints_.clear();
   is_waypoint_queue_active_ = false;
+  is_pending_goal_ = false;
+  pending_goal_is_free_nav_ = false;
 }
 
 bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav) {
+  if (!map_handler_.IsInitialized()) {
+    pending_goal_.header.frame_id = goal_frame;
+    pending_goal_.header.stamp = ros::Time::now();
+    pending_goal_.point = DPUtil::Point3DToGeoMsgPoint(goal_p);
+    pending_goal_is_free_nav_ = is_free_nav;
+    is_pending_goal_ = true;
+    ROS_WARN_THROTTLE(1.0, "DPMaster: map is not initialized; deferring goal until first odom.");
+    return false;
+  }
+
   std::string resolved_goal_frame = goal_frame;
   if (resolved_goal_frame.empty()) {
     ROS_WARN("DPMaster: received waypoint with empty frame_id, assuming %s.", master_params_.world_frame.c_str());
@@ -629,7 +658,32 @@ bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame
   return true;
 }
 
+bool DPMaster::DispatchPendingGoal() {
+  if (!is_pending_goal_ || !map_handler_.IsInitialized()) {
+    return false;
+  }
+
+  const geometry_msgs::PointStamped pending_goal = pending_goal_;
+  const bool is_free_nav = pending_goal_is_free_nav_;
+  is_pending_goal_ = false;
+  pending_goal_is_free_nav_ = false;
+  if (!this->UpdateGoalFromPoint(
+          Point3D(pending_goal.point.x, pending_goal.point.y, pending_goal.point.z),
+          pending_goal.header.frame_id,
+          is_free_nav)) {
+    return false;
+  }
+
+  ROS_INFO("DPMaster: dispatched goal deferred until map initialization.");
+  return true;
+}
+
 bool DPMaster::DispatchNextQueuedWaypoint() {
+  if (!map_handler_.IsInitialized()) {
+    ROS_WARN_THROTTLE(1.0, "DPMaster: map is not initialized; retaining queued waypoints.");
+    return false;
+  }
+
   while (!queued_waypoints_.empty()) {
     const geometry_msgs::PointStamped waypoint_msg = queued_waypoints_.front();
     queued_waypoints_.pop_front();

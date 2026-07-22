@@ -55,6 +55,9 @@ private:
     Point3D robot_pos_, robot_heading_, nav_heading_, nav_goal_;
     std::deque<geometry_msgs::PointStamped> queued_waypoints_;
     bool is_waypoint_queue_active_{false};
+    geometry_msgs::PointStamped pending_goal_;
+    bool is_pending_goal_{false};
+    bool pending_goal_is_free_nav_{false};
 
     bool is_robot_stop_, is_new_iter_, is_reset_env_;
 
@@ -134,6 +137,7 @@ private:
     void TargetCallBack(const geometry_msgs::PoseStampedConstPtr & msg);
     void ReachGoalStatusCallBack(const std_msgs::BoolConstPtr& msg);
     bool UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav);
+    bool DispatchPendingGoal();
     void ClearWaypointQueue();
     bool DispatchNextQueuedWaypoint();
 

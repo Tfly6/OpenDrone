@@ -100,11 +100,11 @@ namespace ego_planner
     /* ROS utils */
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
-    ros::Subscriber waypoint_sub_, waypoint_list_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
+    ros::Subscriber goal_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
     ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
 
-  bool debug_fsm_{false};
-  double debug_fsm_interval_{1.0};
+    bool debug_fsm_{false};
+    double debug_fsm_interval_{1.0};
 
     /* helper functions */
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj); // front-end and back-end method
@@ -135,7 +135,7 @@ namespace ego_planner
 
     bool checkCollision();
     void publishSwarmTrajs(bool startup_pub);
-  bool isMapReady();
+    bool isMapReady();
 
   public:
     EGOReplanFSM(/* args */)

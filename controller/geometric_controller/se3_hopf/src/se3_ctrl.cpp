@@ -6,9 +6,6 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &priva
 {
     cmd_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-    reference_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
-    reference_vel_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
-    reference_acc_pub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
 
     set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -175,32 +172,6 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     flight_state_msg.data = static_cast<int8_t>(flightState_);
     flight_state_pub_.publish(flight_state_msg);
 
-    geometry_msgs::PoseStamped ref_msg;
-    ref_msg.header.stamp = ros::Time::now();
-    ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = desired_state_.p(0);
-    ref_msg.pose.position.y = desired_state_.p(1);
-    ref_msg.pose.position.z = desired_state_.p(2);
-    ref_msg.pose.orientation.w = desired_state_.q.w();
-    ref_msg.pose.orientation.x = desired_state_.q.x();
-    ref_msg.pose.orientation.y = desired_state_.q.y();
-    ref_msg.pose.orientation.z = desired_state_.q.z();
-    reference_pose_pub_.publish(ref_msg);
-
-    geometry_msgs::TwistStamped ref_vel_msg;
-    ref_vel_msg.header = ref_msg.header;
-    ref_vel_msg.twist.linear.x = desired_state_.v(0);
-    ref_vel_msg.twist.linear.y = desired_state_.v(1);
-    ref_vel_msg.twist.linear.z = desired_state_.v(2);
-    reference_vel_pub_.publish(ref_vel_msg);
-
-    geometry_msgs::AccelStamped ref_acc_msg;
-    ref_acc_msg.header = ref_msg.header;
-    ref_acc_msg.accel.linear.x = desired_state_.a(0);
-    ref_acc_msg.accel.linear.y = desired_state_.a(1);
-    ref_acc_msg.accel.linear.z = desired_state_.a(2);
-    reference_acc_pub_.publish(ref_acc_msg);
-    
     if (flightState_ != prev_flightState_) {
         ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
         prev_flightState_ = flightState_;
@@ -337,7 +308,7 @@ void Se3HopfCtrl::OdomCallback(const nav_msgs::Odometry::ConstPtr &msg){
     bool judge_y = ((odom_data_.p(1) >= geo_fence_[1]) || (odom_data_.p(1) <= -geo_fence_[1]));
     bool judge_z = (odom_data_.p(2) >= geo_fence_[2]);
     bool judge = (judge_x || judge_y || judge_z);
-    if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND){
+    if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND && flightState_ != LANDING && flightState_ != LANDED){
         flightState_ = EMERGENCY;
         // mavros_msgs::SetMode land_set_mode;
         // land_set_mode.request.custom_mode = mavros_msgs::State::MODE_PX4_LAND;

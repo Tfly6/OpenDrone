@@ -56,9 +56,6 @@ class LQR_Controller {
     ros::Subscriber trajectorySub_;
     ros::Publisher attitudePub_;
     ros::Publisher localPosPub_;
-    ros::Publisher referencePosePub_;
-    ros::Publisher referenceVelPub_;
-    ros::Publisher referenceAccPub_;
     ros::Publisher flightStatePub_;
     ros::ServiceClient armingClient_;
     ros::ServiceClient setModeClient_;
@@ -91,10 +88,24 @@ class LQR_Controller {
     double mass_;
     double gravity_{9.81};
     double hoverThrust_;
+    // Command-envelope protection.  These are intentionally independent of
+    // the LQR cost weights: an unstable Riccati solution must not be allowed
+    // to command an unrecoverable attitude.
+    double maxBodyRateXY_{0.8};
+    double maxBodyRateZ_{0.6};
+    double maxTiltRad_{0.5235987756};  // 30 deg
+    double tiltRecoveryGain_{1.5};
+    double minNormalizedThrust_{0.15};
+    double maxNormalizedThrust_{0.85};
     Eigen::Vector3d initPose_;
     Eigen::Vector3d geoFence_;
     Eigen::Vector3d currentPos_;
     Eigen::Vector3d targetPos_;
+    Eigen::Vector3d currentRpy_{Eigen::Vector3d::Zero()};
+    bool haveOdom_{false};
+    ros::Time lastTrajectoryStamp_;
+    uint32_t lastTrajectoryId_{0};
+    bool missionEntryDebugLogged_{false};
 
     // Current mavros state
     mavros_msgs::State currentState_;

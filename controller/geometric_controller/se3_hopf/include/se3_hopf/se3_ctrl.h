@@ -8,8 +8,6 @@
 #include <mavros_msgs/AttitudeTarget.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/AccelStamped.h>
 #include <opendrone/PlannerOutput.h>
 
 #include "se3_hopf/se3_hopf.hpp"
@@ -24,9 +22,8 @@ class Se3HopfCtrl{
 private:
     ros::NodeHandle nh_;
     ros::NodeHandle private_nh_;
-    ros::Publisher cmd_pub_, local_pos_pub_, flight_state_pub_, reference_pose_pub_,
-                   reference_vel_pub_, reference_acc_pub_;
     ros::Subscriber odom_sub_, imu_sub_, state_sub_, multiDOFJoint_sub_;
+    ros::Publisher cmd_pub_, local_pos_pub_, flight_state_pub_;
     ros::ServiceClient set_mode_client_;
     ros::ServiceClient arming_client_;
     ros::ServiceServer land_service_;

@@ -39,12 +39,12 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   nh.param("fsm/thresh_replan", replan_thresh_, -1.0);
   nh.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
 
-  nh.param("fsm/waypoint_num", waypoint_num_, -1);
-  for (int i = 0; i < waypoint_num_; i++) {
-    nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-    nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-    nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-  }
+  // nh.param("fsm/waypoint_num", waypoint_num_, -1);
+  // for (int i = 0; i < waypoint_num_; i++) {
+  //   nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
+  //   nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
+  //   nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
+  // }
 
   /* initialize main modules */
   planner_manager_.reset(new FastPlannerManager);
@@ -55,9 +55,14 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   exec_timer_   = nh.createTimer(ros::Duration(0.01), &KinoReplanFSM::execFSMCallback, this);
   safety_timer_ = nh.createTimer(ros::Duration(0.05), &KinoReplanFSM::checkCollisionCallback, this);
 
-  waypoint_sub_ =
-      nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
-  waypointList_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &KinoReplanFSM::waypointListCallback, this);
+  if (target_type_ == MANUAL_TARGET)
+    goal_sub_ = nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
+  else if (target_type_ == PRESET_TARGET)
+    goal_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &KinoReplanFSM::waypointListCallback, this);
+  // waypoint_sub_ =
+  //     nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
+  // waypointList_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &KinoReplanFSM::waypointListCallback, this);
+  
   odom_sub_ = nh.subscribe("/odom_world", 1, &KinoReplanFSM::odometryCallback, this);
 
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 10);
@@ -72,15 +77,15 @@ void KinoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& m
   cout << "Triggered!" << endl;
   trigger_ = true;
 
-  if (target_type_ == TARGET_TYPE::MANUAL_TARGET) {
+  // if (target_type_ == TARGET_TYPE::MANUAL_TARGET) {
     end_pt_ << msg->pose.position.x, msg->pose.position.y, 2.0;
 
-  } else if (target_type_ == TARGET_TYPE::PRESET_TARGET) {
-    end_pt_(0)  = waypoints_[current_wp_][0];
-    end_pt_(1)  = waypoints_[current_wp_][1];
-    end_pt_(2)  = waypoints_[current_wp_][2];
-    current_wp_ = (current_wp_ + 1) % waypoint_num_;
-  }
+  // } else if (target_type_ == TARGET_TYPE::PRESET_TARGET) {
+  //   end_pt_(0)  = waypoints_[current_wp_][0];
+  //   end_pt_(1)  = waypoints_[current_wp_][1];
+  //   end_pt_(2)  = waypoints_[current_wp_][2];
+  //   current_wp_ = (current_wp_ + 1) % waypoint_num_;
+  // }
 
   visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
   end_vel_.setZero();
@@ -111,7 +116,7 @@ void KinoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
     waypointList_.push_back(pt);
   }
 
-  target_type_ = TARGET_TYPE::PRESET_TARGET;
+  // target_type_ = TARGET_TYPE::PRESET_TARGET;
   end_pt_(0) = waypointList_[current_wp_](0);
   end_pt_(1) = waypointList_[current_wp_](1);
   end_pt_(2) = waypointList_[current_wp_](2);

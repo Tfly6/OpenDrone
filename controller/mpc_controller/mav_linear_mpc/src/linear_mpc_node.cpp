@@ -117,9 +117,6 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
 
   command_publisher_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust>(command_output_topic, 1);
   attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>(attitude_target_topic, 1);
-  reference_pose_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 1);
-  reference_velocity_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 1);
-  reference_accel_publisher_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 1);
 
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_service);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_service);
@@ -399,32 +396,6 @@ void LinearModelPredictiveControllerNode::ControlTimerCallback(const ros::TimerE
   std_msgs::Int8 flight_state_msg;
   flight_state_msg.data = static_cast<int8_t>(flightState_);
   flight_state_publisher_.publish(flight_state_msg);
-
-  mav_msgs::EigenTrajectoryPoint ref_point;
-  if (linear_mpc_.getCurrentReference(&ref_point)) {
-    geometry_msgs::PoseStamped ref_msg;
-    ref_msg.header.stamp = ros::Time::now();
-    ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = ref_point.position_W.x();
-    ref_msg.pose.position.y = ref_point.position_W.y();
-    ref_msg.pose.position.z = ref_point.position_W.z();
-    ref_msg.pose.orientation = tf::createQuaternionMsgFromYaw(ref_point.getYaw());
-    reference_pose_publisher_.publish(ref_msg);
-
-    geometry_msgs::TwistStamped ref_vel_msg;
-    ref_vel_msg.header = ref_msg.header;
-    ref_vel_msg.twist.linear.x = ref_point.velocity_W.x();
-    ref_vel_msg.twist.linear.y = ref_point.velocity_W.y();
-    ref_vel_msg.twist.linear.z = ref_point.velocity_W.z();
-    reference_velocity_publisher_.publish(ref_vel_msg);
-
-    geometry_msgs::AccelStamped ref_acc_msg;
-    ref_acc_msg.header = ref_msg.header;
-    ref_acc_msg.accel.linear.x = ref_point.acceleration_W.x();
-    ref_acc_msg.accel.linear.y = ref_point.acceleration_W.y();
-    ref_acc_msg.accel.linear.z = ref_point.acceleration_W.z();
-    reference_accel_publisher_.publish(ref_acc_msg);
-  }
 
   if (flightState_ != prev_flightState_) {
     ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to "

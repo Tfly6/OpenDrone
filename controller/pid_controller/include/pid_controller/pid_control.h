@@ -5,8 +5,6 @@
 #include <math.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/AccelStamped.h>
-#include <geometry_msgs/AccelWithCovarianceStamped.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -48,9 +46,6 @@ class pidCtrl {
         ros::Publisher local_pos_pub_, vel_pub_;
         ros::Publisher setpoint_raw_local_pub_;
         ros::Publisher setpoint_raw_attitude_pub_;
-        ros::Publisher referencePosePub_;
-        ros::Publisher referenceVelPub_;
-        ros::Publisher referenceAccPub_;
         ros::Publisher flight_state_pub_;
 
         ros::ServiceClient arming_client_;
@@ -130,8 +125,6 @@ class pidCtrl {
         void state_cb(const mavros_msgs::State::ConstPtr &msg);
         void pos_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
         void vel_cb(const geometry_msgs::TwistStamped::ConstPtr &msg);
-        // void acc_cb(const geometry_msgs::AccelWithCovarianceStamped &msg);
-
 };
 
 #endif

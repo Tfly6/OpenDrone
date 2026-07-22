@@ -30,7 +30,7 @@
         <arg name="odom_topic" value="mavros/local_position/odom"/>
         <arg name="camera_pose_topic" value="camera/pose"/>
         <arg name="depth_topic" value="camera/depth/image_raw"/>
-        <arg name="flight_type" value="1"/>
+        <arg name="flight_type" value="2"/>
     </include>
 
     <!-- Relay odom topic: mavros -> drone_0_mavros -->

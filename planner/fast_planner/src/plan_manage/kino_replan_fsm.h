@@ -83,7 +83,7 @@ private:
   /* parameters */
   int target_type_;  // 1 mannual select, 2 hard code
   double no_replan_thresh_, replan_thresh_;
-  double waypoints_[50][3];
+  // double waypoints_[50][3];
   vector<Eigen::Vector3d> waypointList_;
   int waypoint_num_;
 
@@ -101,7 +101,7 @@ private:
   /* ROS utils */
   ros::NodeHandle node_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, test_something_timer_;
-  ros::Subscriber waypoint_sub_, waypointList_sub_, odom_sub_;
+  ros::Subscriber goal_sub_, odom_sub_;
   ros::Publisher replan_pub_, new_pub_, bspline_pub_;
 
   /* helper functions */

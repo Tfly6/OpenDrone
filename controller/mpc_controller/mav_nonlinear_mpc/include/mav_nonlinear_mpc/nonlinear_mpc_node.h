@@ -10,8 +10,6 @@
 #include <Eigen/Eigen>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/AccelStamped.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
 #include <mav_nonlinear_mpc/NonLinearMPCConfig.h>
 #include <mav_nonlinear_mpc/nonlinear_mpc.h>
@@ -95,9 +93,6 @@ class NonLinearModelPredictiveControllerNode {
 
   ros::Publisher command_publisher_;
   ros::Publisher attitude_target_publisher_;
-  ros::Publisher reference_pose_publisher_;
-  ros::Publisher reference_velocity_publisher_;
-  ros::Publisher reference_accel_publisher_;
   ros::Publisher flight_state_publisher_;
 
   ros::ServiceClient set_mode_client_;
@@ -112,6 +107,8 @@ class NonLinearModelPredictiveControllerNode {
 
   bool has_odometry_;
   bool has_reference_;
+  bool has_active_planner_reference_{false};
+  std::string active_planner_reference_key_;
   bool landing_locked_;
   bool takeoff_trajectory_sent_;
   bool auto_takeoff_{false};
