@@ -39,6 +39,7 @@
  */
 
 #include "se3_lee/se3_lee.h"
+#include "opendrone/planner_output_utils.h"
 #include "se3_lee/jerk_tracking_control.h"
 #include "se3_lee/nonlinear_attitude_control.h"
 #include "se3_lee/nonlinear_geometric_control.h"
@@ -53,7 +54,8 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   //     nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   // yawreferenceSub_ =
   //     nh_.subscribe<std_msgs::Float32>("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
-  multiDOFJointSub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("command/trajectory", 1, &Se3LeeCtrl::multiDOFJointCallback, this,
+  plannerOutputSub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 1, &Se3LeeCtrl::plannerOutputCallback, this,
+                                    ros::TransportHints().tcpNoDelay());
   mavstateSub_ =
       nh_.subscribe<mavros_msgs::State>("mavros/state", 1, &Se3LeeCtrl::mavstateCallback, this, ros::TransportHints().tcpNoDelay());
   mavposeSub_ = nh_.subscribe<geometry_msgs::PoseStamped>("mavros/local_position/pose", 1, &Se3LeeCtrl::mavposeCallback, this,
@@ -182,13 +184,12 @@ Se3LeeCtrl::~Se3LeeCtrl() {
 //   if (!velocity_yaw_) mavYaw_ = double(msg->data); // false
 // }
 
-void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) {
-  // command/trajectory
+void Se3LeeCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg) {
   if (msg->points.empty()) {
-    ROS_WARN("Received empty trajectory message");
+    ROS_WARN("Received empty planner output message");
     return;
   }
-  trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
+  const opendrone::PlannerOutputPoint &pt = msg->points[0];
   reference_request_last_ = reference_request_now_;
 
   targetPos_prev_ = targetPos_;
@@ -197,18 +198,14 @@ void Se3LeeCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTraje
   reference_request_now_ = ros::Time::now();
   reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
 
-  targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
-  targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
-
-  targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
-  targetJerk_ = Eigen::Vector3d::Zero();
-  targetSnap_ = Eigen::Vector3d::Zero();
+  targetPos_ = opendrone::planner_output::SelectPosition(pt, targetPos_);
+  targetVel_ = opendrone::planner_output::SelectVelocity(pt);
+  targetAcc_ = opendrone::planner_output::SelectAcceleration(pt);
+  targetJerk_ = opendrone::planner_output::SelectJerk(pt);
+  targetSnap_ = opendrone::planner_output::SelectSnap(pt);
 
   if (!velocity_yaw_) { // false
-    Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
-                         pt.transforms[0].rotation.z);
-    Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
-    mavYaw_ = rpy(2);
+    mavYaw_ = opendrone::planner_output::SelectYaw(pt, mavYaw_);
   }
 }
 

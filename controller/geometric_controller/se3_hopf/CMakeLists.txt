@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   dynamic_reconfigure
+  opendrone
   # airsim_ros_pkgs
 )
 
@@ -25,7 +26,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES se3_hopf
- CATKIN_DEPENDS geometry_msgs nav_msgs mavros_msgs roscpp rospy std_msgs tf
+ CATKIN_DEPENDS geometry_msgs nav_msgs mavros_msgs opendrone roscpp rospy std_msgs tf
 #  DEPENDS system_lib
 )
 
@@ -40,7 +41,7 @@ add_executable(se3_hopf_node
   src/se3_ctrl.cpp
 )
 
-add_dependencies(se3_hopf_node ${PROJECT_NAME}_gencfg)
+add_dependencies(se3_hopf_node ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(se3_hopf_node
   ${catkin_LIBRARIES}

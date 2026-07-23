@@ -10,10 +10,10 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <opendrone/PlannerOutput.h>
+#include <opendrone/PlannerOutputPoint.h>
 #include <ros/ros.h>
 #include <std_msgs/Empty.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
-#include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 
 #include <Eigen/Dense>
 
@@ -61,9 +61,9 @@ class RpgTrajNode {
 
   Eigen::VectorXd buildInitialSegmentTimes(size_t num_segments) const;
   nav_msgs::Path toPath(const polynomial_trajectories::Trajectory& tr) const;
-  trajectory_msgs::MultiDOFJointTrajectory toMultiDOF(
+  opendrone::PlannerOutput toPlannerOutput(
       const polynomial_trajectories::Trajectory& tr) const;
-  trajectory_msgs::MultiDOFJointTrajectory toMultiDOFPoint(
+  opendrone::PlannerOutput toPlannerOutputPoint(
       const polynomial_trajectories::TrajectoryPoint& p) const;
   bool getReferenceAtTime(const ros::Duration& t,
                           polynomial_trajectories::TrajectoryPoint* out) const;
@@ -78,7 +78,7 @@ class RpgTrajNode {
   ros::Subscriber waypoint_sub_;
   ros::Subscriber cancel_sub_;
   ros::Publisher path_pub_;
-  ros::Publisher command_traj_pub_;
+  ros::Publisher planner_output_pub_;
   ros::Timer timer_;
 
   std::mutex mtx_;
@@ -99,7 +99,7 @@ class RpgTrajNode {
   std::string waypoint_topic_;
   std::string cancel_topic_;
   std::string path_topic_;
-  std::string command_traj_topic_;
+  std::string planner_output_topic_;
   std::string world_frame_;
 
   bool use_minimum_snap_{true};

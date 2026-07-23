@@ -45,7 +45,7 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     // Initialize subscribers
     stateSub_ = nodeHandle_.subscribe<mavros_msgs::State>("/mavros/state", 10, &LQR_Controller::stateCallback, this);
     odomSub_ = nodeHandle_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 1, &LQR_Controller::odomCallback, this);
-    trajectorySub_ = nodeHandle_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
+    plannerOutputSub_ = nodeHandle_.subscribe<opendrone::PlannerOutput>("/planner/output", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
 
     // Initialize publishers
     attitudePub_ = nodeHandle_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
@@ -169,6 +169,22 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     case MISSION_EXECUTION:   
     {
         ROS_INFO_ONCE("Executing mission...");
+        if (!missionEntryDebugLogged_) {
+            const auto ref = lqr_quaternion_.getRefStates();
+            const auto error = lqr_quaternion_.getError();
+            ROS_WARN(
+                "LQR mission entry: current_pos [%.2f, %.2f, %.2f], ref_pos [%.2f, %.2f, %.2f], "
+                "pos_err [%.2f, %.2f, %.2f], ref_vel [%.2f, %.2f, %.2f], vel_err [%.2f, %.2f, %.2f], "
+                "traj_id=%u, traj_age=%.3f s",
+                currentPos_[0], currentPos_[1], currentPos_[2],
+                ref(0), ref(1), ref(2),
+                error(0), error(1), error(2),
+                ref(7), ref(8), ref(9),
+                error(7), error(8), error(9),
+                lastTrajectoryId_,
+                lastTrajectoryStamp_.isZero() ? -1.0 : (ros::Time::now() - lastTrajectoryStamp_).toSec());
+            missionEntryDebugLogged_ = true;
+        }
         // The controllers compute control outputs based on trajectory
         Eigen::Vector4d cmd_body_rate_thrust;
         computeControlCommands(cmd_body_rate_thrust);
@@ -377,13 +393,27 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
         lqr_quaternion_.computeLQR();
 }
 
-void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg)
+void LQR_Controller::trajectoryCallback(const opendrone::PlannerOutput::ConstPtr& msg)
 {
     if(msg->points.empty()) {
-        ROS_WARN("Received empty trajectory");
+        ROS_WARN("Received empty planner output");
         return;
     }
+    lastTrajectoryStamp_ = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+    lastTrajectoryId_ = msg->trajectory_id;
     lqr_quaternion_.setTrajectory(*msg);
+    const auto& first_pt = msg->points.front();
+    ROS_INFO_THROTTLE(
+        1.0,
+        "LQR planner/output: traj_id=%ld periodic=%s points=%zu start=(%.2f, %.2f, %.2f) vel=(%.2f, %.2f, %.2f) "
+        "traj_start=%.3f duration=%.3f",
+        msg->trajectory_id,
+        msg->is_periodic ? "true" : "false",
+        msg->points.size(),
+        first_pt.position.x, first_pt.position.y, first_pt.position.z,
+        first_pt.velocity.x, first_pt.velocity.y, first_pt.velocity.z,
+        msg->trajectory_start_time.toSec(),
+        msg->trajectory_duration.toSec());
     // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg->points.size());
 }
 

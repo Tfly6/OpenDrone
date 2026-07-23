@@ -1,4 +1,6 @@
 #include "pid_controller/pid_control.h"
+#include "opendrone/planner_output_utils.h"
+#include <tf/transform_datatypes.h>
 
 using namespace std;
 
@@ -12,7 +14,7 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
     pos_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &pidCtrl::pos_cb, this);
     vel_sub_ = nh_.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 10, &pidCtrl::vel_cb, this);
     simpleWaypoint_sub_ = nh_.subscribe<nav_msgs::Path>("/waypoint_generator/waypoints", 10, &pidCtrl::simpleWaypoint_cb, this);
-    multiDOFJoint_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 10, &pidCtrl::multiDOFJointCallback, this);
+    plannerOutput_sub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 10, &pidCtrl::plannerOutputCallback, this);
 
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 10);
@@ -287,28 +289,22 @@ void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){
     ROS_INFO("Received %zu waypoints.", waypoints_.size());
 }
 
-void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
+void pidCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg) 
 {
     if (msg->points.empty()) {
-        ROS_WARN("Received empty trajectory message");
+        ROS_WARN("Received empty planner output message");
         return;
     }
-    // command/trajectory
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
+    const opendrone::PlannerOutputPoint &pt = msg->points[0];
     // reference_request_last_ = reference_request_now_;
   
     // reference_request_now_ = ros::Time::now();
     // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
   
-    targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
-    targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
-  
-    targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
-
-    Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
-        pt.transforms[0].rotation.z);
-    Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
-    yaw_ref_ = rpy(2);
+    targetPos_ = opendrone::planner_output::SelectPosition(pt, targetPos_);
+    targetVel_ = opendrone::planner_output::SelectVelocity(pt);
+    targetAcc_ = opendrone::planner_output::SelectAcceleration(pt);
+    yaw_ref_ = opendrone::planner_output::SelectYaw(pt, yaw_ref_);
 }
 
 void pidCtrl::state_cb(const mavros_msgs::State::ConstPtr &msg)

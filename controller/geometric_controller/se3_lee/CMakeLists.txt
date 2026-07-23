@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   mavros_extras
   mavros_msgs
+  opendrone
 )
 
 generate_dynamic_reconfigure_options(
@@ -22,7 +23,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES se3_lee
-  CATKIN_DEPENDS roscpp rospy std_msgs mavros_msgs geometry_msgs sensor_msgs tf
+  CATKIN_DEPENDS roscpp rospy std_msgs mavros_msgs geometry_msgs opendrone sensor_msgs tf
 )
 
 #############

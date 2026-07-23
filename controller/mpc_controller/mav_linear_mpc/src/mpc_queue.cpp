@@ -1,7 +1,6 @@
 #include <mav_linear_mpc/mpc_queue.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -12,141 +11,84 @@ namespace {
 inline double shortestAngularDistance(const double from, const double to) {
   return std::atan2(std::sin(to - from), std::cos(to - from));
 }
+
+mav_msgs::EigenTrajectoryPoint Interpolate(
+    const mav_msgs::EigenTrajectoryPoint& first,
+    const mav_msgs::EigenTrajectoryPoint& second, const int64_t timestamp_ns) {
+  const int64_t dt_ns = second.timestamp_ns - first.timestamp_ns;
+  if (dt_ns <= 0) {
+    return second;
+  }
+  const double ratio = static_cast<double>(timestamp_ns - first.timestamp_ns) /
+                       static_cast<double>(dt_ns);
+  mav_msgs::EigenTrajectoryPoint point;
+  point.position_W = first.position_W + ratio * (second.position_W - first.position_W);
+  point.velocity_W = first.velocity_W + ratio * (second.velocity_W - first.velocity_W);
+  point.acceleration_W = first.acceleration_W + ratio *
+      (second.acceleration_W - first.acceleration_W);
+  const double yaw = first.getYaw() + shortestAngularDistance(first.getYaw(), second.getYaw()) * ratio;
+  point.setFromYaw(yaw);
+  point.setFromYawRate(first.getYawRate() + ratio *
+      (second.getYawRate() - first.getYawRate()));
+  point.timestamp_ns = timestamp_ns;
+  return point;
+}
 }  // namespace
 
 namespace mav_control {
 
-MPCQueue::MPCQueue(int mpc_queue_size,
-                   double controller_sampling_time,
+MPCQueue::MPCQueue(int mpc_queue_size, double controller_sampling_time,
                    double prediction_sampling_time)
-    : minimum_queue_size_(0),
-      mpc_queue_size_(mpc_queue_size),
+    : mpc_queue_size_(mpc_queue_size),
       maximum_queue_size_(10000),
-      current_queue_size_(0),
       prediction_sampling_time_(prediction_sampling_time),
       queue_dt_(controller_sampling_time),
-      queue_start_time_(0.0) {
-  const int step_ratio = std::max(1, static_cast<int>(std::ceil(prediction_sampling_time_ / queue_dt_)));
-  minimum_queue_size_ = std::max(2, mpc_queue_size_ * step_ratio);
-
-  mav_msgs::EigenTrajectoryPoint point;
-  fillQueueWithPoint(point);
-}
+      has_last_output_(false) {}
 
 MPCQueue::~MPCQueue() {}
 
-void MPCQueue::clearQueue() {
-  position_reference_.clear();
-  velocity_reference_.clear();
-  acceleration_reference_.clear();
-  yaw_reference_.clear();
-  yaw_rate_reference_.clear();
-  queue_start_time_ = 0.0;
-  current_queue_size_ = 0;
-}
-
-void MPCQueue::fillQueueWithPoint(const mav_msgs::EigenTrajectoryPoint& point) {
-  while (current_queue_size_ < minimum_queue_size_) {
-    pushBackPoint(point);
-  }
-}
-
-void MPCQueue::insertReferenceTrajectory(const mav_msgs::EigenTrajectoryPointDeque& queue) {
-  mav_msgs::EigenTrajectoryPointDeque interpolated_queue;
-  linearInterpolateTrajectory(queue, interpolated_queue);
-  if (interpolated_queue.empty()) {
+void MPCQueue::insertReferenceTrajectory(const mav_msgs::EigenTrajectoryPointDeque& queue,
+                                         const bool replace_existing) {
+  mav_msgs::EigenTrajectoryPointDeque interpolated;
+  linearInterpolateTrajectory(queue, interpolated);
+  if (interpolated.empty()) {
     return;
   }
 
-  const double commanded_time_from_start =
-      static_cast<double>(interpolated_queue.begin()->time_from_start_ns) * 1e-9;
-
-  if (commanded_time_from_start <= queue_start_time_ || commanded_time_from_start <= 1e-4) {
-    clearQueue();
-    queue_start_time_ = commanded_time_from_start;
+  if (replace_existing) {
+    reference_points_.clear();
   } else {
-    const double queue_end_time = queue_start_time_ + current_queue_size_ * queue_dt_;
-    if (commanded_time_from_start < queue_end_time) {
-      const size_t start_index = std::round((commanded_time_from_start - queue_start_time_) / queue_dt_);
-      position_reference_.erase(position_reference_.begin() + start_index, position_reference_.end());
-      velocity_reference_.erase(velocity_reference_.begin() + start_index, velocity_reference_.end());
-      acceleration_reference_.erase(acceleration_reference_.begin() + start_index, acceleration_reference_.end());
-      yaw_reference_.erase(yaw_reference_.begin() + start_index, yaw_reference_.end());
-      yaw_rate_reference_.erase(yaw_rate_reference_.begin() + start_index, yaw_rate_reference_.end());
-      current_queue_size_ = static_cast<int>(start_index);
-    }
+    const int64_t first_ns = interpolated.front().timestamp_ns;
+    const int64_t last_ns = interpolated.back().timestamp_ns;
+    reference_points_.erase(
+        std::remove_if(reference_points_.begin(), reference_points_.end(),
+                       [first_ns, last_ns](const mav_msgs::EigenTrajectoryPoint& point) {
+                         return point.timestamp_ns >= first_ns && point.timestamp_ns <= last_ns;
+                       }),
+        reference_points_.end());
   }
 
-  for (auto it = interpolated_queue.begin(); it != interpolated_queue.end(); ++it) {
-    position_reference_.push_back(it->position_W);
-    velocity_reference_.push_back(it->velocity_W);
-    acceleration_reference_.push_back(it->acceleration_W);
-    yaw_reference_.push_back(it->getYaw());
-    yaw_rate_reference_.push_back(it->getYawRate());
-    current_queue_size_++;
-  }
-
-  if (current_queue_size_ < minimum_queue_size_) {
-    fillQueueWithPoint(interpolated_queue.back());
-  }
-}
-
-void MPCQueue::pushBackPoint(const mav_msgs::EigenTrajectoryPoint& point) {
-  if (current_queue_size_ >= maximum_queue_size_) {
-    ROS_WARN_STREAM_THROTTLE(1, "MPC: maximum queue size reached, discarding last reference point");
-    return;
-  }
-
-  position_reference_.push_back(point.position_W);
-  velocity_reference_.push_back(point.velocity_W);
-  acceleration_reference_.push_back(point.acceleration_W);
-  yaw_reference_.push_back(point.getYaw());
-  yaw_rate_reference_.push_back(point.getYawRate());
-  current_queue_size_++;
-}
-
-void MPCQueue::popFrontPoint() {
-  if (current_queue_size_ <= 0) {
-    return;
-  }
-
-  position_reference_.pop_front();
-  velocity_reference_.pop_front();
-  acceleration_reference_.pop_front();
-  yaw_reference_.pop_front();
-  yaw_rate_reference_.pop_front();
-  queue_start_time_ += queue_dt_;
-  current_queue_size_--;
-}
-
-void MPCQueue::getLastPoint(mav_msgs::EigenTrajectoryPoint* point) const {
-  assert(point != nullptr);
-  if (current_queue_size_ <= 0) {
-    return;
-  }
-
-  point->position_W = position_reference_.back();
-  point->velocity_W = velocity_reference_.back();
-  point->acceleration_W = acceleration_reference_.back();
-  point->setFromYaw(yaw_reference_.back());
-  point->setFromYawRate(yaw_rate_reference_.back());
-}
-
-void MPCQueue::updateQueue() {
-  popFrontPoint();
-  if (current_queue_size_ <= 0) {
-    return;
-  }
-
-  mav_msgs::EigenTrajectoryPoint point;
-  getLastPoint(&point);
-
-  while (current_queue_size_ < minimum_queue_size_) {
-    pushBackPoint(point);
+  reference_points_.insert(reference_points_.end(), interpolated.begin(), interpolated.end());
+  std::sort(reference_points_.begin(), reference_points_.end(),
+            [](const mav_msgs::EigenTrajectoryPoint& lhs,
+               const mav_msgs::EigenTrajectoryPoint& rhs) {
+              return lhs.timestamp_ns < rhs.timestamp_ns;
+            });
+  reference_points_.erase(
+      std::unique(reference_points_.begin(), reference_points_.end(),
+                  [](const mav_msgs::EigenTrajectoryPoint& lhs,
+                     const mav_msgs::EigenTrajectoryPoint& rhs) {
+                    return lhs.timestamp_ns == rhs.timestamp_ns;
+                  }),
+      reference_points_.end());
+  if (reference_points_.size() > static_cast<size_t>(maximum_queue_size_)) {
+    reference_points_.erase(reference_points_.begin(),
+                            reference_points_.end() - maximum_queue_size_);
+    ROS_WARN_STREAM_THROTTLE(1.0, "MPC: maximum timed reference buffer size reached");
   }
 }
 
-void MPCQueue::getQueue(Vector3dDeque& position_reference,
+void MPCQueue::getQueue(const int64_t now_ns, Vector3dDeque& position_reference,
                         Vector3dDeque& velocity_reference,
                         Vector3dDeque& acceleration_reference,
                         std::deque<double>& yaw_reference,
@@ -157,119 +99,118 @@ void MPCQueue::getQueue(Vector3dDeque& position_reference,
   yaw_reference.clear();
   yaw_rate_reference.clear();
 
-  if (current_queue_size_ <= 0) {
-    return;
+  const int64_t prediction_dt_ns = static_cast<int64_t>(prediction_sampling_time_ * 1.0e9);
+  for (int i = 0; i < mpc_queue_size_; ++i) {
+    const mav_msgs::EigenTrajectoryPoint point = sampleAt(now_ns + i * prediction_dt_ns);
+    position_reference.push_back(point.position_W);
+    velocity_reference.push_back(point.velocity_W);
+    acceleration_reference.push_back(point.acceleration_W);
+    yaw_reference.push_back(point.getYaw());
+    yaw_rate_reference.push_back(point.getYawRate());
+    if (i == 0) {
+      last_output_ = point;
+      has_last_output_ = true;
+    }
+  }
+  prunePastPoints(now_ns);
+}
+
+mav_msgs::EigenTrajectoryPoint MPCQueue::sampleAt(const int64_t timestamp_ns) const {
+  if (reference_points_.empty()) {
+    return has_last_output_ ? last_output_ : mav_msgs::EigenTrajectoryPoint();
+  }
+  if (timestamp_ns < reference_points_.front().timestamp_ns) {
+    // A future trajectory must not be started early.  Continue the last
+    // evaluated reference while waiting for its declared start time.
+    ROS_WARN_STREAM_THROTTLE(
+        1.0, "MPCQueue: reference is in the future: now_ns=" << timestamp_ns
+             << " first_ns=" << reference_points_.front().timestamp_ns
+             << " last_ns=" << reference_points_.back().timestamp_ns
+             << " delay_s=" << (reference_points_.front().timestamp_ns - timestamp_ns) * 1.0e-9);
+    return has_last_output_ ? last_output_ : reference_points_.front();
+  }
+  if (timestamp_ns >= reference_points_.back().timestamp_ns) {
+    return reference_points_.back();
   }
 
-  const int step = std::max(1, static_cast<int>(std::ceil(prediction_sampling_time_ / queue_dt_)));
-  const int usable_size = step * static_cast<int>(std::floor(static_cast<double>(current_queue_size_) / step));
+  const auto second = std::upper_bound(
+      reference_points_.begin(), reference_points_.end(), timestamp_ns,
+      [](const int64_t timestamp, const mav_msgs::EigenTrajectoryPoint& point) {
+        return timestamp < point.timestamp_ns;
+      });
+  const auto first = std::prev(second);
+  const int64_t gap_ns = second->timestamp_ns - first->timestamp_ns;
+  const int64_t max_contiguous_gap_ns = static_cast<int64_t>(1.5 * queue_dt_ * 1.0e9);
+  if (gap_ns > max_contiguous_gap_ns) {
+    // Do not invent a transition across an uncovered gap between horizons.
+    ROS_WARN_STREAM_THROTTLE(
+        1.0, "MPCQueue: uncovered reference gap: now_ns=" << timestamp_ns
+             << " first_ns=" << first->timestamp_ns << " second_ns=" << second->timestamp_ns
+             << " gap_s=" << gap_ns * 1.0e-9
+             << " allowed_s=" << max_contiguous_gap_ns * 1.0e-9);
+    return *first;
+  }
+  return Interpolate(*first, *second, timestamp_ns);
+}
 
-  for (int i = 0; i < usable_size; i += step) {
-    position_reference.push_back(position_reference_.at(i));
-    velocity_reference.push_back(velocity_reference_.at(i));
-    acceleration_reference.push_back(acceleration_reference_.at(i));
-    yaw_reference.push_back(yaw_reference_.at(i));
-    yaw_rate_reference.push_back(yaw_rate_reference_.at(i));
+void MPCQueue::prunePastPoints(const int64_t now_ns) {
+  while (reference_points_.size() > 1 &&
+         reference_points_[1].timestamp_ns <= now_ns) {
+    reference_points_.pop_front();
   }
 }
 
-void MPCQueue::linearInterpolateTrajectory(const mav_msgs::EigenTrajectoryPointDeque& input_queue,
-                                           mav_msgs::EigenTrajectoryPointDeque& interpolated_queue) const {
-  interpolated_queue.clear();
+void MPCQueue::linearInterpolateTrajectory(
+    const mav_msgs::EigenTrajectoryPointDeque& input_queue,
+    mav_msgs::EigenTrajectoryPointDeque& output_queue) const {
+  output_queue.clear();
   if (input_queue.empty()) {
-    ROS_WARN_THROTTLE(1.0, "MPCQueue: Empty reference queue.");
+    ROS_WARN_THROTTLE(1.0, "MPCQueue: empty reference trajectory.");
     return;
   }
 
-  if (input_queue.size() < 2) {
-    const mav_msgs::EigenTrajectoryPoint& p0 = input_queue.front();
-    const int horizon_points = std::max(2, minimum_queue_size_);
-    const int64_t base_t = p0.time_from_start_ns;
-    const int64_t dt_ns = static_cast<int64_t>(queue_dt_ * 1.0e9);
-    const double yaw0 = p0.getYaw();
-    const double yaw_rate0 = p0.getYawRate();
+  std::vector<mav_msgs::EigenTrajectoryPoint> input(input_queue.begin(), input_queue.end());
+  std::sort(input.begin(), input.end(), [](const mav_msgs::EigenTrajectoryPoint& lhs,
+                                           const mav_msgs::EigenTrajectoryPoint& rhs) {
+    return lhs.timestamp_ns < rhs.timestamp_ns;
+  });
+  input.erase(std::unique(input.begin(), input.end(), [](const mav_msgs::EigenTrajectoryPoint& lhs,
+                                                         const mav_msgs::EigenTrajectoryPoint& rhs) {
+                return lhs.timestamp_ns == rhs.timestamp_ns;
+              }), input.end());
 
+  const int64_t queue_dt_ns = std::max<int64_t>(1, static_cast<int64_t>(queue_dt_ * 1.0e9));
+  if (input.size() == 1) {
+    const mav_msgs::EigenTrajectoryPoint& first = input.front();
+    const int horizon_points = std::max(
+        2, static_cast<int>(std::ceil(
+               mpc_queue_size_ * prediction_sampling_time_ / queue_dt_)) + 1);
     for (int i = 0; i < horizon_points; ++i) {
       const double t = i * queue_dt_;
       mav_msgs::EigenTrajectoryPoint point;
-      point.position_W = p0.position_W + p0.velocity_W * t + 0.5 * p0.acceleration_W * t * t;
-      point.velocity_W = p0.velocity_W + p0.acceleration_W * t;
-      point.acceleration_W = p0.acceleration_W;
-      point.setFromYaw(yaw0 + yaw_rate0 * t);
-      point.setFromYawRate(yaw_rate0);
-      point.time_from_start_ns = base_t + static_cast<int64_t>(i) * dt_ns;
-      interpolated_queue.push_back(point);
+      point.position_W = first.position_W + first.velocity_W * t +
+          0.5 * first.acceleration_W * t * t;
+      point.velocity_W = first.velocity_W + first.acceleration_W * t;
+      point.acceleration_W = first.acceleration_W;
+      point.setFromYaw(first.getYaw() + first.getYawRate() * t);
+      point.setFromYawRate(first.getYawRate());
+      point.timestamp_ns = first.timestamp_ns + i * queue_dt_ns;
+      output_queue.push_back(point);
     }
     return;
   }
 
-  std::vector<int64_t> time_input;
-  std::vector<int64_t> time_output;
-
-  const int64_t kDefaultDtNsec = 10000000;
-  int64_t time_prev = 0;
-  for (auto it = input_queue.begin(); it != input_queue.end(); ++it) {
-    int64_t current_time = it->time_from_start_ns;
-    if (it != input_queue.begin() && current_time == 0) {
-      current_time = time_prev + kDefaultDtNsec;
-    }
-    time_prev = current_time;
-    time_input.push_back(current_time);
+  const int64_t start_ns = input.front().timestamp_ns;
+  const int64_t end_ns = input.back().timestamp_ns;
+  for (int64_t timestamp_ns = start_ns; timestamp_ns < end_ns; timestamp_ns += queue_dt_ns) {
+    const auto second = std::upper_bound(
+        input.begin(), input.end(), timestamp_ns,
+        [](const int64_t timestamp, const mav_msgs::EigenTrajectoryPoint& point) {
+          return timestamp < point.timestamp_ns;
+        });
+    output_queue.push_back(Interpolate(*std::prev(second), *second, timestamp_ns));
   }
-
-  const int64_t time_0 = time_input.front();
-  const int64_t queue_dt_ns = static_cast<int64_t>(queue_dt_ * 1.0e9);
-  time_output.push_back(time_0);
-
-  const int sample_count = (time_input.back() - time_input.front()) / queue_dt_ns + 1;
-  for (int i = 1; i < sample_count; ++i) {
-    time_output.push_back(time_0 + queue_dt_ns * i);
-  }
-
-  for (auto it = time_output.begin(); it != time_output.end(); ++it) {
-    mav_msgs::EigenTrajectoryPoint point;
-
-    auto sol = std::upper_bound(time_input.begin(), time_input.end(), *it);
-    if (sol == time_input.begin()) {
-      ++sol;
-    }
-    if (sol == time_input.end()) {
-      --sol;
-    }
-
-    const int64_t time1 = *(sol - 1);
-    const int64_t time2 = *sol;
-    if (time2 == time1) {
-      continue;
-    }
-
-    const size_t idx2 = static_cast<size_t>(sol - time_input.begin());
-    const size_t idx1 = idx2 - 1;
-
-    const Eigen::Vector3d& position_2 = input_queue.at(idx2).position_W;
-    const Eigen::Vector3d& position_1 = input_queue.at(idx1).position_W;
-    point.position_W = position_1 + ((position_2 - position_1) / (time2 - time1)) * (*it - time1);
-
-    const Eigen::Vector3d& velocity_2 = input_queue.at(idx2).velocity_W;
-    const Eigen::Vector3d& velocity_1 = input_queue.at(idx1).velocity_W;
-    point.velocity_W = velocity_1 + ((velocity_2 - velocity_1) / (time2 - time1)) * (*it - time1);
-
-    const Eigen::Vector3d& acceleration_2 = input_queue.at(idx2).acceleration_W;
-    const Eigen::Vector3d& acceleration_1 = input_queue.at(idx1).acceleration_W;
-    point.acceleration_W = acceleration_1 + ((acceleration_2 - acceleration_1) / (time2 - time1)) * (*it - time1);
-
-    const double yaw_1 = input_queue.at(idx1).getYaw();
-    const double yaw_2 = input_queue.at(idx2).getYaw();
-    const double ratio = static_cast<double>(*it - time1) / static_cast<double>(time2 - time1);
-    point.setFromYaw(yaw_1 + shortestAngularDistance(yaw_1, yaw_2) * ratio);
-
-    const double yaw_rate_1 = input_queue.at(idx1).getYawRate();
-    const double yaw_rate_2 = input_queue.at(idx2).getYawRate();
-    point.setFromYawRate(yaw_rate_1 + ((yaw_rate_2 - yaw_rate_1) / (time2 - time1)) * (*it - time1));
-
-    point.time_from_start_ns = *it;
-    interpolated_queue.push_back(point);
-  }
+  output_queue.push_back(input.back());
 }
 
 }  // namespace mav_control

@@ -23,9 +23,15 @@
         <remap from="/trajectory_generation/waypoint" to="/waypoint_generator/waypoints" />
   </node>
 
-  <!--- Trajectory sampler -->
-  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
+  <!-- Behaviour: convert the polynomial message to OpenDrone planner output. -->
+  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node"
+        output="screen" clear_params="true">
         <param name="publish_whole_trajectory" value="false" />
+        <param name="planner_output_topic" value="/planner/output"/>
+        <param name="planner_id" value="mav_trajectory_planner"/>
+        <param name="planner_family" value="trajectory_generator"/>
+        <param name="source_topic" value="/trajectory_generation/trajectory"/>
+        <param name="frame_id" value="map"/>
         <remap from="path_segments_4D" to="/trajectory_generation/trajectory"/>
         <remap from="traj_start_trigger" to="/waypoint_generator/traj_start_trigger"/>
   </node>

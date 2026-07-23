@@ -69,8 +69,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <se3_lee/GeometricControllerConfig.h>
 #include <std_srvs/SetBool.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
-#include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
+#include <opendrone/PlannerOutput.h>
 
 #include "se3_lee/common.h"
 #include "se3_lee/control.h"
@@ -101,7 +100,7 @@ class Se3LeeCtrl {
   dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType dyn_config_callback_type_;
   // ros::Subscriber referenceSub_;
   // ros::Subscriber flatreferenceSub_;
-  ros::Subscriber multiDOFJointSub_;
+  ros::Subscriber plannerOutputSub_;
   ros::Subscriber mavstateSub_;
   ros::Subscriber mavposeSub_, gzmavposeSub_;
   ros::Subscriber mavtwistSub_;
@@ -167,9 +166,9 @@ class Se3LeeCtrl {
   // void pubSystemStatus();
   // void appendPoseHistory();
   // void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
-  void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
   // void targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
   // void yawtargetCallback(const std_msgs::Float32::ConstPtr &msg);
+  void plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg);
   // void keyboardCallback(const geometry_msgs::Twist &msg);
   void cmdloopCallback(const ros::TimerEvent &event);
   void mavstateCallback(const mavros_msgs::State::ConstPtr &msg);

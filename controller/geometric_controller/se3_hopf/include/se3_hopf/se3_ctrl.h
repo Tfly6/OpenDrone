@@ -22,8 +22,8 @@ class Se3HopfCtrl{
 private:
     ros::NodeHandle nh_;
     ros::NodeHandle private_nh_;
-    ros::Subscriber odom_sub_, imu_sub_, state_sub_, multiDOFJoint_sub_;
     ros::Publisher cmd_pub_, local_pos_pub_, flight_state_pub_;
+    ros::Subscriber odom_sub_, imu_sub_, state_sub_, plannerOutput_sub_;
     ros::ServiceClient set_mode_client_;
     ros::ServiceClient arming_client_;
     ros::ServiceServer land_service_;
@@ -94,7 +94,7 @@ private:
     void OdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void IMUCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void StateCallback(const mavros_msgs::State::ConstPtr &msg);
-    void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
+    void plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg);
     void TrySetOffboard(const ros::Time &now);
     void TryArm(const ros::Time &now);
     void applyTuneConfig(const se3_hopf::se3_dynamic_tuneConfig &config);

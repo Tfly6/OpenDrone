@@ -28,8 +28,8 @@
     <param name="request_interval" value="1.0"/>
 
     <param name="takeoff_height" value="$(arg takeoff_height)" />
-    <param name="takeoff_point_count" value="5" />
-    <param name="takeoff_duration" value="4.0" />
+    <param name="takeoff_point_count" value="30" />
+    <param name="takeoff_duration" value="3.0" />
     <param name="geo_fence/x" value="50.0"/>
     <param name="geo_fence/y" value="50.0"/>
     <param name="geo_fence/z" value="6.0"/>

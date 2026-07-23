@@ -62,6 +62,14 @@
         <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
     </include>
 
+     <node pkg="opendrone" name="planner_adapter"
+          type="planner_adapter.py" output="screen">
+        <param name="adapter_type" value="waypoint" />
+        <param name="planner_id" value="airfar_planner" />
+        <param name="planner_family" value="online_planner" />
+        <param name="input_topic" value="/way_point" />
+        <param name="planner_output_topic" value="/planner/output" />
+        <param name="frame_id" value="map" />
     </node>
 
     <!-- RViz -->

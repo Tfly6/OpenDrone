@@ -1,4 +1,5 @@
 #include "lqr_controller/lqr_quaternion.hpp"
+#include "opendrone/planner_output_utils.h"
 
 namespace lqr {
 
@@ -125,7 +126,7 @@ void LQR_Quaternion::computeLQR()
   }
 }
 
-void LQR_Quaternion::setTrajectory(const trajectory_msgs::MultiDOFJointTrajectory& msg)
+void LQR_Quaternion::setTrajectory(const opendrone::PlannerOutput& msg)
 {
   trajectory_ = msg;
   // ROS_INFO("LQR Controller: Received trajectory with %zu points", msg.points.size());
@@ -287,81 +288,86 @@ bool LQR_Quaternion::setTrajectoryReference(state_vector_quat_t& xref, control_v
     return false;
   }
 
-  // Find the trajectory point closest to current position
-  int selected_idx = 0;
-  double min_dist = std::numeric_limits<double>::max();
+  ros::Time reference_time = trajectory_.trajectory_start_time;
+  if (reference_time.isZero()) {
+    reference_time = trajectory_.header.stamp;
+  }
+
+  ros::Duration target_time = ros::Time::now() - reference_time;
+  if (target_time.toSec() < 0.0) {
+    target_time = ros::Duration(0.0);
+  }
+
+  int selected_idx = static_cast<int>(trajectory_.points.size()) - 1;
+  int64_t target_ns = opendrone::planner_output::ToNanoseconds(target_time);
+  int64_t best_error_ns = std::numeric_limits<int64_t>::max();
 
   for (int i = 0; i < static_cast<int>(trajectory_.points.size()); ++i) {
-    const auto& pt = trajectory_.points[i];
-    Eigen::Vector3d pt_pos(pt.transforms[0].translation.x,
-                           pt.transforms[0].translation.y,
-                           pt.transforms[0].translation.z);
-    double dist = (position_enu_ - pt_pos).norm();
-
-    if (dist < min_dist) {
-      min_dist = dist;
+    const int64_t point_ns =
+        opendrone::planner_output::ToNanoseconds(trajectory_.points[i].time_from_start);
+    const int64_t error_ns = std::llabs(point_ns - target_ns);
+    if (error_ns < best_error_ns) {
+      best_error_ns = error_ns;
       selected_idx = i;
+    }
+    if (point_ns >= target_ns) {
+      break;
     }
   }
 
-  // Get the trajectory point
   const auto& pt = trajectory_.points[selected_idx];
 
-  // Extract position
-  xref(0) = pt.transforms[0].translation.x;
-  xref(1) = pt.transforms[0].translation.y;
-  xref(2) = pt.transforms[0].translation.z;
+  Eigen::Vector3d position = opendrone::planner_output::SelectPosition(pt, position_enu_);
+  xref(0) = position.x();
+  xref(1) = position.y();
+  xref(2) = position.z();
 
-  // Extract velocity
-  if (pt.velocities.size() > 0) {
-    xref(7) = pt.velocities[0].linear.x;
-    xref(8) = pt.velocities[0].linear.y;
-    xref(9) = pt.velocities[0].linear.z;
-  } else {
-    xref(7) = 0;
-    xref(8) = 0;
-    xref(9) = 0;
+  Eigen::Vector3d velocity = opendrone::planner_output::SelectVelocity(pt);
+  xref(7) = velocity.x();
+  xref(8) = velocity.y();
+  xref(9) = velocity.z();
+
+  Eigen::Vector3d accel = opendrone::planner_output::SelectAcceleration(pt);
+  Eigen::Vector3d thrust = Eigen::Vector3d(0.0, 0.0, 9.81) + accel;
+  const double thrust_norm = thrust.norm();
+  Eigen::Vector3d zb = Eigen::Vector3d::UnitZ();
+  if (thrust_norm > 1.0e-6) {
+    zb = thrust / thrust_norm;
   }
 
-  // Extract orientation
-  Eigen::Quaterniond q(pt.transforms[0].rotation.w,
-                       pt.transforms[0].rotation.x,
-                       pt.transforms[0].rotation.y,
-                       pt.transforms[0].rotation.z);
+  const double yaw =
+      opendrone::planner_output::SelectYaw(pt, quaternion_to_rpy_wrap(q_enu_).z());
+  const Eigen::Vector3d xc(std::cos(yaw), std::sin(yaw), 0.0);
+  Eigen::Vector3d yb = zb.cross(xc);
+  if (yb.norm() < 1.0e-6) {
+    const Eigen::Vector3d fallback_xc(-std::sin(yaw), std::cos(yaw), 0.0);
+    yb = zb.cross(fallback_xc);
+  }
+  yb.normalize();
+  Eigen::Vector3d xb = yb.cross(zb);
+  xb.normalize();
+
+  Eigen::Matrix3d rotation;
+  rotation.col(0) = xb;
+  rotation.col(1) = yb;
+  rotation.col(2) = zb;
+  Eigen::Quaterniond q(rotation);
+  q.normalize();
+
   xref(3) = q.w();
   xref(4) = q.x();
   xref(5) = q.y();
   xref(6) = q.z();
 
-  // Compute thrust from desired acceleration if available
-  if (pt.accelerations.size() > 0) {
-    Eigen::Vector3d accel(pt.accelerations[0].linear.x,
-                          pt.accelerations[0].linear.y,
-                          pt.accelerations[0].linear.z);
-    Eigen::Vector3d thrust_dir = Eigen::Vector3d(0, 0, 9.81) + accel;
-    uref(3) = thrust_dir.norm();
-  } else {
-    uref(3) = 9.81;  // Hover thrust
-  }
+  uref(3) = thrust_norm;
 
-  // Angular rates from trajectory (or zero if not available)
-  if (pt.velocities.size() > 0) {
-    Eigen::Vector3d ang_vel(pt.velocities[0].angular.x,
-                            pt.velocities[0].angular.y,
-                            pt.velocities[0].angular.z);
-    // Transform angular velocity from world to body frame
-    Eigen::Vector3d ang_vel_body = mavros::ftf::transform_frame_enu_baselink(ang_vel, q);
-    uref(0) = ang_vel_body.x();
-    uref(1) = ang_vel_body.y();
-    uref(2) = ang_vel_body.z();
-  } else {
-    uref(0) = 0;
-    uref(1) = 0;
-    uref(2) = 0;
-  }
+  Eigen::Vector3d ang_vel = opendrone::planner_output::SelectAngularVelocity(pt);
+  Eigen::Vector3d ang_vel_body = mavros::ftf::transform_frame_enu_baselink(ang_vel, q);
+  uref(0) = ang_vel_body.x();
+  uref(1) = ang_vel_body.y();
+  uref(2) = ang_vel_body.z();
 
-  // Check if trajectory is finished
-  if (selected_idx >= static_cast<int>(trajectory_.points.size()) - 1) {
+  if (!trajectory_.is_periodic && selected_idx >= static_cast<int>(trajectory_.points.size()) - 1) {
     ROS_INFO("LQR Controller: Trajectory finished");
     return true;
   }

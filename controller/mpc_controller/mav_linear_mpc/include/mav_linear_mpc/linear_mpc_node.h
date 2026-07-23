@@ -22,7 +22,7 @@
 #include <mavros_msgs/State.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <opendrone/PlannerOutput.h>
 #include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 
@@ -41,7 +41,7 @@ class LinearModelPredictiveControllerNode {
   void LoadStaticTuningConfig();
 
   void CommandPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
-  void CommandTrajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
+  void CommandTrajectoryCallback(const opendrone::PlannerOutput::ConstPtr& msg);
   void OdometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
   void MavrosStateCallback(const mavros_msgs::State::ConstPtr& msg);
   void ControlTimerCallback(const ros::TimerEvent&);
@@ -91,7 +91,7 @@ class LinearModelPredictiveControllerNode {
   dynamic_reconfigure::Server<mav_linear_mpc::LinearMPCConfig> dyn_config_server_;
 
   ros::Subscriber command_pose_subscriber_;
-  ros::Subscriber command_trajectory_subscriber_;
+  ros::Subscriber planner_output_subscriber_;
   ros::Subscriber odometry_subscriber_;
   ros::Subscriber mavros_state_subscriber_;
 

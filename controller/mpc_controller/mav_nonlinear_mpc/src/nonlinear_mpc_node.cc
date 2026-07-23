@@ -12,6 +12,7 @@
 #include <mav_msgs/default_topics.h>
 #include <mav_nonlinear_mpc/nonlinear_mpc_node.h>
 #include <mavros_msgs/AttitudeTarget.h>
+#include <opendrone/planner_output_utils.h>
 #include <tf/transform_datatypes.h>
 
 namespace mav_control {
@@ -19,6 +20,12 @@ namespace mav_control {
 namespace {
 constexpr double kTakeoffMidpointRatio = 0.5;
 constexpr double kTakeoffReachTolerance = 0.15;
+
+std::string PlannerReferenceKey(const opendrone::PlannerOutput& output) {
+  return output.planner_id + "\\n" + output.source_topic + "\\n" +
+         std::to_string(output.trajectory_id) + "\\n" +
+         std::to_string(output.trajectory_start_time.toNSec());
+}
 }  // namespace
 
 NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
@@ -49,7 +56,7 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
       offboard_warmup_count_(80),
       request_interval_(1.0) {
   std::string command_pose_topic;
-  std::string command_trajectory_topic;
+  std::string planner_output_topic;
   std::string odometry_topic;
   std::string command_output_topic;
   std::string attitude_target_topic;
@@ -59,8 +66,8 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
 
   private_nh_.param<std::string>("command_pose_topic", command_pose_topic,
                                  mav_msgs::default_topics::COMMAND_POSE);
-  private_nh_.param<std::string>("command_trajectory_topic", command_trajectory_topic,
-                                 mav_msgs::default_topics::COMMAND_TRAJECTORY);
+  private_nh_.param<std::string>("planner_output_topic", planner_output_topic,
+                                 "/planner/output");
   private_nh_.param<std::string>("odometry_topic", odometry_topic,
                                  mav_msgs::default_topics::ODOMETRY);
   private_nh_.param<std::string>("command_output_topic", command_output_topic,
@@ -107,8 +114,8 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
   command_pose_subscriber_ = nh_.subscribe(command_pose_topic, 1,
                                            &NonLinearModelPredictiveControllerNode::CommandPoseCallback,
                                            this);
-  command_trajectory_subscriber_ = nh_.subscribe(
-      command_trajectory_topic, 1,
+  planner_output_subscriber_ = nh_.subscribe(
+      planner_output_topic, 1,
       &NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback, this);
   odometry_subscriber_ = nh_.subscribe(odometry_topic, 1,
                                        &NonLinearModelPredictiveControllerNode::OdometryCallback,
@@ -210,19 +217,40 @@ void NonLinearModelPredictiveControllerNode::CommandPoseCallback(
     const geometry_msgs::PoseStamped::ConstPtr& msg) {
   mav_msgs::EigenTrajectoryPoint reference;
   mav_msgs::eigenTrajectoryPointFromPoseMsg(*msg, &reference);
+  reference.timestamp_ns = ros::Time::now().toNSec();
   nonlinear_mpc_.setCommandTrajectoryPoint(reference);
+  has_active_planner_reference_ = false;
   has_reference_ = true;
 }
 
 void NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback(
-    const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg) {
+    const opendrone::PlannerOutput::ConstPtr& msg) {
   if (msg->points.empty()) {
     return;
   }
 
+  const std::string key = PlannerReferenceKey(*msg);
+  const bool is_horizon = (msg->output_type & opendrone::PlannerOutput::OUTPUT_HORIZON) != 0;
+  const bool replace_existing = !is_horizon || !has_active_planner_reference_ ||
+                                key != active_planner_reference_key_;
   mav_msgs::EigenTrajectoryPointDeque reference_array;
-  mav_msgs::eigenTrajectoryPointDequeFromMsg(*msg, &reference_array);
-  nonlinear_mpc_.setCommandTrajectory(reference_array);
+  for (const auto& planner_point : msg->points) {
+    mav_msgs::EigenTrajectoryPoint reference;
+    reference.time_from_start_ns = opendrone::planner_output::ToNanoseconds(
+        planner_point.time_from_start);
+    reference.timestamp_ns = opendrone::planner_output::AbsoluteTimeNs(*msg, planner_point);
+    reference.position_W = opendrone::planner_output::SelectPosition(planner_point);
+    reference.velocity_W = opendrone::planner_output::SelectVelocity(planner_point);
+    reference.acceleration_W = opendrone::planner_output::SelectAcceleration(planner_point);
+    reference.jerk_W = opendrone::planner_output::SelectJerk(planner_point);
+    reference.snap_W = opendrone::planner_output::SelectSnap(planner_point);
+    reference.setFromYaw(opendrone::planner_output::SelectYaw(planner_point, current_yaw_));
+    reference.setFromYawRate(opendrone::planner_output::SelectYawRate(planner_point));
+    reference_array.push_back(reference);
+  }
+  nonlinear_mpc_.setCommandTrajectory(reference_array, replace_existing);
+  active_planner_reference_key_ = key;
+  has_active_planner_reference_ = true;
   has_reference_ = true;
 }
 
@@ -347,6 +375,7 @@ void NonLinearModelPredictiveControllerNode::GenerateTakeoffTrajectory() {
 
   const int points = takeoff_trajectory_points_;
   const double dt = takeoff_duration_sec_ / static_cast<double>(points - 1);
+  const int64_t takeoff_start_ns = ros::Time::now().toNSec();
 
   mav_msgs::EigenTrajectoryPointDeque takeoff_reference;
   for (int i = 0; i < points; ++i) {
@@ -363,10 +392,12 @@ void NonLinearModelPredictiveControllerNode::GenerateTakeoffTrajectory() {
     point.setFromYaw(current_yaw_);
     point.setFromYawRate(0.0);
     point.time_from_start_ns = static_cast<int64_t>(1.0e9 * dt * static_cast<double>(i));
+    point.timestamp_ns = takeoff_start_ns + point.time_from_start_ns;
     takeoff_reference.push_back(point);
   }
 
   nonlinear_mpc_.setCommandTrajectory(takeoff_reference);
+  has_active_planner_reference_ = false;
   has_reference_ = true;
   takeoff_trajectory_sent_ = true;
 
