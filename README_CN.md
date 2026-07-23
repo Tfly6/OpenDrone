@@ -1,7 +1,7 @@
 [EN](./README.md)|[简体中文](./README_CN.md)
 
 # OpenDrone
-
+[![ROS Noetic Catkin Build](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml/badge.svg?branch=main)](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml)  
 基于ROS1的PX4无人机仿真，参考了多个开源项目，并把他们集成在PX4 SITL中，其中：
 
 ## 项目目录树
