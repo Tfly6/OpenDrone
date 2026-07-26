@@ -1,14 +1,12 @@
 // ref: se3_example.cpp
 #include "se3_hopf/se3_ctrl.h"
+#include "opendrone/planner_output_utils.h"
 
 Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
     : nh_(nh), private_nh_(private_nh), dynamic_tune_server_(private_nh)
 {
     cmd_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-    reference_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
-    reference_vel_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
-    reference_acc_pub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
 
     set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -17,7 +15,7 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &priva
     odom_sub_ = nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 10, &Se3HopfCtrl::OdomCallback, this);
     imu_sub_ = nh_.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &Se3HopfCtrl::IMUCallback, this);
     state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &Se3HopfCtrl::StateCallback, this);
-    multiDOFJoint_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 10, &Se3HopfCtrl::multiDOFJointCallback, this);
+    plannerOutput_sub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 10, &Se3HopfCtrl::plannerOutputCallback, this);
 
     exec_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3HopfCtrl::execFSMCallback, this);
 
@@ -173,29 +171,6 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
     flight_state_msg.data = static_cast<int8_t>(flightState_);
     flight_state_pub_.publish(flight_state_msg);
 
-    geometry_msgs::PoseStamped ref_msg;
-    ref_msg.header.stamp = ros::Time::now();
-    ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = desired_state_.p(0);
-    ref_msg.pose.position.y = desired_state_.p(1);
-    ref_msg.pose.position.z = desired_state_.p(2);
-    ref_msg.pose.orientation.w = 1.0;
-    reference_pose_pub_.publish(ref_msg);
-
-    geometry_msgs::TwistStamped ref_vel_msg;
-    ref_vel_msg.header = ref_msg.header;
-    ref_vel_msg.twist.linear.x = desired_state_.v(0);
-    ref_vel_msg.twist.linear.y = desired_state_.v(1);
-    ref_vel_msg.twist.linear.z = desired_state_.v(2);
-    reference_vel_pub_.publish(ref_vel_msg);
-
-    geometry_msgs::AccelStamped ref_acc_msg;
-    ref_acc_msg.header = ref_msg.header;
-    ref_acc_msg.accel.linear.x = desired_state_.a(0);
-    ref_acc_msg.accel.linear.y = desired_state_.a(1);
-    ref_acc_msg.accel.linear.z = desired_state_.a(2);
-    reference_acc_pub_.publish(ref_acc_msg);
-    
     if (flightState_ != prev_flightState_) {
         ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
         prev_flightState_ = flightState_;
@@ -332,7 +307,7 @@ void Se3HopfCtrl::OdomCallback(const nav_msgs::Odometry::ConstPtr &msg){
     bool judge_y = ((odom_data_.p(1) >= geo_fence_[1]) || (odom_data_.p(1) <= -geo_fence_[1]));
     bool judge_z = (odom_data_.p(2) >= geo_fence_[2]);
     bool judge = (judge_x || judge_y || judge_z);
-    if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND){
+    if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND && flightState_ != LANDING && flightState_ != LANDED){
         flightState_ = EMERGENCY;
         // mavros_msgs::SetMode land_set_mode;
         // land_set_mode.request.custom_mode = mavros_msgs::State::MODE_PX4_LAND;
@@ -404,31 +379,37 @@ void Se3HopfCtrl::TryArm(const ros::Time &now) {
     last_arm_request_ = now;
 }
 
-void Se3HopfCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
+void Se3HopfCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg) 
 {
     if (msg->points.empty()) {
-        ROS_WARN("Received empty trajectory message");
+        ROS_WARN("Received empty planner output message");
         return;
     }
-    // command/trajectory
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
+    const opendrone::PlannerOutputPoint &pt = msg->points[0];
 
-    desired_state_.p(0) = pt.transforms[0].translation.x;
-    desired_state_.p(1) = pt.transforms[0].translation.y;
-    desired_state_.p(2) = pt.transforms[0].translation.z;
+    desired_state_.p = opendrone::planner_output::SelectPosition(pt, desired_state_.p);
 
-    desired_state_.v(0) = pt.velocities[0].linear.x;
-    desired_state_.v(1) = pt.velocities[0].linear.y;
-    desired_state_.v(2) = pt.velocities[0].linear.z;
+    desired_state_.v = opendrone::planner_output::SelectVelocity(pt);
 
-    desired_state_.a.setZero();
+    desired_state_.a = opendrone::planner_output::SelectAcceleration(pt);
+    // desired_state_.a.setZero();
     desired_state_.j.setZero();
 
-    desired_state_.q.w() = pt.transforms[0].rotation.w;
-    desired_state_.q.x() = pt.transforms[0].rotation.x;
-    desired_state_.q.y() = pt.transforms[0].rotation.y;
-    desired_state_.q.z() = pt.transforms[0].rotation.z;
+    desired_state_.yaw = opendrone::planner_output::SelectYaw(pt, desired_state_.yaw);
+    desired_state_.yaw_rate = opendrone::planner_output::SelectYawRate(pt);
+    desired_state_.q = opendrone::planner_output::QuaternionFromYaw(desired_state_.yaw);
+    // reference_request_last_ = reference_request_now_;
+  
+    // reference_request_now_ = ros::Time::now();
+    // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
+  
+    // targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
+    // targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
+  
+    // targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
 
-    desired_state_.yaw = utils::fromQuaternion2yaw(desired_state_.q);
-    desired_state_.yaw_rate = 0.0;
+    // Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
+    //     pt.transforms[0].rotation.z);
+    // Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
+    // yaw_ref_ = rpy(2);
 }

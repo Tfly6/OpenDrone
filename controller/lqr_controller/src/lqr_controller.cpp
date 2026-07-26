@@ -1,5 +1,8 @@
 #include "lqr_controller/lqr_controller.hpp"
 #include <dynamic_reconfigure/server.h>
+#include <algorithm>
+#include <cmath>
+#include <sstream>
 
 namespace lqr {
 
@@ -31,19 +34,23 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     privateNodeHandle_.param<bool>("use_dynamic_reconfigure", useDynamicReconfigure_, false);
     privateNodeHandle_.param<int>("offboard_warmup_count", offboardWarmupCount_, 80);
     privateNodeHandle_.param<double>("request_interval", requestInterval_, 1.0);
+    privateNodeHandle_.param<double>("max_body_rate_xy", maxBodyRateXY_, 0.8);
+    privateNodeHandle_.param<double>("max_body_rate_z", maxBodyRateZ_, 0.6);
+    double max_tilt_deg = 30.0;
+    privateNodeHandle_.param<double>("max_tilt_deg", max_tilt_deg, max_tilt_deg);
+    privateNodeHandle_.param<double>("tilt_recovery_gain", tiltRecoveryGain_, 1.5);
+    privateNodeHandle_.param<double>("min_normalized_thrust", minNormalizedThrust_, 0.15);
+    privateNodeHandle_.param<double>("max_normalized_thrust", maxNormalizedThrust_, 0.85);
 
     // Initialize subscribers
     stateSub_ = nodeHandle_.subscribe<mavros_msgs::State>("/mavros/state", 10, &LQR_Controller::stateCallback, this);
     odomSub_ = nodeHandle_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 1, &LQR_Controller::odomCallback, this);
-    trajectorySub_ = nodeHandle_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
+    plannerOutputSub_ = nodeHandle_.subscribe<opendrone::PlannerOutput>("/planner/output", 1, &LQR_Controller::trajectoryCallback, this, ros::TransportHints().tcpNoDelay());
 
     // Initialize publishers
     attitudePub_ = nodeHandle_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     localPosPub_ = nodeHandle_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     flightStatePub_ = nodeHandle_.advertise<std_msgs::Int8>("/flight_state", 10);
-    referencePosePub_ = nodeHandle_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
-    referenceVelPub_ = nodeHandle_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
-    referenceAccPub_ = nodeHandle_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
 
     // Initialize service clients
     armingClient_ = nodeHandle_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
@@ -63,6 +70,13 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     if (requestInterval_ < 0.1) {
         requestInterval_ = 0.1;
     }
+    maxBodyRateXY_ = std::max(0.05, maxBodyRateXY_);
+    maxBodyRateZ_ = std::max(0.05, maxBodyRateZ_);
+    maxTiltRad_ = std::max(5.0, std::min(80.0, max_tilt_deg)) * M_PI / 180.0;
+    tiltRecoveryGain_ = std::max(0.1, tiltRecoveryGain_);
+    minNormalizedThrust_ = std::max(0.0, std::min(0.95, minNormalizedThrust_));
+    maxNormalizedThrust_ = std::max(minNormalizedThrust_ + 0.01,
+                                     std::min(1.0, maxNormalizedThrust_));
     lastModeRequest_ = ros::Time(0);
     lastArmRequest_ = ros::Time(0);
     targetPos_.setZero();
@@ -76,7 +90,10 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
         ROS_INFO("LQR controller waiting for dynamic_reconfigure tuning parameters.");
     }
 
-    ROS_INFO("LQR Controller initialized with parameters:");
+    ROS_INFO("LQR Controller initialized: max rates [%.2f, %.2f, %.2f] rad/s, max tilt %.1f deg, thrust [%.2f, %.2f]",
+             maxBodyRateXY_, maxBodyRateXY_, maxBodyRateZ_,
+             maxTiltRad_ * 180.0 / M_PI,
+             minNormalizedThrust_, maxNormalizedThrust_);
 }
 
 LQR_Controller::~LQR_Controller()
@@ -114,7 +131,7 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         // pose.pose.position.z = initPose_[2];
         // localPosPub_.publish(pose);
         ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
-        publishAttitude(Eigen::Vector4d(0, 0, 0, hoverThrust_));  // Publish hover command to help transition to OFFBOARD
+        publishAttitude(Eigen::Vector4d(0, 0, 0, 9.81));  // Publish hover command to help transition to OFFBOARD
 
         ++offboardWarmupCounter_;
         TrySetOffboard(ros::Time::now());
@@ -139,8 +156,9 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
         Eigen::Vector4d cmd_body_rate_thrust;
         computeControlCommands(cmd_body_rate_thrust);
         publishAttitude(cmd_body_rate_thrust);
-        if (isAtPosition(targetPos_, 0.3)) {
+        if (isAtPosition(targetPos_, 0.15)) {
             flightState_ = MISSION_EXECUTION;
+            missionEntryDebugLogged_ = false;
             ROS_INFO("Takeoff complete! Current pos [%.2f, %.2f, %.2f], target [%.2f, %.2f, %.2f]",
                      currentPos_[0], currentPos_[1], currentPos_[2],
                      targetPos_[0], targetPos_[1], targetPos_[2]);
@@ -151,6 +169,22 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     case MISSION_EXECUTION:   
     {
         ROS_INFO_ONCE("Executing mission...");
+        if (!missionEntryDebugLogged_) {
+            const auto ref = lqr_quaternion_.getRefStates();
+            const auto error = lqr_quaternion_.getError();
+            ROS_WARN(
+                "LQR mission entry: current_pos [%.2f, %.2f, %.2f], ref_pos [%.2f, %.2f, %.2f], "
+                "pos_err [%.2f, %.2f, %.2f], ref_vel [%.2f, %.2f, %.2f], vel_err [%.2f, %.2f, %.2f], "
+                "traj_id=%u, traj_age=%.3f s",
+                currentPos_[0], currentPos_[1], currentPos_[2],
+                ref(0), ref(1), ref(2),
+                error(0), error(1), error(2),
+                ref(7), ref(8), ref(9),
+                error(7), error(8), error(9),
+                lastTrajectoryId_,
+                lastTrajectoryStamp_.isZero() ? -1.0 : (ros::Time::now() - lastTrajectoryStamp_).toSec());
+            missionEntryDebugLogged_ = true;
+        }
         // The controllers compute control outputs based on trajectory
         Eigen::Vector4d cmd_body_rate_thrust;
         computeControlCommands(cmd_body_rate_thrust);
@@ -190,62 +224,117 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
     }
     }
 
-    geometry_msgs::PoseStamped ref_msg;
-    ref_msg.header.stamp = ros::Time::now();
-    ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = targetPos_(0);
-    ref_msg.pose.position.y = targetPos_(1);
-    ref_msg.pose.position.z = targetPos_(2);
-    ref_msg.pose.orientation.w = 1.0;
-    referencePosePub_.publish(ref_msg);
-
-    geometry_msgs::TwistStamped ref_vel_msg;
-    ref_vel_msg.header = ref_msg.header;
-    auto ref = lqr_quaternion_.getRefStates();
-    ref_vel_msg.twist.linear.x = ref(7);
-    ref_vel_msg.twist.linear.y = ref(8);
-    ref_vel_msg.twist.linear.z = ref(9);
-    referenceVelPub_.publish(ref_vel_msg);
-
-    geometry_msgs::AccelStamped ref_acc_msg;
-    ref_acc_msg.header = ref_msg.header;
-    ref_acc_msg.accel.linear.x = 0.0;
-    ref_acc_msg.accel.linear.y = 0.0;
-    ref_acc_msg.accel.linear.z = 0.0;
-    referenceAccPub_.publish(ref_acc_msg);
 }
 
 void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
 {
     // This function can be used to compute control commands based on the current state and trajectory
     // For now, the control computation is done in the odom callback via the LQR controllers
-     Eigen::Matrix<double, 4, 1> output;
+    Eigen::Matrix<double, 4, 1> output;
 
-        auto traj_control = lqr_quaternion_.getTrajectoryControl();
-        auto gain = lqr_quaternion_.getGain();
-        auto error = lqr_quaternion_.getError();
-        output = traj_control - gain * error;
-        bodyRatesThrustCmd << output(0), output(1), output(2), output(3);
+    auto traj_control = lqr_quaternion_.getTrajectoryControl();
+    auto gain = lqr_quaternion_.getGain();
+    auto error = lqr_quaternion_.getError();
+    auto raw_error = error;
+    // Saturate position error (ENU) to keep LQR within its linear operating range.
+    // Without this, large initial errors (e.g. 5 m offset to circle start) produce
+    // excessively aggressive body-rate and thrust commands via the K matrix.
+    constexpr double kMaxPosErr = 2.0;   // metres
+    constexpr double kMaxVelErr = 2.0;   // m/s
+    for (int i = 0; i < 3; ++i) {
+        error(i) = std::max(-kMaxPosErr, std::min(kMaxPosErr, error(i)));
+    }
+    // Saturate velocity error (indices 7-9)
+    for (int i = 7; i < 10; ++i) {
+        error(i) = std::max(-kMaxVelErr, std::min(kMaxVelErr, error(i)));
+    }
+    output = traj_control - gain * error;
+    bodyRatesThrustCmd << output(0), output(1), output(2), output(3);
+
+    const bool saturated =
+        !raw_error.head<3>().isApprox(error.head<3>()) ||
+        !raw_error.segment<3>(7).isApprox(error.segment<3>(7));
+    if (saturated) {
+        ROS_WARN_THROTTLE(
+            0.5,
+            "LQR error saturation active: raw_pos_err [%.2f, %.2f, %.2f] -> [%.2f, %.2f, %.2f], "
+            "raw_vel_err [%.2f, %.2f, %.2f] -> [%.2f, %.2f, %.2f]",
+            raw_error(0), raw_error(1), raw_error(2),
+            error(0), error(1), error(2),
+            raw_error(7), raw_error(8), raw_error(9),
+            error(7), error(8), error(9));
+    }
+
+    if (raw_error.head<3>().norm() > 3.0 || raw_error.segment<3>(7).norm() > 2.5) {
+        ROS_WARN_THROTTLE(
+            0.5,
+            "LQR large tracking error: pos_err_norm=%.2f vel_err_norm=%.2f ref_pos [%.2f, %.2f, %.2f] "
+            "cur_pos [%.2f, %.2f, %.2f] cmd [%.2f, %.2f, %.2f, %.2f]",
+            raw_error.head<3>().norm(),
+            raw_error.segment<3>(7).norm(),
+            lqr_quaternion_.getRefStates()(0), lqr_quaternion_.getRefStates()(1), lqr_quaternion_.getRefStates()(2),
+            currentPos_[0], currentPos_[1], currentPos_[2],
+            bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2), bodyRatesThrustCmd(3));
+    }
 }
 
 void LQR_Controller::publishAttitude(Eigen::Vector4d bodyRatesThrustCmd)
 {
     mavros_msgs::AttitudeTarget bodyrateMsg;
 
-    // Get LQR output based on control type
-   
+    const Eigen::Vector3d requested_rates = bodyRatesThrustCmd.head<3>();
+    bodyRatesThrustCmd(0) = std::max(-maxBodyRateXY_, std::min(maxBodyRateXY_, bodyRatesThrustCmd(0)));
+    bodyRatesThrustCmd(1) = std::max(-maxBodyRateXY_, std::min(maxBodyRateXY_, bodyRatesThrustCmd(1)));
+    bodyRatesThrustCmd(2) = std::max(-maxBodyRateZ_, std::min(maxBodyRateZ_, bodyRatesThrustCmd(2)));
 
-    // Clamp outputs
-    // for (int i = 0; i < 3; i++) {
-    //     if (output(i) > 2.0) output(i) = 2.0;
-    //     else if (output(i) < -2.0) output(i) = -2.0;
-    // }
+    // When the vehicle is already near the envelope, do not let a tracking
+    // transient increase its roll/pitch.  Once outside it, command a bounded
+    // body-rate recovery instead of continuing to follow the LQR output.
+    if (haveOdom_) {
+        const double tilt = std::acos(std::max(-1.0, std::min(1.0,
+            std::cos(currentRpy_(0)) * std::cos(currentRpy_(1)))));
+        const double soft_tilt = 0.8 * maxTiltRad_;
+        if (tilt >= maxTiltRad_) {
+            bodyRatesThrustCmd(0) = std::max(-maxBodyRateXY_, std::min(maxBodyRateXY_,
+                -tiltRecoveryGain_ * currentRpy_(0)));
+            bodyRatesThrustCmd(1) = std::max(-maxBodyRateXY_, std::min(maxBodyRateXY_,
+                -tiltRecoveryGain_ * currentRpy_(1)));
+            ROS_WARN_THROTTLE(0.5,
+                "LQR tilt recovery active: tilt=%.1f deg limit=%.1f deg rpy=[%.1f, %.1f, %.1f] deg",
+                tilt * 180.0 / M_PI, maxTiltRad_ * 180.0 / M_PI,
+                currentRpy_(0) * 180.0 / M_PI, currentRpy_(1) * 180.0 / M_PI,
+                currentRpy_(2) * 180.0 / M_PI);
+        } else if (tilt >= soft_tilt) {
+            if (currentRpy_(0) * bodyRatesThrustCmd(0) > 0.0) {
+                bodyRatesThrustCmd(0) = 0.0;
+            }
+            if (currentRpy_(1) * bodyRatesThrustCmd(1) > 0.0) {
+                bodyRatesThrustCmd(1) = 0.0;
+            }
+        }
+    }
+
+    if (!requested_rates.isApprox(bodyRatesThrustCmd.head<3>())) {
+        ROS_WARN_THROTTLE(0.5,
+            "LQR body-rate protection active: requested [%.3f, %.3f, %.3f] applied [%.3f, %.3f, %.3f]",
+            requested_rates(0), requested_rates(1), requested_rates(2),
+            bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2));
+    }
 
     double thrust_raw = bodyRatesThrustCmd(3);
 
     // Compute thrust
     double normalized_thrust = (hoverThrust_ * thrust_raw) / gravity_;
-    normalized_thrust = std::max(0.1, std::min(0.9, normalized_thrust));
+    normalized_thrust = std::max(minNormalizedThrust_, std::min(maxNormalizedThrust_, normalized_thrust));
+
+    if (normalized_thrust <= minNormalizedThrust_ + 1.0e-4 ||
+        normalized_thrust >= maxNormalizedThrust_ - 1.0e-4) {
+        ROS_WARN_THROTTLE(
+            0.5,
+            "LQR thrust clamp active: raw_thrust=%.3f normalized=%.3f body_rates [%.3f, %.3f, %.3f]",
+            thrust_raw, normalized_thrust,
+            bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2));
+    }
 
     // Publish body rate command
     bodyrateMsg.header.stamp = ros::Time::now();
@@ -275,6 +364,17 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
                    msg->pose.pose.position.y,
                    msg->pose.pose.position.z;
 
+    const auto& orientation = msg->pose.pose.orientation;
+    Eigen::Quaterniond q(orientation.w, orientation.x, orientation.y, orientation.z);
+    if (q.norm() > 1.0e-6 && q.coeffs().allFinite()) {
+        q.normalize();
+        const Eigen::Matrix3d rotation = q.toRotationMatrix();
+        currentRpy_(0) = std::atan2(rotation(2, 1), rotation(2, 2));
+        currentRpy_(1) = std::asin(std::max(-1.0, std::min(1.0, -rotation(2, 0))));
+        currentRpy_(2) = std::atan2(rotation(1, 0), rotation(0, 0));
+        haveOdom_ = true;
+    }
+
     // Check geofence
     for (int i = 0; i < 3; i++) {
         if (std::abs(currentPos_[i]) > geoFence_[i]) {
@@ -293,14 +393,26 @@ void LQR_Controller::odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
         lqr_quaternion_.computeLQR();
 }
 
-void LQR_Controller::trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg)
+void LQR_Controller::trajectoryCallback(const opendrone::PlannerOutput::ConstPtr& msg)
 {
     if(msg->points.empty()) {
-        ROS_WARN("Received empty trajectory");
+        ROS_WARN("Received empty planner output");
         return;
     }
+    lastTrajectoryStamp_ = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+    lastTrajectoryId_ = msg->trajectory_id;
     lqr_quaternion_.setTrajectory(*msg);
-    // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg->points.size());
+    const auto& first_pt = msg->points.front();
+    ROS_INFO_THROTTLE(
+        1.0,
+        "LQR planner/output: traj_id=%llu horizon=%s points=%zu start=(%.2f, %.2f, %.2f) "
+        "vel=(%.2f, %.2f, %.2f) traj_start=%.3f",
+        static_cast<unsigned long long>(msg->trajectory_id),
+        msg->is_horizon ? "true" : "false",
+        msg->points.size(),
+        first_pt.position.x, first_pt.position.y, first_pt.position.z,
+        first_pt.velocity.x, first_pt.velocity.y, first_pt.velocity.z,
+        msg->trajectory_start_time.toSec());
 }
 
 void LQR_Controller::TrySetOffboard(const ros::Time& now)

@@ -9,9 +9,7 @@
 #include <math.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/AccelStamped.h>
-#include <geometry_msgs/AccelWithCovarianceStamped.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <opendrone/PlannerOutput.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/CommandBool.h>
@@ -47,14 +45,11 @@ class pidCtrl {
         dynamic_reconfigure::Server<pid_controller::PidControllerConfig> dyn_config_server_;
         dynamic_reconfigure::Server<pid_controller::PidControllerConfig>::CallbackType dyn_config_cb_type_;
         ros::Subscriber pos_sub_, vel_sub_, state_sub_;
-        ros::Subscriber multiDOFJoint_sub_, simpleWaypoint_sub_;
+        ros::Subscriber plannerOutput_sub_, simpleWaypoint_sub_;
 
         ros::Publisher local_pos_pub_, vel_pub_;
         ros::Publisher setpoint_raw_local_pub_;
         ros::Publisher setpoint_raw_attitude_pub_;
-        ros::Publisher referencePosePub_;
-        ros::Publisher referenceVelPub_;
-        ros::Publisher referenceAccPub_;
         ros::Publisher flight_state_pub_;
 
         ros::ServiceClient arming_client_;
@@ -128,12 +123,10 @@ class pidCtrl {
         void controlLoop(const ros::TimerEvent &event);
         bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
         void simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg);
-        void multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg);
+        void plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg);
         void state_cb(const mavros_msgs::State::ConstPtr &msg);
         void pos_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
         void vel_cb(const geometry_msgs::TwistStamped::ConstPtr &msg);
-        // void acc_cb(const geometry_msgs::AccelWithCovarianceStamped &msg);
-
 };
 
 #endif

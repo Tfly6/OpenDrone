@@ -3,6 +3,8 @@
  */
 
 #include "pid_controller/pid_control.h"
+#include "opendrone/planner_output_utils.h"
+#include <tf/transform_datatypes.h>
 
 using namespace std;
 
@@ -16,15 +18,12 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
     pos_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &pidCtrl::pos_cb, this);
     vel_sub_ = nh_.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 10, &pidCtrl::vel_cb, this);
     simpleWaypoint_sub_ = nh_.subscribe<nav_msgs::Path>("/waypoint_generator/waypoints", 10, &pidCtrl::simpleWaypoint_cb, this);
-    multiDOFJoint_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>("/command/trajectory", 10, &pidCtrl::multiDOFJointCallback, this);
+    plannerOutput_sub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 10, &pidCtrl::plannerOutputCallback, this);
 
     local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mavros/setpoint_velocity/cmd_vel_unstamped", 10);
     setpoint_raw_local_pub_ = nh_.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     setpoint_raw_attitude_pub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
-    referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("/controller/reference_pose", 10);
-    referenceVelPub_ = nh_.advertise<geometry_msgs::TwistStamped>("/controller/reference_velocity", 10);
-    referenceAccPub_ = nh_.advertise<geometry_msgs::AccelStamped>("/controller/reference_accel", 10);
     flight_state_pub_ = nh_.advertise<std_msgs::Int8>("/flight_state", 10);
 
     land_service_ = nh_.advertiseService("/land", &pidCtrl::landCallback, this);
@@ -42,21 +41,6 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
     private_nh_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
     private_nh_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
     private_nh_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
-
-    // nh_.param<double>("mass", uavMass_, 1.0);
-    // limit
-
-    // nh_.param<double>("Kp_x", Kp_x_, 1.0);
-    // nh_.param<double>("Kp_y", Kp_y_, 1.0);
-    // nh_.param<double>("Kp_z", Kp_z_, 2.0);
-    // nh_.param<double>("Ki_x", Ki_x_, 0.2);
-    // nh_.param<double>("Ki_y", Ki_y_, 0.2);
-    // nh_.param<double>("Ki_z", Ki_z_, 0.2);
-    // nh_.param<double>("Kd_x", Kd_x_, 0.5);
-    // nh_.param<double>("Kd_y", Kd_y_, 0.5);
-    // nh_.param<double>("Kd_z", Kd_z_, 0.5);
-
-
 
     flightState_ = WAITING_FOR_CONNECTED;
     prev_flightState_ = flightState_;
@@ -100,29 +84,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
     std_msgs::Int8 flight_state_msg;
     flight_state_msg.data = static_cast<int8_t>(flightState_);
     flight_state_pub_.publish(flight_state_msg);
-
-    geometry_msgs::PoseStamped ref_msg;
-    ref_msg.header.stamp = ros::Time::now();
-    ref_msg.header.frame_id = "map";
-    ref_msg.pose.position.x = targetPos_(0);
-    ref_msg.pose.position.y = targetPos_(1);
-    ref_msg.pose.position.z = targetPos_(2);
-    ref_msg.pose.orientation.w = 1.0;
-    referencePosePub_.publish(ref_msg);
-
-    geometry_msgs::TwistStamped ref_vel_msg;
-    ref_vel_msg.header = ref_msg.header;
-    ref_vel_msg.twist.linear.x = targetVel_(0);
-    ref_vel_msg.twist.linear.y = targetVel_(1);
-    ref_vel_msg.twist.linear.z = targetVel_(2);
-    referenceVelPub_.publish(ref_vel_msg);
-
-    geometry_msgs::AccelStamped ref_acc_msg;
-    ref_acc_msg.header = ref_msg.header;
-    ref_acc_msg.accel.linear.x = targetAcc_(0);
-    ref_acc_msg.accel.linear.y = targetAcc_(1);
-    ref_acc_msg.accel.linear.z = targetAcc_(2);
-    referenceAccPub_.publish(ref_acc_msg);
 
     if (flightState_ != prev_flightState_) {
         ROS_WARN_STREAM("State changed from " << state2string(prev_flightState_) << " to " << state2string(flightState_));
@@ -332,28 +293,22 @@ void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){
     ROS_INFO("Received %zu waypoints.", waypoints_.size());
 }
 
-void pidCtrl::multiDOFJointCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr &msg) 
+void pidCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg) 
 {
     if (msg->points.empty()) {
-        ROS_WARN("Received empty trajectory message");
+        ROS_WARN("Received empty planner output message");
         return;
     }
-    // command/trajectory
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt = msg->points[0];
+    const opendrone::PlannerOutputPoint &pt = msg->points[0];
     // reference_request_last_ = reference_request_now_;
   
     // reference_request_now_ = ros::Time::now();
     // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
   
-    targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
-    targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
-  
-    targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
-
-    Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
-        pt.transforms[0].rotation.z);
-    Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
-    yaw_ref_ = rpy(2);
+    targetPos_ = opendrone::planner_output::SelectPosition(pt, targetPos_);
+    targetVel_ = opendrone::planner_output::SelectVelocity(pt);
+    targetAcc_ = opendrone::planner_output::SelectAcceleration(pt);
+    yaw_ref_ = opendrone::planner_output::SelectYaw(pt, yaw_ref_);
 }
 
 void pidCtrl::state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -384,11 +339,6 @@ void pidCtrl::vel_cb(const geometry_msgs::TwistStamped::ConstPtr &msg)
                 msg->twist.linear.y,
                 msg->twist.linear.z;
 }
-// void pidCtrl::imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
-//     currAcc_ << msg->linear_acceleration.x,
-//                 msg->linear_acceleration.y,
-//                 msg->linear_acceleration.z;
-// }
 
 void pidCtrl::dynamicReconfigureCallback(pid_controller::PidControllerConfig &config, uint32_t level){
     Eigen::Vector3d kp_p, kp_v, ki_v, kd_v;

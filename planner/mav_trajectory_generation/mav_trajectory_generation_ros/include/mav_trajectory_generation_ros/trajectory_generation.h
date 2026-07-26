@@ -47,10 +47,13 @@ class TrajectoryGeneration {
   bool has_current_odom_;
   double max_v_;  // m/s
   double max_a_;  // m/s^2
+  // A preset path may deliberately begin at the current vehicle pose.  The
+  // planner already inserts current_pose_ as its start vertex, so retaining
+  // such a waypoint would create a near-zero-duration first segment.
+  double duplicate_start_waypoint_distance_;
   double max_ang_v_;
   double max_ang_a_;
 
-  bool ignore_current_odom_start_;
   bool use_nonlinear_opt_;
   int nonlinear_max_iterations_;
   double nonlinear_time_penalty_;

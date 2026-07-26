@@ -8,9 +8,7 @@
 #include <mavros_msgs/State.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/AccelStamped.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <opendrone/PlannerOutput.h>
 #include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 #include <dynamic_reconfigure/server.h>
@@ -37,7 +35,7 @@ class LQR_Controller {
     std::string state2string(FlightState state);
     void stateCallback(const mavros_msgs::State::ConstPtr& msg);
     void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
-    void trajectoryCallback(const trajectory_msgs::MultiDOFJointTrajectory::ConstPtr& msg);
+    void trajectoryCallback(const opendrone::PlannerOutput::ConstPtr& msg);
     void TrySetOffboard(const ros::Time& now);
     void TryArm(const ros::Time& now);
     void computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd);
@@ -53,12 +51,9 @@ class LQR_Controller {
     dynamic_reconfigure::Server<lqr_controller::LqrControllerConfig>::CallbackType dynConfigCallbackType_;
     ros::Subscriber stateSub_;
     ros::Subscriber odomSub_;
-    ros::Subscriber trajectorySub_;
+    ros::Subscriber plannerOutputSub_;
     ros::Publisher attitudePub_;
     ros::Publisher localPosPub_;
-    ros::Publisher referencePosePub_;
-    ros::Publisher referenceVelPub_;
-    ros::Publisher referenceAccPub_;
     ros::Publisher flightStatePub_;
     ros::ServiceClient armingClient_;
     ros::ServiceClient setModeClient_;
@@ -91,10 +86,24 @@ class LQR_Controller {
     double mass_;
     double gravity_{9.81};
     double hoverThrust_;
+    // Command-envelope protection.  These are intentionally independent of
+    // the LQR cost weights: an unstable Riccati solution must not be allowed
+    // to command an unrecoverable attitude.
+    double maxBodyRateXY_{0.8};
+    double maxBodyRateZ_{0.6};
+    double maxTiltRad_{0.5235987756};  // 30 deg
+    double tiltRecoveryGain_{1.5};
+    double minNormalizedThrust_{0.15};
+    double maxNormalizedThrust_{0.85};
     Eigen::Vector3d initPose_;
     Eigen::Vector3d geoFence_;
     Eigen::Vector3d currentPos_;
     Eigen::Vector3d targetPos_;
+    Eigen::Vector3d currentRpy_{Eigen::Vector3d::Zero()};
+    bool haveOdom_{false};
+    ros::Time lastTrajectoryStamp_;
+    uint32_t lastTrajectoryId_{0};
+    bool missionEntryDebugLogged_{false};
 
     // Current mavros state
     mavros_msgs::State currentState_;

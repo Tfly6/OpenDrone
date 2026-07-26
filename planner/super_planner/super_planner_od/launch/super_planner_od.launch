@@ -1,13 +1,26 @@
 <launch>
-    <arg name="config_path" default="$(find super_planner_od)/config/click_smooth_ros1.yaml" />
+    <!-- Algorithm/vehicle tuning profile. -->
+    <arg name="config_path" default="$(find super_planner_od)/config/click_smooth_px4.yaml" />
+
+    <!-- Integration behaviour: ROS inputs, outputs, and visualization. -->
+    <arg name="cloud_topic" default="/registered_scan" />
+    <arg name="odom_topic" default="/mavros/local_position/odom" />
+    <arg name="click_goal_topic" default="/goal" />
+    <arg name="mission_goal_topic" default="/planning/mission_goal" />
+    <arg name="position_command_topic" default="/planning/pos_cmd" />
+    <arg name="polynomial_trajectory_topic" default="/planning_cmd/poly_traj" />
     <arg name="use_rviz" default="true" />
     <arg name="rviz_config" default="$(find super_planner_od)/rviz/bench.rviz" />
 
-    <node pkg="super_planner_od" type="fsm_node" name="super_planner_od_fsm" output="screen">
+    <node pkg="super_planner_od" type="fsm_node" name="super_planner_od_fsm"
+          output="screen" clear_params="true">
         <param name="config_path" value="$(arg config_path)" />
-        <param name="rog_map/ros_callback/cloud_topic" value="/registered_scan" />
-        <param name="rog_map/ros_callback/odom_topic" value="/mavros/local_position/odom" />
-        <param name="rog_map/visualization/frame_id" value="world" />
+        <param name="interface/cloud_topic" value="$(arg cloud_topic)" />
+        <param name="interface/odom_topic" value="$(arg odom_topic)" />
+        <param name="interface/click_goal_topic" value="$(arg click_goal_topic)" />
+        <param name="interface/mission_goal_topic" value="$(arg mission_goal_topic)" />
+        <param name="interface/position_command_topic" value="$(arg position_command_topic)" />
+        <param name="interface/polynomial_trajectory_topic" value="$(arg polynomial_trajectory_topic)" />
     </node>
 
     <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" />

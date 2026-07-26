@@ -5,6 +5,12 @@
   <arg name="mass" default="1.5"/>
   <arg name="hover_thrust" default="0.7"/>
   <arg name="use_dynamic_reconfigure" default="false"/>
+  <arg name="max_body_rate_xy" default="0.8"/>
+  <arg name="max_body_rate_z" default="0.6"/>
+  <arg name="max_tilt_deg" default="30.0"/>
+  <arg name="tilt_recovery_gain" default="1.5"/>
+  <arg name="min_normalized_thrust" default="0.15"/>
+  <arg name="max_normalized_thrust" default="0.85"/>
   <!-- <arg name="init_pose_x" default="0.0"/>
   <arg name="init_pose_y" default="0.0"/>
   <arg name="init_pose_z" default="0.5"/> -->
@@ -16,6 +22,12 @@
     <param name="takeoff_height" value="$(arg takeoff_height)"/>
     <param name="mass" value="$(arg mass)"/>
     <param name="hover_thrust" value="$(arg hover_thrust)"/>
+    <param name="max_body_rate_xy" value="$(arg max_body_rate_xy)"/>
+    <param name="max_body_rate_z" value="$(arg max_body_rate_z)"/>
+    <param name="max_tilt_deg" value="$(arg max_tilt_deg)"/>
+    <param name="tilt_recovery_gain" value="$(arg tilt_recovery_gain)"/>
+    <param name="min_normalized_thrust" value="$(arg min_normalized_thrust)"/>
+    <param name="max_normalized_thrust" value="$(arg max_normalized_thrust)"/>
     <!-- <param name="init_pose_x" value="$(arg init_pose_x)"/>
     <param name="init_pose_y" value="$(arg init_pose_y)"/>
     <param name="init_pose_z" value="$(arg init_pose_z)"/> -->

@@ -24,5 +24,6 @@
   <depend>mavros_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>opendrone</depend>
   <depend>trajectory_msgs</depend>
 </package>

@@ -47,24 +47,24 @@ namespace ego_planner
 
     flag_escape_emergency_ = false;
 
-  nh.param("fsm/map_ready_min_inflated", map_ready_min_inflated_, 2000);
-  nh.param("fsm/map_ready_min_cloud", map_ready_min_cloud_, 500);
-  nh.param("fsm/map_ready_hold_time", map_ready_hold_time_, 2.0);
-  nh.param("fsm/odom_jump_thresh", odom_jump_thresh_, 2.0);
-  nh.param("fsm/odom_jump_time_thresh", odom_jump_time_thresh_, 0.25);
+    nh.param("fsm/map_ready_min_inflated", map_ready_min_inflated_, 2000);
+    nh.param("fsm/map_ready_min_cloud", map_ready_min_cloud_, 500);
+    nh.param("fsm/map_ready_hold_time", map_ready_hold_time_, 2.0);
+    nh.param("fsm/odom_jump_thresh", odom_jump_thresh_, 2.0);
+    nh.param("fsm/odom_jump_time_thresh", odom_jump_time_thresh_, 0.25);
 
-  nh.param("debug/fsm", debug_fsm_, false);
-  nh.param("debug/fsm_interval", debug_fsm_interval_, 1.0);
+    nh.param("debug/fsm", debug_fsm_, false);
+    nh.param("debug/fsm_interval", debug_fsm_interval_, 1.0);
 
     have_trigger_ = !flag_realworld_experiment_;
 
-    nh.param("fsm/waypoint_num", waypoint_num_, -1);
-    for (int i = 0; i < waypoint_num_; i++)
-    {
-      nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-      nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-      nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-    }
+    // nh.param("fsm/waypoint_num", waypoint_num_, -1);
+    // for (int i = 0; i < waypoint_num_; i++)
+    // {
+    //   nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
+    //   nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
+    //   nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
+    // }
 
     /* initialize main modules */
     visualization_.reset(new PlanningVisualization(nh));
@@ -78,6 +78,7 @@ namespace ego_planner
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
+    // waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
 
     if (planner_manager_->pp_.drone_id >= 1)
     {
@@ -95,35 +96,36 @@ namespace ego_planner
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
-      waypoint_sub_ = nh.subscribe("/move_base_simple/goal", 1, &EGOReplanFSM::waypointCallback, this);
+      goal_sub_ = nh.subscribe("/move_base_simple/goal", 1, &EGOReplanFSM::waypointCallback, this);
     }
     else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
     {
-      trigger_sub_ = nh.subscribe("/traj_start_trigger", 1, &EGOReplanFSM::triggerCallback, this);
+      goal_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
+      // trigger_sub_ = nh.subscribe("/traj_start_trigger", 1, &EGOReplanFSM::triggerCallback, this);
 
-      ROS_INFO("Wait for 1 second.");
-      int count = 0;
-      while (ros::ok() && count++ < 1000)
-      {
-        ros::spinOnce();
-        ros::Duration(0.001).sleep();
-      }
+      // ROS_INFO("Wait for 1 second.");
+      // int count = 0;
+      // while (ros::ok() && count++ < 1000)
+      // {
+      //   ros::spinOnce();
+      //   ros::Duration(0.001).sleep();
+      // }
 
-      ROS_WARN("Waiting for trigger from [n3ctrl] from RC");
+      // ROS_WARN("Waiting for trigger from [n3ctrl] from RC");
 
-      while (ros::ok() && (!have_odom_ || !have_trigger_))
-      {
-        ros::spinOnce();
-        ros::Duration(0.001).sleep();
-      }
+      // while (ros::ok() && (!have_odom_ || !have_trigger_))
+      // {
+      //   ros::spinOnce();
+      //   ros::Duration(0.001).sleep();
+      // }
 
-      readGivenWps();
+      // readGivenWps();
     }
     else
       cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
   }
 
-  void EGOReplanFSM::readGivenWps()
+  void EGOReplanFSM::readGivenWps() // no longer used, replaced by waypointListCallback()
   {
     if (waypoint_num_ <= 0)
     {
@@ -239,27 +241,58 @@ namespace ego_planner
   {
     have_trigger_ = true;
     cout << "Triggered!" << endl;
-    init_pt_ = odom_pos_;
+    // init_pt_ = odom_pos_;
   }
 
   void EGOReplanFSM::waypointCallback(const geometry_msgs::PoseStampedPtr &msg)
   {
-    if (msg->pose.position.z < -0.1)
-      return;
+    // if (msg->pose.position.z < -0.1)
+    //   return;
 
     cout << "Triggered!" << endl;
     // trigger_ = true;
-    init_pt_ = odom_pos_;
+    // init_pt_ = odom_pos_;
 
     Eigen::Vector3d end_wp(msg->pose.position.x, msg->pose.position.y, 2);
 
     planNextWaypoint(end_wp);
   }
 
+  void EGOReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr &msg)
+  {
+    if (msg->poses.empty())
+    {
+      ROS_WARN("Received empty waypoint list on /waypoint_generator/waypoints.");
+      return;
+    }
+
+    wps_.clear();
+    wps_.reserve(msg->poses.size());
+    for (const auto &pose_stamped : msg->poses)
+    {
+      wps_.emplace_back(pose_stamped.pose.position.x,
+                        pose_stamped.pose.position.y,
+                        pose_stamped.pose.position.z);
+    }
+
+    waypoint_num_ = static_cast<int>(wps_.size());
+    wp_id_ = 0;
+
+    for (size_t i = 0; i < wps_.size(); i++)
+    {
+      visualization_->displayGoalPoint(wps_[i], Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, i);
+      ros::Duration(0.001).sleep();
+    }
+
+    have_trigger_ = true;
+    // init_pt_ = odom_pos_;
+    planNextWaypoint(wps_[wp_id_]);
+    ROS_INFO("Loaded %d queued waypoints from /waypoint_generator/waypoints.", waypoint_num_);
+  }
+
   void EGOReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr &msg)
   {
     Eigen::Vector3d new_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-    Eigen::Vector3d new_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
 
     if (has_last_odom_ && odom_jump_thresh_ > 0.0)
     {
@@ -277,14 +310,17 @@ namespace ego_planner
     }
 
     odom_pos_ = new_pos;
-    odom_vel_ = new_vel;
-
-    //odom_acc_ = estimateAcc( msg );
 
     odom_orient_.w() = msg->pose.pose.orientation.w;
     odom_orient_.x() = msg->pose.pose.orientation.x;
     odom_orient_.y() = msg->pose.pose.orientation.y;
     odom_orient_.z() = msg->pose.pose.orientation.z;
+
+    const Eigen::Vector3d body_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y,
+                                   msg->twist.twist.linear.z);
+    odom_vel_ = odom_orient_ * body_vel;
+
+    //odom_acc_ = estimateAcc( msg );
 
     last_odom_pos_ = new_pos;
     last_odom_time_ = msg->header.stamp;

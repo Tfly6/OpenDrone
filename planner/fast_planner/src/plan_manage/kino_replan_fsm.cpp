@@ -39,12 +39,12 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   nh.param("fsm/thresh_replan", replan_thresh_, -1.0);
   nh.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
 
-  nh.param("fsm/waypoint_num", waypoint_num_, -1);
-  for (int i = 0; i < waypoint_num_; i++) {
-    nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-    nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-    nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-  }
+  // nh.param("fsm/waypoint_num", waypoint_num_, -1);
+  // for (int i = 0; i < waypoint_num_; i++) {
+  //   nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
+  //   nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
+  //   nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
+  // }
 
   /* initialize main modules */
   planner_manager_.reset(new FastPlannerManager);
@@ -55,13 +55,20 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   exec_timer_   = nh.createTimer(ros::Duration(0.01), &KinoReplanFSM::execFSMCallback, this);
   safety_timer_ = nh.createTimer(ros::Duration(0.05), &KinoReplanFSM::checkCollisionCallback, this);
 
-  waypoint_sub_ =
-      nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
+  if (target_type_ == MANUAL_TARGET)
+    goal_sub_ = nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
+  else if (target_type_ == PRESET_TARGET)
+    goal_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &KinoReplanFSM::waypointListCallback, this);
+  // waypoint_sub_ =
+  //     nh.subscribe("/move_base_simple/goal", 1, &KinoReplanFSM::waypointCallback, this);
+  // waypointList_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &KinoReplanFSM::waypointListCallback, this);
+  
   odom_sub_ = nh.subscribe("/odom_world", 1, &KinoReplanFSM::odometryCallback, this);
 
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 10);
   new_pub_     = nh.advertise<std_msgs::Empty>("/planning/new", 10);
   bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("/planning/bspline", 10);
+
 }
 
 void KinoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& msg) {
@@ -70,15 +77,15 @@ void KinoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& m
   cout << "Triggered!" << endl;
   trigger_ = true;
 
-  if (target_type_ == TARGET_TYPE::MANUAL_TARGET) {
+  // if (target_type_ == TARGET_TYPE::MANUAL_TARGET) {
     end_pt_ << msg->pose.position.x, msg->pose.position.y, 2.0;
 
-  } else if (target_type_ == TARGET_TYPE::PRESET_TARGET) {
-    end_pt_(0)  = waypoints_[current_wp_][0];
-    end_pt_(1)  = waypoints_[current_wp_][1];
-    end_pt_(2)  = waypoints_[current_wp_][2];
-    current_wp_ = (current_wp_ + 1) % waypoint_num_;
-  }
+  // } else if (target_type_ == TARGET_TYPE::PRESET_TARGET) {
+  //   end_pt_(0)  = waypoints_[current_wp_][0];
+  //   end_pt_(1)  = waypoints_[current_wp_][1];
+  //   end_pt_(2)  = waypoints_[current_wp_][2];
+  //   current_wp_ = (current_wp_ + 1) % waypoint_num_;
+  // }
 
   visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
   end_vel_.setZero();
@@ -90,19 +97,52 @@ void KinoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& m
     changeFSMExecState(REPLAN_TRAJ, "TRIG");
 }
 
+void KinoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
+  if (msg->poses.empty()) {
+    ROS_WARN("Received empty waypoint list on /waypoint_generator/waypoints.");
+    return;
+  }
+  cout << "Triggered!" << endl;
+  trigger_ = true;
+
+  current_wp_ = 0;
+  waypointList_.clear();
+  waypoint_num_ = msg->poses.size();
+  for (int i = 0; i < msg->poses.size(); ++i) {
+    Eigen::Vector3d pt;
+    pt(0) = msg->poses[i].pose.position.x;
+    pt(1) = msg->poses[i].pose.position.y;
+    pt(2) = msg->poses[i].pose.position.z;
+    waypointList_.push_back(pt);
+  }
+
+  // target_type_ = TARGET_TYPE::PRESET_TARGET;
+  end_pt_(0) = waypointList_[current_wp_](0);
+  end_pt_(1) = waypointList_[current_wp_](1);
+  end_pt_(2) = waypointList_[current_wp_](2);
+  visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
+  end_vel_.setZero();
+  have_target_ = true;
+
+  if (exec_state_ == WAIT_TARGET)
+    changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
+  // else if (exec_state_ == EXEC_TRAJ)
+  //   changeFSMExecState(REPLAN_TRAJ, "TRIG");
+}
+
 void KinoReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr& msg) {
   odom_pos_(0) = msg->pose.pose.position.x;
   odom_pos_(1) = msg->pose.pose.position.y;
   odom_pos_(2) = msg->pose.pose.position.z;
 
-  odom_vel_(0) = msg->twist.twist.linear.x;
-  odom_vel_(1) = msg->twist.twist.linear.y;
-  odom_vel_(2) = msg->twist.twist.linear.z;
-
   odom_orient_.w() = msg->pose.pose.orientation.w;
   odom_orient_.x() = msg->pose.pose.orientation.x;
   odom_orient_.y() = msg->pose.pose.orientation.y;
   odom_orient_.z() = msg->pose.pose.orientation.z;
+
+  const Eigen::Vector3d body_vel(msg->twist.twist.linear.x, msg->twist.twist.linear.y,
+                                 msg->twist.twist.linear.z);
+  odom_vel_ = odom_orient_ * body_vel;
 
   have_odom_ = true;
 }
@@ -182,8 +222,20 @@ void KinoReplanFSM::execFSMCallback(const ros::TimerEvent& e) {
 
       /* && (end_pt_ - pos).norm() < 0.5 */
       if (t_cur > info->duration_ - 1e-2) {
-        have_target_ = false;
-        changeFSMExecState(WAIT_TARGET, "FSM");
+        if(target_type_ == TARGET_TYPE::PRESET_TARGET && current_wp_ < waypoint_num_-1) {
+          current_wp_++;
+          end_pt_(0) = waypointList_[current_wp_](0);
+          end_pt_(1) = waypointList_[current_wp_](1);
+          end_pt_(2) = waypointList_[current_wp_](2);
+          visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
+          end_vel_.setZero();
+          have_target_ = true;
+          changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
+        }
+        else {
+          have_target_ = false;
+          changeFSMExecState(WAIT_TARGET, "FSM");
+        }
         return;
 
       } else if ((end_pt_ - pos).norm() < no_replan_thresh_) {
@@ -239,7 +291,6 @@ void KinoReplanFSM::checkCollisionCallback(const ros::TimerEvent& e) {
 
     if (dist <= 0.3) {
       /* try to find a max distance goal around */
-      bool            new_goal = false;
       const double    dr = 0.5, dtheta = 30, dz = 0.3;
       double          new_x, new_y, new_z, max_dist = -1.0;
       Eigen::Vector3d goal;

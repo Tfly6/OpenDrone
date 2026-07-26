@@ -1,0 +1,92 @@
+# Fast-Planner topological tuning parameters.  Sensor bindings, map extents,
+# mission inputs, and vehicle limits are launch-time behaviour parameters.
+fsm:
+  thresh_replan: 0.5
+  thresh_no_replan: 2.0
+  # Preserve the effective legacy value.  The previous launch set this key
+  # twice (true, then false), so false was the value actually used.
+  act_map: false
+
+sdf_map:
+  resolution: 0.1
+  local_update_range_x: 5.5
+  local_update_range_y: 5.5
+  local_update_range_z: 4.5
+  obstacles_inflation: 0.099
+  local_bound_inflate: 0.5
+  local_map_margin: 50
+  ground_height: -1.0
+  use_depth_filter: true
+  depth_filter_tolerance: 0.15
+  depth_filter_maxdist: 4.5
+  depth_filter_mindist: 0.2
+  depth_filter_margin: 2
+  k_depth_scaling_factor: 1000.0
+  skip_pixel: 3
+  p_hit: 0.65
+  p_miss: 0.35
+  p_min: 0.12
+  p_max: 0.90
+  p_occ: 0.80
+  min_ray_length: 0.5
+  max_ray_length: 4.5
+  esdf_slice_height: 0.3
+  visualization_truncate_height: 2.5
+  virtual_ceil_height: 3.0
+  show_occ_time: false
+  show_esdf_time: false
+  pose_type: 1
+
+manager:
+  max_jerk: 4.0
+  dynamic_environment: 0
+  local_segment_length: 7.0
+  clearance_threshold: 0.2
+  control_points_distance: 0.3
+  use_geometric_path: false
+  use_kinodynamic_path: false
+  use_topo_path: true
+  use_optimization: true
+
+topo_prm:
+  sample_inflate_x: 1.0
+  sample_inflate_y: 3.5
+  sample_inflate_z: 1.0
+  clearance: 0.3
+  max_sample_time: 0.005
+  max_sample_num: 2000
+  max_raw_path: 300
+  max_raw_path2: 25
+  short_cut_num: 1
+  reserve_num: 6
+  ratio_to_short: 5.5
+  parallel_shortcut: true
+
+optimization:
+  lambda1: 10.0
+  lambda2: 5.0
+  lambda3: 0.0
+  lambda4: 0.001
+  lambda5: 1.5
+  lambda6: 10.0
+  lambda7: 20.0
+  dist0: 0.4
+  dist1: 0.0
+  algorithm1: 15
+  algorithm2: 11
+  max_iteration_num1: 2
+  max_iteration_num2: 300
+  max_iteration_time1: 0.0001
+  max_iteration_time2: 0.005
+  order: 3
+
+bspline:
+  limit_ratio: 1.1
+
+heading_planner:
+  yaw_diff: 0.08726646111111111
+  half_vert_num: 3
+  lambda1: 2.0
+  lambda2: 1.0
+  max_yaw_rate: 1.0471975333333334
+  w: 10.0

@@ -1,7 +1,12 @@
 <launch>
     <arg name="use_mpc" default="false" />
+    <arg name="use_preset_waypoints" default="false" />
+    <arg name="waypoint_type" default="circle" />
+    <arg name="auto_trigger_waypoints" default="false" />
+    <arg name="start_from_current_position" default="true" />
     <!-- Planner configs -->
     <arg name="use_kino_planner" default="true" />
+    <arg name="debug_verbose" default="false" />
     <arg name="map_size_x" default="40.0"/>
     <arg name="map_size_y" default="40.0"/>
     <arg name="map_size_z" default=" 5.0"/>
@@ -25,6 +30,14 @@
         <param name="pose_topic" value="camera/pose" />
     </node>
 
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="closure_points" value="1" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    </include>
+
     <!-- Fast planner -->
     <include unless="$(arg use_kino_planner)" file="$(find fast_planner)/launch/topo_replan.launch" >
         <arg name="map_size_x" default="$(arg map_size_x)"/>
@@ -36,6 +49,7 @@
         <arg name="camera_pose_topic" default="$(arg camera_pose_topic)"/>
         <arg name="max_vel" default="$(arg max_vel)"/>
         <arg name="max_acc" default="$(arg max_acc)"/>
+        <arg name="debug_verbose" default="$(arg debug_verbose)" />
 
         <arg name="cx" value="320"/>
         <arg name="cy" value="240"/>
@@ -53,6 +67,7 @@
         <arg name="camera_pose_topic" default="$(arg camera_pose_topic)"/>
         <arg name="max_vel" default="$(arg max_vel)"/>
         <arg name="max_acc" default="$(arg max_acc)"/>
+        <arg name="debug_verbose" default="$(arg debug_verbose)" />
 
         <arg name="cx" value="320"/>
         <arg name="cy" value="240"/>
@@ -62,19 +77,24 @@
 
     <!-- 当 use_mpc 为 true 时 -->
     <group if="$(arg use_mpc)">
-        <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
-            <param name="planner_bspline_topic" value="/planning/bspline"/>
-            <param name="publish_horizon_points" value="60"/>
-            <param name="publish_dt" value="0.02"/>
-            <param name="traj_pub_topic" value="/command/trajectory"/>
+        <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
+            <param name="adapter_type" value="bspline"/>
+            <param name="input_topic" value="/planning/bspline"/>
+            <param name="planner_output_topic" value="/planner/output"/>
+            <param name="publish_horizon_on_timer" value="true"/>
+            <param name="horizon_points" value="60"/>
+            <param name="sample_dt" value="0.02"/>
+            <param name="frame_id" value="world"/>
         </node>
     </group>
 
     <!-- 当 use_mpc 为 false 时 -->
     <group unless="$(arg use_mpc)">
-        <node pkg="opendrone" name="traj_msg_converter" type="trajectory_msg_converter.py" output="screen">
-            <param name="planner_traj_topic" value="/planning/pos_cmd"/>
-            <param name="traj_pub_topic" value="/command/trajectory"/>
+        <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
+            <param name="adapter_type" value="position_command"/>
+            <param name="input_topic" value="/planning/pos_cmd"/>
+            <param name="planner_output_topic" value="/planner/output"/>
+            <param name="frame_id" value="world"/>
         </node>
     </group>
  

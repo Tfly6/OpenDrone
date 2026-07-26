@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   dynamic_reconfigure
   math_utils
+  opendrone
 )
 
 ## System dependencies are found with CMake's conventions
@@ -108,7 +109,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES pid_controller
- CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp rospy std_msgs
+ CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs opendrone roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
 
@@ -128,7 +129,7 @@ include_directories(
 add_executable(pid_controller_node src/pid_control_node.cpp
                                    src/pid_control.cpp)
 
-add_dependencies(pid_controller_node ${PROJECT_NAME}_gencfg)
+add_dependencies(pid_controller_node ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pid_controller_node ${catkin_LIBRARIES})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

@@ -181,10 +181,14 @@ namespace fsm {
         return dis < thresh_dis;
     }
 
-    void Fsm::setGoalPosiAndYaw(const Vec3f &p, const Quatf &q) {
+    bool Fsm::setGoalPosiAndYaw(const Vec3f &p,
+                                const Quatf &q,
+                                bool apply_click_height,
+                                bool mark_new_goal,
+                                bool log_goal) {
 
         auto click_point = p;
-        if (cfg_.click_height > -5) {
+        if (apply_click_height && cfg_.click_height > -5) {
             click_point.z() = cfg_.click_height;
         }
 
@@ -192,34 +196,42 @@ namespace fsm {
             cout << GREEN << " -- [Fsm] Get goal at " << RESET << gi_.goal_p.transpose() << endl;
         } else {
             fmt::print(fg(fmt::color::indian_red), "Goal is deeply occupied, skip this goal.\n");
-            return;
+            return false;
         }
 
         if ((robot_state_.p - gi_.goal_p).norm() <
             0.1) {
             //                print(fg(color::gray), " -- [Rviz] Too close to goal, skip this target.\n");
-            return;
+            return false;
         }
 
         if (cfg_.click_yaw_en) {
             if (isnan(q.w()) || isnan(q.x()) || isnan(q.y()) || isnan(q.z())) {
                 gi_.goal_yaw = NAN;
-                ros_ptr_->info(" -- [Fsm] Receive click goal at: [{}, {}, {}]; goal yaw disabled",
-                               gi_.goal_p.x(), gi_.goal_p.y(), gi_.goal_p.z());
+                if (log_goal) {
+                    ros_ptr_->info(" -- [Fsm] Receive goal at: [{}, {}, {}]; goal yaw disabled",
+                                   gi_.goal_p.x(), gi_.goal_p.y(), gi_.goal_p.z());
+                }
             } else {
                 gi_.goal_yaw = geometry_utils::get_yaw_from_quaternion(q);
-                cout << GREEN << " -- [Fsm] Receive click goal at: [" << gi_.goal_p.transpose() << "]; goal yaw: "
-                     << gi_.goal_yaw * 57.3 << " deg" << RESET << endl;
+                if (log_goal) {
+                    cout << GREEN << " -- [Fsm] Receive goal at: [" << gi_.goal_p.transpose() << "]; goal yaw: "
+                         << gi_.goal_yaw * 57.3 << " deg" << RESET << endl;
+                }
             }
 
         } else {
             gi_.goal_yaw = NAN;
-            cout << GREEN << " -- [Fsm] Receive click goal at: [" << gi_.goal_p.transpose() << "]; goal yaw disabled"
-                 << RESET << endl;
+            if (log_goal) {
+                cout << GREEN << " -- [Fsm] Receive goal at: [" << gi_.goal_p.transpose()
+                     << "]; goal yaw disabled" << RESET << endl;
+            }
         }
 
         started_ = true;
-        gi_.new_goal = true;
+        gi_.new_goal = mark_new_goal;
+        finish_plan = false;
+        return true;
     }
 
     void Fsm::ChangeState(const string &call_func, const MACHINE_STATE &new_state) {

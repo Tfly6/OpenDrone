@@ -31,6 +31,7 @@
  */
 
 #include <mav_linear_mpc/linear_mpc.h>
+#include <solver.h>
 
 namespace mav_control {
 
@@ -262,6 +263,12 @@ void LinearModelPredictiveController::setOdometry(const mav_msgs::EigenOdometry&
 {
   static mav_msgs::EigenOdometry previous_odometry = odometry;
 
+  // The timed MPC queue samples references at the odometry timestamp.  Keep
+  // this metadata when copying the measurement; otherwise EigenOdometry's
+  // default value (-1) makes every timed reference appear to be in the future.
+  odometry_.timestamp_ns = odometry.timestamp_ns;
+  previous_odometry.timestamp_ns = odometry.timestamp_ns;
+
   if (!received_first_odometry_) {
     Eigen::Vector3d euler_angles;
     odometry.getEulerAngles(&euler_angles);
@@ -308,18 +315,19 @@ void LinearModelPredictiveController::setCommandTrajectoryPoint(
 {
   mav_msgs::EigenTrajectoryPointDeque command_trajectory_array;
   command_trajectory_array.push_back(command_trajectory);
-  mpc_queue_->insertReferenceTrajectory(command_trajectory_array);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory_array, true);
 }
 
 void LinearModelPredictiveController::setCommandTrajectory(
-    const mav_msgs::EigenTrajectoryPointDeque& command_trajectory_array)
+    const mav_msgs::EigenTrajectoryPointDeque& command_trajectory_array,
+    const bool replace_existing)
 {
   int array_size = command_trajectory_array.size();
   if (array_size < 1) {
     return;
   }
 
-  mpc_queue_->insertReferenceTrajectory(command_trajectory_array);
+  mpc_queue_->insertReferenceTrajectory(command_trajectory_array, replace_existing);
 }
 
 void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
@@ -343,10 +351,10 @@ void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
   double pitch;
   double yaw;
 
-  // update mpc queue
-  mpc_queue_->updateQueue();
-  // Copy out the whole queues
-  mpc_queue_->getQueue(position_ref_, velocity_ref_, acceleration_ref_, yaw_ref_, yaw_rate_ref_);
+  // Sample the timed reference at the actual control time.  This avoids
+  // advancing the horizon merely because a timer callback ran.
+  mpc_queue_->getQueue(odometry_.timestamp_ns, position_ref_, velocity_ref_, acceleration_ref_,
+                       yaw_ref_, yaw_rate_ref_);
 
   // update the disturbance observer
   disturbance_observer_.feedAttitudeCommand(command_roll_pitch_yaw_thrust_);
@@ -459,6 +467,23 @@ void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
   command_roll_pitch_yaw_thrust_(0) = ux * sin(yaw) + uy * cos(yaw);
   command_roll_pitch_yaw_thrust_(1) = ux * cos(yaw) - uy * sin(yaw);
   command_roll_pitch_yaw_thrust_(2) = yaw_ref_.front();
+
+  // Keep this behind verbose_ so normal flights are not flooded.  This is the
+  // minimum set of values needed to distinguish a stalled timed reference
+  // from an MPC solve that elects not to generate vertical acceleration.
+  if (verbose_) {
+    const std::size_t horizon_last = position_ref_.size() - 1;
+    ROS_INFO_STREAM_THROTTLE(
+        1.0, "Linear MPC debug: odom[z,vz]=[" << odometry_.position_W.z()
+             << ", " << odometry_.getVelocityWorld().z() << "] ref0[z,vz]=["
+             << position_ref_.front().z() << ", " << velocity_ref_.front().z()
+             << "] refN[z,vz]=[" << position_ref_.at(horizon_last).z() << ", "
+             << velocity_ref_.at(horizon_last).z() << "] int_z="
+             << position_error_integration_.z() << " d_z=" << estimated_disturbances.z()
+             << " u_ss_z=" << params.u_ss[2] << " u0_z="
+             << linearized_command_roll_pitch_thrust_(2) << " thrust="
+             << command_roll_pitch_yaw_thrust_(3) << " solver=" << solver_status);
+  }
 
   // yaw controller
   double yaw_error = command_roll_pitch_yaw_thrust_(2) - yaw;

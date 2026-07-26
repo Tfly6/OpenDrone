@@ -41,6 +41,7 @@ namespace fsm {
     class FsmRos1 : public Fsm {
         ros::NodeHandle nh_;
         ros::Subscriber goal_sub_;
+        ros::Subscriber mission_goal_sub_;
         ros::Publisher cmd_pub, mpc_cmd_pub_, path_pub_;
         ros::Timer execution_timer_, replan_timer_, cmd_timer_;
         quadrotor_msgs::PositionCommand pid_cmd_;
@@ -270,10 +271,29 @@ namespace fsm {
             setGoalPosiAndYaw(goal_p, goal_q);
         }
 
+        void missionGoalCallback(const geometry_msgs::PoseStampedConstPtr &msg) {
+            const Vec3f goal_p = Vec3f{msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
+            const Quatf goal_q = Quatf{msg->pose.orientation.w, msg->pose.orientation.x,
+                                       msg->pose.orientation.y, msg->pose.orientation.z};
+
+            bool mark_new_goal = !started_ || machine_state_ == INIT || machine_state_ == WAIT_GOAL || finish_plan;
+            if (!mark_new_goal) {
+                const double goal_shift = (goal_p - gi_.goal_p).norm();
+                mark_new_goal = goal_shift > cfg_.mission_goal_force_new_threshold;
+            }
+
+            setGoalPosiAndYaw(goal_p, goal_q, false, mark_new_goal, mark_new_goal);
+        }
+
         void init(const ros::NodeHandle &nh, const std::string &cfg_path) {
-            // 初始化参数读取
             nh_ = nh;
             cfg_ = Config(cfg_path);
+            // Interface names are launch-time behaviour.  The YAML profile
+            // deliberately contains only planner and map tuning.
+            nh_.param("interface/click_goal_topic", cfg_.click_goal_topic, cfg_.click_goal_topic);
+            nh_.param("interface/mission_goal_topic", cfg_.mission_goal_topic, cfg_.mission_goal_topic);
+            nh_.param("interface/position_command_topic", cfg_.cmd_topic, cfg_.cmd_topic);
+            nh_.param("interface/polynomial_trajectory_topic", cfg_.mpc_cmd_topic, cfg_.mpc_cmd_topic);
             map_ptr_ = std::make_shared<rog_map::ROGMapROS>(nh, cfg_path);
             // 初始化Planner
             ros_ptr_ = std::make_shared<ros_interface::Ros1Interface>(nh_);
@@ -290,7 +310,13 @@ namespace fsm {
                 cmd_cnt++;
             }
 
-            if (cmd_cnt != 1) {
+            if (!cfg_.mission_goal_topic.empty()) {
+                mission_goal_sub_ = nh_.subscribe(cfg_.mission_goal_topic, 1, &FsmRos1::missionGoalCallback, this);
+                cout << YELLOW << " -- [Fsm] MISSION GOAL ENABLE: " << cfg_.mission_goal_topic << RESET << endl;
+                cmd_cnt++;
+            }
+
+            if (cmd_cnt < 1) {
                 cout << YELLOW << " -- [Fsm] CMD INPUT ERROR." << RESET << endl;
                 exit(0);
             }

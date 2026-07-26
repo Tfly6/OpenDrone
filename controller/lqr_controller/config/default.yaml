@@ -15,3 +15,12 @@ R_rate_x: 15.0
 R_rate_y: 15.0
 R_rate_z: 10.0
 R_thrust: 0.4
+
+# Safety envelope for raw body-rate output.  Keep these separate from Q/R so
+# aggressive tuning cannot command a non-recoverable attitude.
+max_body_rate_xy: 0.8        # rad/s
+max_body_rate_z: 0.6         # rad/s
+max_tilt_deg: 30.0           # deg
+tilt_recovery_gain: 1.5      # rad/s per rad of roll/pitch error
+min_normalized_thrust: 0.15
+max_normalized_thrust: 0.85

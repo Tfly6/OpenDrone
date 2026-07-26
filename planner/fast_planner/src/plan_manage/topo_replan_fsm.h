@@ -61,7 +61,7 @@ private:
   /* parameters */
   int target_type_;  // 1 mannual select, 2 hard code
   double replan_distance_threshold_, replan_time_threshold_;
-  double waypoints_[50][3];
+  // double waypoints_[50][3];
   int waypoint_num_;
   bool act_map_;
 
@@ -79,7 +79,7 @@ private:
   /* ROS utils */
   ros::NodeHandle node_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, frontier_timer_;
-  ros::Subscriber waypoint_sub_, odom_sub_;
+  ros::Subscriber goal_sub_, odom_sub_;
   ros::Publisher replan_pub_, new_pub_, bspline_pub_;
 
   /* helper functions */
@@ -93,6 +93,7 @@ private:
   void execFSMCallback(const ros::TimerEvent& e);
   void checkCollisionCallback(const ros::TimerEvent& e);
   void waypointCallback(const geometry_msgs::PoseStampedConstPtr& msg);
+  void waypointListCallback(const nav_msgs::PathConstPtr& msg);
   void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
 
 public:

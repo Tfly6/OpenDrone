@@ -1,9 +1,13 @@
 <launch>
+    <arg name="use_preset_waypoints" default="true"/>
+    <arg name="waypoint_type" default="circle"/>
+    <arg name="auto_trigger_waypoints" default="false"/>
+    <arg name="start_from_current_position" default="true"/>
     <node pkg="opendrone" type="waypoint" name="waypoint" output="screen" />
-    <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
-        <!-- waypoint_type: eight, circle -->
-        <param name="waypoint_type" value="circle"/>
-        <param name="autoTrigger" value="true" />
-        <remap from="~odom" to="/mavros/local_position/odom"/>
-    </node>
+    <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
+        <arg name="odom_topic" value="/mavros/local_position/odom" />
+        <arg name="waypoint_type" value="$(arg waypoint_type)" />
+        <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)" />
+        <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    </include>
 </launch>

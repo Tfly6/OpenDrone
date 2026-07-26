@@ -68,7 +68,6 @@ namespace fsm {
             Vec3f goal_p;
             double goal_yaw;
         } gi_;
-
         Eigen::Vector3d auto_pilot_vel_w_;
 
         // execution states
@@ -158,7 +157,11 @@ namespace fsm {
 
         bool closeToGoal(const double &thresh_dis);
 
-        void setGoalPosiAndYaw(const Vec3f &p, const Quatf &q);
+        bool setGoalPosiAndYaw(const Vec3f &p,
+                               const Quatf &q,
+                               bool apply_click_height = true,
+                               bool mark_new_goal = true,
+                               bool log_goal = true);
 
         void ChangeState(const string &call_func, const MACHINE_STATE &new_state);
 

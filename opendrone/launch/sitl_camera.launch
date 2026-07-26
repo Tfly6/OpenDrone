@@ -10,5 +10,4 @@
         <param name="child_frame" value="camera_link" />
         <param name="pose_topic" value="camera/pose" />
     </node>
-
 </launch>

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_srvs
   dynamic_reconfigure
+  opendrone
   # mav_trajectory_generation
   # mav_trajectory_generation_ros
 )

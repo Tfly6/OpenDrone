@@ -9,7 +9,7 @@
 #include <Eigen/Geometry>
 #include <mavros/frame_tf.h>
 #include <ros/package.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <opendrone/PlannerOutput.h>
 
 namespace lqr {
 class LQR_Quaternion {
@@ -33,7 +33,7 @@ class LQR_Quaternion {
     control_vector_quat_t getOutput();
     state_vector_quat_t getRefStates();
     void setStates(const nav_msgs::Odometry::ConstPtr& msg);
-    void setTrajectory(const trajectory_msgs::MultiDOFJointTrajectory& msg);
+    void setTrajectory(const opendrone::PlannerOutput& msg);
     void computeLQR();
     void setQ(const state_matrix_quat_t& Q);
     void setR(const control_matrix_quat_t& R);
@@ -53,7 +53,7 @@ class LQR_Quaternion {
     const size_t control_dim = nControlsQuaternion;
 
     // External trajectory storage
-    trajectory_msgs::MultiDOFJointTrajectory trajectory_;
+    opendrone::PlannerOutput trajectory_;
     bool initiated;
 
     ros::Time init_time_;

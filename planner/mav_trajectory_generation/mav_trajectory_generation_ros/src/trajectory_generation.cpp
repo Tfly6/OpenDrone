@@ -14,7 +14,7 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
       has_current_odom_(false),
       max_v_(2.0),
       max_a_(2.0),
-      ignore_current_odom_start_(true),
+      duplicate_start_waypoint_distance_(0.1),
       use_nonlinear_opt_(false),
       nonlinear_max_iterations_(200),
       nonlinear_time_penalty_(500.0),
@@ -34,7 +34,8 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
   
   nh_private_.param("max_v", max_v_, 2.0);
   nh_private_.param("max_a", max_a_, 2.0);
-  nh_private_.param("ignore_current_odom_start", ignore_current_odom_start_, true);
+  nh_private_.param("duplicate_start_waypoint_distance",
+                    duplicate_start_waypoint_distance_, 0.1);
   nh_private_.param("use_nonlinear_opt", use_nonlinear_opt_, false);
   nh_private_.param("nonlinear_max_iterations", nonlinear_max_iterations_, 200);
   nh_private_.param("nonlinear_time_penalty", nonlinear_time_penalty_, 500.0);
@@ -44,7 +45,11 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
 // Callback to get current Pose of UAV
 void TrajectoryGeneration::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
   tf::poseMsgToEigen(odom->pose.pose, current_pose_);
-  tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
+  const Eigen::Quaterniond q(current_pose_.rotation());
+  const Eigen::Vector3d body_vel(odom->twist.twist.linear.x,
+                                 odom->twist.twist.linear.y,
+                                 odom->twist.twist.linear.z);
+  current_velocity_ = q * body_vel;
   has_current_odom_ = true;
 }
 
@@ -69,28 +74,41 @@ void TrajectoryGeneration::planTrajectory() {
   mav_trajectory_generation::Vertex::Vector vertices;
   mav_trajectory_generation::Vertex start(dimension_), end(dimension_);
 
-  if (!ignore_current_odom_start_ && !has_current_odom_) {
+  if (!has_current_odom_) {
     ROS_WARN("[TrajectoryGeneration] No odometry received yet, cannot use current odom as trajectory start.");
     return;
   }
 
-  if (ignore_current_odom_start_) {
-    const geometry_msgs::Pose& first_waypoint = waypoints_.front();
-    start.makeStartOrEnd(
-        Eigen::Vector3d(first_waypoint.position.x,
-                        first_waypoint.position.y,
-                        first_waypoint.position.z),
-        derivative_to_optimize_);
-  } else {
-    start.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
-                        current_pose_.translation());
-    start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                        current_velocity_);
+  if (duplicate_start_waypoint_distance_ < 0.0) {
+    ROS_WARN("[TrajectoryGeneration] duplicate_start_waypoint_distance must be non-negative; got %.3f.",
+             duplicate_start_waypoint_distance_);
+    return;
   }
 
+  const Eigen::Vector3d first_waypoint(waypoints_.front().position.x,
+                                       waypoints_.front().position.y,
+                                       waypoints_.front().position.z);
+  const double start_waypoint_distance =
+      (first_waypoint - current_pose_.translation()).norm();
+  if (start_waypoint_distance < duplicate_start_waypoint_distance_) {
+    ROS_INFO("[TrajectoryGeneration] Dropping first waypoint %.4f m from current odom; "
+             "current odom is already the trajectory start vertex.",
+             start_waypoint_distance);
+    waypoints_.erase(waypoints_.begin());
+  }
+
+  if (waypoints_.empty()) {
+    ROS_WARN("[TrajectoryGeneration] No waypoint remains after removing the duplicate start waypoint.");
+    return;
+  }
+
+  start.addConstraint(mav_trajectory_generation::derivative_order::POSITION,
+                      current_pose_.translation());
+  start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                      current_velocity_);
+
   vertices.push_back(start);
-  const size_t first_waypoint_index = ignore_current_odom_start_ ? 1 : 0;
-  for (size_t i = first_waypoint_index; i < waypoints_.size(); ++i) {
+  for (size_t i = 0; i < waypoints_.size(); ++i) {
     if (i == waypoints_.size() - 1) {
       end.makeStartOrEnd(
           Eigen::Vector3d(waypoints_[i].position.x,
@@ -133,16 +151,14 @@ void TrajectoryGeneration::planTrajectory() {
     opt.optimize();
     opt.getTrajectory(&trajectory);
 
-    ROS_INFO("[TrajectoryGeneration] Using nonlinear optimization. start_mode=%s",
-             ignore_current_odom_start_ ? "first_waypoint" : "current_odom");
+    ROS_INFO("[TrajectoryGeneration] Using nonlinear optimization. start_mode=current_odom");
   } else {
     mav_trajectory_generation::PolynomialOptimization<N> opt(dimension_);
     opt.setupFromVertices(vertices, segment_times, derivative_to_optimize_);
     opt.solveLinear();
     opt.getTrajectory(&trajectory);
 
-    ROS_INFO("[TrajectoryGeneration] Using linear optimization. start_mode=%s",
-             ignore_current_odom_start_ ? "first_waypoint" : "current_odom");
+    ROS_INFO("[TrajectoryGeneration] Using linear optimization. start_mode=current_odom");
   }
 
   publishTrajectory(trajectory);

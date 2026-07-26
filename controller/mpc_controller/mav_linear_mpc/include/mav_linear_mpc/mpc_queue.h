@@ -33,40 +33,34 @@ class MPCQueue {
   MPCQueue(int mpc_queue_size, double controller_sampling_time, double prediction_sampling_time);
   ~MPCQueue();
 
-  void insertReferenceTrajectory(const mav_msgs::EigenTrajectoryPointDeque& queue);
+  // Each input point must use timestamp_ns as its absolute desired ROS time.
+  // A replacement starts a new trajectory; a splice refreshes a rolling
+  // horizon from its first covered timestamp onward.
+  void insertReferenceTrajectory(const mav_msgs::EigenTrajectoryPointDeque& queue,
+                                 bool replace_existing);
 
-  void updateQueue();
-
-  void getQueue(Vector3dDeque& position_reference,
+  void getQueue(int64_t now_ns,
+                Vector3dDeque& position_reference,
                 Vector3dDeque& velocity_reference,
                 Vector3dDeque& acceleration_reference,
                 std::deque<double>& yaw_reference,
                 std::deque<double>& yaw_rate_reference);
 
  private:
-  int minimum_queue_size_;
   int mpc_queue_size_;
   const int maximum_queue_size_;
-  int current_queue_size_;
 
   double prediction_sampling_time_;
   double queue_dt_;
-  double queue_start_time_;
 
-  Vector3dDeque position_reference_;
-  Vector3dDeque velocity_reference_;
-  Vector3dDeque acceleration_reference_;
-  std::deque<double> yaw_reference_;
-  std::deque<double> yaw_rate_reference_;
-
-  void clearQueue();
-  void fillQueueWithPoint(const mav_msgs::EigenTrajectoryPoint& point);
-  void pushBackPoint(const mav_msgs::EigenTrajectoryPoint& point);
-  void popFrontPoint();
-  void getLastPoint(mav_msgs::EigenTrajectoryPoint* point) const;
+  mav_msgs::EigenTrajectoryPointDeque reference_points_;
+  mav_msgs::EigenTrajectoryPoint last_output_;
+  bool has_last_output_;
 
   void linearInterpolateTrajectory(const mav_msgs::EigenTrajectoryPointDeque& input_queue,
                                    mav_msgs::EigenTrajectoryPointDeque& output_queue) const;
+  mav_msgs::EigenTrajectoryPoint sampleAt(int64_t timestamp_ns) const;
+  void prunePastPoints(int64_t now_ns);
 };
 
 }  // namespace mav_control

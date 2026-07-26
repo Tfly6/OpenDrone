@@ -1,0 +1,96 @@
+# EGO Planner (v1) tuning profile.  Topics, frames, map dimensions, camera
+# calibration and mission selection are launch-time behaviour parameters.
+limits:
+  max_vel: &max_vel 1.5
+  max_acc: &max_acc 3.0
+
+debug:
+  map: false
+  map_interval: 1.0
+  fsm: false
+  fsm_interval: 1.0
+  planner: false
+  planner_interval: 1.0
+  astar: false
+  astar_interval: 1.0
+
+fsm:
+  map_ready_min_inflated: 300
+  map_ready_min_cloud: 50
+  map_ready_hold_time: 0.2
+  odom_jump_thresh: 2.0
+  odom_jump_time_thresh: 0.25
+  thresh_replan_time: 1.0
+  thresh_no_replan_meter: 1.0
+  planning_horizon: 7.5
+  planning_horizen_time: 3.0
+  emergency_time: 1.0
+  realworld_experiment: false
+  fail_safe: true
+  replan_fail_global_traj_count: 20
+  replan_fail_global_traj_interval: 20
+  replan_fail_lateral_escape_count: 25
+  replan_fail_lateral_escape_interval: 10
+  lateral_escape_dist: 2.8
+  lateral_escape_up_dist: 1.0
+  replan_fail_stop_count: 120
+
+grid_map:
+  resolution: 0.1
+  local_update_range_x: 5.5
+  local_update_range_y: 5.5
+  local_update_range_z: 4.5
+  obstacles_inflation: 0.099
+  local_map_margin: 10
+  ground_height: -0.15
+  use_depth_filter: true
+  depth_filter_tolerance: 0.15
+  depth_filter_maxdist: 5.0
+  depth_filter_mindist: 0.2
+  depth_filter_margin: 2
+  k_depth_scaling_factor: 1000.0
+  skip_pixel: 2
+  p_hit: 0.65
+  p_miss: 0.35
+  p_min: 0.12
+  p_max: 0.90
+  p_occ: 0.80
+  min_ray_length: 0.1
+  max_ray_length: 4.5
+  virtual_ceil_height: 2.9
+  visualization_truncate_height: 1.8
+  show_occ_time: false
+
+manager:
+  max_vel: *max_vel
+  max_acc: *max_acc
+  max_jerk: 4.0
+  control_points_distance: 0.4
+  feasibility_tolerance: 0.05
+  planning_horizon: 7.5
+  use_distinctive_trajs: true
+
+astar:
+  pool_size_x: 200
+  pool_size_y: 200
+  pool_size_z: 120
+
+optimization:
+  lambda_smooth: 1.0
+  lambda_collision: 0.5
+  lambda_feasibility: 0.1
+  lambda_fitness: 1.0
+  dist0: 0.5
+  swarm_clearance: 0.5
+  max_vel: *max_vel
+  max_acc: *max_acc
+
+bspline:
+  limit_vel: *max_vel
+  limit_acc: *max_acc
+  limit_ratio: 1.1
+
+prediction:
+  obj_num: 10
+  lambda: 1.0
+  predict_rate: 1.0

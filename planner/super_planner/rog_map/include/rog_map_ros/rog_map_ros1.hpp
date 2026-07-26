@@ -276,6 +276,10 @@ namespace rog_map {
 
         ROGMapROS(const ros::NodeHandle& nh, const std::string& cfg_path) :nh_(nh){
             cfg_ = rog_map::Config(cfg_path);
+            // The map model belongs to the YAML profile; its ROS inputs are
+            // integration behaviour selected by the launch file.
+            nh_.param("interface/cloud_topic", cfg_.cloud_topic, cfg_.cloud_topic);
+            nh_.param("interface/odom_topic", cfg_.odom_topic, cfg_.odom_topic);
             init();
             /// Initialize visualization module
             if (cfg_.visualization_en) {

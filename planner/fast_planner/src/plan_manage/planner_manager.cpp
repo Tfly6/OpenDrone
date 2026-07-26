@@ -37,6 +37,7 @@ FastPlannerManager::~FastPlannerManager() { std::cout << "des manager" << std::e
 
 void FastPlannerManager::initPlanModules(ros::NodeHandle& nh) {
   /* read algorithm parameters */
+  nh.param("debug/verbose", debug_verbose_, false);
 
   nh.param("manager/max_vel", pp_.max_vel_, -1.0);
   nh.param("manager/max_acc", pp_.max_acc_, -1.0);
@@ -86,6 +87,17 @@ void FastPlannerManager::initPlanModules(ros::NodeHandle& nh) {
     topo_prm_->setEnvironment(edt_environment_);
     topo_prm_->init(nh);
   }
+
+  ROS_INFO_STREAM("[FastPlanner Manager] init"
+                  << " max_vel=" << pp_.max_vel_
+                  << " max_acc=" << pp_.max_acc_
+                  << " max_jerk=" << pp_.max_jerk_
+                  << " ctrl_pt_dist=" << pp_.ctrl_pt_dist
+                  << " local_traj_len=" << pp_.local_traj_len_
+                  << " clearance=" << pp_.clearance_
+                  << " use_kinodynamic=" << (use_kinodynamic_path ? "true" : "false")
+                  << " use_optimization=" << (use_optimization ? "true" : "false")
+                  << " debug_verbose=" << (debug_verbose_ ? "true" : "false"));
 }
 
 void FastPlannerManager::setGlobalWaypoints(vector<Eigen::Vector3d>& waypoints) {
@@ -174,6 +186,11 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   }
 
   plan_data_.kino_path_ = kino_path_finder_->getKinoTraj(0.01);
+  if (debug_verbose_) {
+    ROS_INFO_STREAM("[FastPlanner Manager] kino search result"
+                    << " status=" << status
+                    << " path_samples=" << plan_data_.kino_path_.size());
+  }
 
   t_search = (ros::Time::now() - t1).toSec();
 
@@ -182,10 +199,22 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   double                  ts = pp_.ctrl_pt_dist / pp_.max_vel_;
   vector<Eigen::Vector3d> point_set, start_end_derivatives;
   kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);
+  ROS_INFO_STREAM("[FastPlanner Manager] parameterize"
+                  << " ts=" << ts
+                  << " sample_count=" << point_set.size()
+                  << " derivative_count=" << start_end_derivatives.size());
+  if (debug_verbose_ && !point_set.empty()) {
+    ROS_INFO_STREAM("[FastPlanner Manager] sample endpoints"
+                    << " first=(" << point_set.front().transpose() << ")"
+                    << " last=(" << point_set.back().transpose() << ")");
+  }
 
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
   NonUniformBspline init(ctrl_pts, 3, ts);
+  ROS_INFO_STREAM("[FastPlanner Manager] initial bspline"
+                  << " ctrl_pts=" << ctrl_pts.rows()
+                  << " duration=" << init.getTimeSum());
 
   // bspline trajectory optimization
 
@@ -198,6 +227,9 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   }
 
   ctrl_pts = bspline_optimizers_[0]->BsplineOptimizeTraj(ctrl_pts, ts, cost_function, 1, 1);
+  ROS_INFO_STREAM("[FastPlanner Manager] optimized bspline"
+                  << " ctrl_pts=" << ctrl_pts.rows()
+                  << " cost_function=" << cost_function);
 
   t_opt = (ros::Time::now() - t1).toSec();
 
@@ -209,6 +241,9 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   double to = pos.getTimeSum();
   pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
   bool feasible = pos.checkFeasibility(false);
+  ROS_INFO_STREAM("[FastPlanner Manager] feasibility before adjust"
+                  << " feasible=" << (feasible ? "true" : "false")
+                  << " duration=" << to);
 
   int iter_num = 0;
   while (!feasible && ros::ok()) {
@@ -225,6 +260,12 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   cout << "[kino replan]: Reallocate ratio: " << tn / to << endl;
   if (tn / to > 3.0) ROS_ERROR("reallocate error.");
+  ROS_INFO_STREAM("[FastPlanner Manager] time adjustment"
+                  << " feasible_after=" << (feasible ? "true" : "false")
+                  << " iter_num=" << iter_num
+                  << " duration_before=" << to
+                  << " duration_after=" << tn
+                  << " ratio=" << (tn / to));
 
   t_adjust = (ros::Time::now() - t1).toSec();
 
@@ -241,6 +282,14 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   pp_.time_adjust_   = t_adjust;
 
   updateTrajInfo();
+  const Eigen::Vector3d local_end_pos =
+      local_data_.position_traj_.evaluateDeBoorT(local_data_.duration_);
+
+  ROS_INFO_STREAM("[FastPlanner Manager] local traj updated"
+                  << " traj_id=" << local_data_.traj_id_
+                  << " duration=" << local_data_.duration_
+                  << " start_pos=(" << local_data_.start_pos_.transpose() << ")"
+                  << " end_pos=(" << local_end_pos.transpose() << ")");
 
   return true;
 }

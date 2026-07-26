@@ -132,7 +132,8 @@ class NonlinearModelPredictiveControl
   // set odom and commands
   void setOdometry(const mav_msgs::EigenOdometry& odometry);
   void setCommandTrajectoryPoint(const mav_msgs::EigenTrajectoryPoint& command_trajectory);
-  void setCommandTrajectory(const mav_msgs::EigenTrajectoryPointDeque& command_trajectory);
+  void setCommandTrajectory(const mav_msgs::EigenTrajectoryPointDeque& command_trajectory,
+                            bool replace_existing = true);
 
   // compute control input
   void calculateRollPitchYawrateThrustCommand(Eigen::Vector4d* ref_attitude_thrust);

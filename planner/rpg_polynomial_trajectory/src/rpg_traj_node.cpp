@@ -92,8 +92,8 @@ RpgTrajNode::RpgTrajNode(const ros::NodeHandle& nh, const ros::NodeHandle& pnh)
   pnh_.param<std::string>("cancel_topic", cancel_topic_, "/rpg_traj/cancel");
 
   pnh_.param<std::string>("path_topic", path_topic_, "/rpg_traj/path");
-  pnh_.param<std::string>("command_traj_topic", command_traj_topic_,
-                          "/command/trajectory");
+  pnh_.param<std::string>("planner_output_topic", planner_output_topic_,
+                          "/planner/output");
   pnh_.param<std::string>("world_frame", world_frame_, "map");
 
   pnh_.param("use_minimum_snap", use_minimum_snap_, true);
@@ -117,8 +117,8 @@ RpgTrajNode::RpgTrajNode(const ros::NodeHandle& nh, const ros::NodeHandle& pnh)
       nh_.subscribe(cancel_topic_, 1, &RpgTrajNode::cancelCallback, this);
 
   path_pub_ = nh_.advertise<nav_msgs::Path>(path_topic_, 1, true);
-  command_traj_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-      command_traj_topic_, 1, true);
+  planner_output_pub_ = nh_.advertise<opendrone::PlannerOutput>(
+      planner_output_topic_, 1, true);
 
   timer_ = nh_.createTimer(ros::Duration(1.0 / exec_frequency_),
                            &RpgTrajNode::timerCallback, this);
@@ -224,75 +224,64 @@ nav_msgs::Path RpgTrajNode::toPath(
   return path_msg;
 }
 
-trajectory_msgs::MultiDOFJointTrajectory RpgTrajNode::toMultiDOF(
+opendrone::PlannerOutput RpgTrajNode::toPlannerOutput(
     const polynomial_trajectories::Trajectory& tr) const {
-  trajectory_msgs::MultiDOFJointTrajectory msg;
+  opendrone::PlannerOutput msg;
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = world_frame_;
-  msg.joint_names.push_back("base_link");
+  msg.trajectory_id = static_cast<int64_t>(active_exec_id_);
+  msg.is_horizon = false;
+  msg.trajectory_start_time = traj_start_time_;
 
   for (const auto& p : tr.points) {
-    trajectory_msgs::MultiDOFJointTrajectoryPoint pt;
-
-    geometry_msgs::Transform tfm;
-    tfm.translation.x = p.position.x();
-    tfm.translation.y = p.position.y();
-    tfm.translation.z = p.position.z();
-    tfm.rotation = QuatFromYaw(p.heading);
-    pt.transforms.push_back(tfm);
-
-    geometry_msgs::Twist vel;
-    vel.linear.x = p.velocity.x();
-    vel.linear.y = p.velocity.y();
-    vel.linear.z = p.velocity.z();
-    vel.angular.z = p.heading_rate;
-    pt.velocities.push_back(vel);
-
-    geometry_msgs::Twist acc;
-    acc.linear.x = p.acceleration.x();
-    acc.linear.y = p.acceleration.y();
-    acc.linear.z = p.acceleration.z();
-    acc.angular.z = p.heading_acceleration;
-    pt.accelerations.push_back(acc);
-
-    pt.time_from_start = p.time_from_start;
-    msg.points.push_back(pt);
+    msg.points.push_back(toPlannerOutputPoint(p).points.front());
   }
 
   return msg;
 }
 
-trajectory_msgs::MultiDOFJointTrajectory RpgTrajNode::toMultiDOFPoint(
+opendrone::PlannerOutput RpgTrajNode::toPlannerOutputPoint(
     const polynomial_trajectories::TrajectoryPoint& p) const {
-  trajectory_msgs::MultiDOFJointTrajectory msg;
+  opendrone::PlannerOutput msg;
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = world_frame_;
-  msg.joint_names.push_back("base_link");
+  msg.trajectory_id = static_cast<int64_t>(active_exec_id_);
+  msg.is_horizon = false;
+  msg.trajectory_start_time = traj_start_time_;
 
-  trajectory_msgs::MultiDOFJointTrajectoryPoint pt;
-
-  geometry_msgs::Transform tfm;
-  tfm.translation.x = p.position.x();
-  tfm.translation.y = p.position.y();
-  tfm.translation.z = p.position.z();
-  tfm.rotation = QuatFromYaw(p.heading);
-  pt.transforms.push_back(tfm);
-
-  geometry_msgs::Twist vel;
-  vel.linear.x = p.velocity.x();
-  vel.linear.y = p.velocity.y();
-  vel.linear.z = p.velocity.z();
-  vel.angular.z = p.heading_rate;
-  pt.velocities.push_back(vel);
-
-  geometry_msgs::Twist acc;
-  acc.linear.x = p.acceleration.x();
-  acc.linear.y = p.acceleration.y();
-  acc.linear.z = p.acceleration.z();
-  acc.angular.z = p.heading_acceleration;
-  pt.accelerations.push_back(acc);
-
+  opendrone::PlannerOutputPoint pt;
   pt.time_from_start = p.time_from_start;
+  pt.valid_mask =
+      opendrone::PlannerOutputPoint::VALID_POSITION |
+      opendrone::PlannerOutputPoint::VALID_VELOCITY |
+      opendrone::PlannerOutputPoint::VALID_ACCELERATION |
+      opendrone::PlannerOutputPoint::VALID_JERK |
+      opendrone::PlannerOutputPoint::VALID_SNAP |
+      opendrone::PlannerOutputPoint::VALID_YAW |
+      opendrone::PlannerOutputPoint::VALID_YAW_RATE;
+
+  pt.position.x = p.position.x();
+  pt.position.y = p.position.y();
+  pt.position.z = p.position.z();
+
+  pt.velocity.x = p.velocity.x();
+  pt.velocity.y = p.velocity.y();
+  pt.velocity.z = p.velocity.z();
+
+  pt.acceleration.x = p.acceleration.x();
+  pt.acceleration.y = p.acceleration.y();
+  pt.acceleration.z = p.acceleration.z();
+
+  pt.jerk.x = p.jerk.x();
+  pt.jerk.y = p.jerk.y();
+  pt.jerk.z = p.jerk.z();
+
+  pt.snap.x = p.snap.x();
+  pt.snap.y = p.snap.y();
+  pt.snap.z = p.snap.z();
+
+  pt.yaw = p.heading;
+  pt.yaw_rate = p.heading_rate;
   msg.points.push_back(pt);
   return msg;
 }
@@ -321,12 +310,12 @@ void RpgTrajNode::publishTrajectoryProducts(
 
   if (split_trajectory_publish_) {
     if (!tr.points.empty()) {
-      command_traj_pub_.publish(toMultiDOFPoint(tr.points.front()));
+      planner_output_pub_.publish(toPlannerOutputPoint(tr.points.front()));
     }
     return;
   }
 
-  command_traj_pub_.publish(toMultiDOF(tr));
+  planner_output_pub_.publish(toPlannerOutput(tr));
 }
 
 void RpgTrajNode::preemptAndActivateTrajectory(
@@ -560,7 +549,7 @@ void RpgTrajNode::timerCallback(const ros::TimerEvent& event) {
   }
 
   if (split_trajectory_publish_) {
-    command_traj_pub_.publish(toMultiDOFPoint(ref));
+    planner_output_pub_.publish(toPlannerOutputPoint(ref));
   }
 }
 }  // namespace polynomial_trajectories

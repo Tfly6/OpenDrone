@@ -10,8 +10,8 @@
         <param name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)" />
         <param name="takeoff_height" value="$(arg takeoff_height)" />
         <param name="pid_type" value="2" />
-        <param name="geo_fence/x" value="10.0"/>
-        <param name="geo_fence/y" value="10.0"/>
+        <param name="geo_fence/x" value="50.0"/>
+        <param name="geo_fence/y" value="50.0"/>
         <param name="geo_fence/z" value="7.0"/>
     </node>
 
