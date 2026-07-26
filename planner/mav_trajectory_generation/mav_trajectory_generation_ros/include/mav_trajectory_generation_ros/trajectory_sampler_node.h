@@ -92,9 +92,6 @@ class TrajectorySamplerNode {
   double current_sample_time_;
 
   std::string planner_output_topic_;
-  std::string planner_id_;
-  std::string planner_family_;
-  std::string source_topic_;
   std::string frame_id_;
 
   // The trajectory to sub-sample.

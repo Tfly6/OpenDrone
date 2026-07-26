@@ -38,8 +38,6 @@
     <group if="$(arg use_mpc)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="bspline"/>
-            <param name="planner_id" value="ego_planner"/>
-            <param name="planner_family" value="online_planner"/>
             <param name="input_topic" value="/drone_0_planning/bspline"/>
             <param name="planner_output_topic" value="/planner/output"/>
             <param name="publish_horizon_on_timer" value="true"/>
@@ -53,8 +51,6 @@
     <group unless="$(arg use_mpc)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="position_command"/>
-            <param name="planner_id" value="ego_planner"/>
-            <param name="planner_family" value="online_planner"/>
             <param name="input_topic" value="/drone_0_planning/pos_cmd"/>
             <param name="planner_output_topic" value="/planner/output"/>
             <param name="frame_id" value="world"/>

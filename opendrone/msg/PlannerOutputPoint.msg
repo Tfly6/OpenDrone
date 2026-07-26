@@ -8,9 +8,7 @@ uint32 VALID_JERK = 8
 uint32 VALID_SNAP = 16
 uint32 VALID_YAW = 32
 uint32 VALID_YAW_RATE = 64
-uint32 VALID_ATTITUDE = 128
-uint32 VALID_ANGULAR_VELOCITY = 256
-uint32 VALID_THRUST = 512
+uint32 VALID_ANGULAR_VELOCITY = 128
 
 geometry_msgs/Point position
 geometry_msgs/Vector3 velocity
@@ -21,6 +19,4 @@ geometry_msgs/Vector3 snap
 float64 yaw
 float64 yaw_rate
 
-geometry_msgs/Vector3 attitude
 geometry_msgs/Vector3 angular_velocity
-geometry_msgs/Vector3 thrust

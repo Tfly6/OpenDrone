@@ -122,8 +122,6 @@ class PlannerAdapterNode:
         self.sample_dt = float(rospy.get_param('~sample_dt', 0.02))
         self.horizon_points = int(rospy.get_param('~horizon_points', 60))
         self.frame_id = rospy.get_param('~frame_id', 'world')
-        self.planner_id = rospy.get_param('~planner_id', self.adapter_type)
-        self.planner_family = rospy.get_param('~planner_family', '')
         self.prefer_native_yaw = bool(rospy.get_param('~prefer_native_yaw', True))
         self.waypoint_yaw_from_motion = bool(rospy.get_param('~waypoint_yaw_from_motion', True))
 
@@ -188,44 +186,15 @@ class PlannerAdapterNode:
         out = PlannerOutput()
         out.header.stamp = stamp
         out.header.frame_id = src.header.frame_id
-        out.planner_id = src.planner_id
-        out.planner_family = src.planner_family
-        out.source_topic = src.source_topic
         out.trajectory_id = src.trajectory_id
-        out.output_type = src.output_type
+        out.is_horizon = src.is_horizon
         out.trajectory_start_time = src.trajectory_start_time
-        out.trajectory_duration = src.trajectory_duration
-        out.is_periodic = src.is_periodic
-        out.bspline_order = src.bspline_order
-        out.bspline_knots = list(src.bspline_knots)
-        out.bspline_pos_pts = list(src.bspline_pos_pts)
-        out.bspline_yaw_pts = list(src.bspline_yaw_pts)
-        out.bspline_yaw_dt = src.bspline_yaw_dt
-        out.polynomial_type = src.polynomial_type
-        out.polynomial_piece_num_pos = src.polynomial_piece_num_pos
-        out.polynomial_piece_num_yaw = src.polynomial_piece_num_yaw
-        out.polynomial_order_pos = src.polynomial_order_pos
-        out.polynomial_order_yaw = src.polynomial_order_yaw
-        out.polynomial_start_time_pos = src.polynomial_start_time_pos
-        out.polynomial_start_time_yaw = src.polynomial_start_time_yaw
-        out.polynomial_yaw = src.polynomial_yaw
-        out.polynomial_yaw_rate = src.polynomial_yaw_rate
-        out.polynomial_coef_yaw = list(src.polynomial_coef_yaw)
-        out.polynomial_time_yaw = list(src.polynomial_time_yaw)
-        out.polynomial_coef_pos_x = list(src.polynomial_coef_pos_x)
-        out.polynomial_coef_pos_y = list(src.polynomial_coef_pos_y)
-        out.polynomial_coef_pos_z = list(src.polynomial_coef_pos_z)
-        out.polynomial_time_pos = list(src.polynomial_time_pos)
-        out.debug_info = src.debug_info
         return out
 
     def _new_output(self, stamp):
         msg = PlannerOutput()
         msg.header.stamp = stamp
         msg.header.frame_id = self.frame_id
-        msg.planner_id = self.planner_id
-        msg.planner_family = self.planner_family
-        msg.source_topic = self.input_topic
         return msg
 
     def _make_point(
@@ -238,9 +207,7 @@ class PlannerAdapterNode:
         snap=None,
         yaw=None,
         yaw_rate=None,
-        attitude=None,
         angular_velocity=None,
-        thrust=None,
     ):
         point = PlannerOutputPoint()
         point.time_from_start = rospy.Duration.from_sec(max(float(time_from_start), 0.0))
@@ -277,22 +244,11 @@ class PlannerAdapterNode:
         if yaw_rate is not None:
             point.yaw_rate = float(yaw_rate)
             mask |= PlannerOutputPoint.VALID_YAW_RATE
-        if attitude is not None:
-            point.attitude.x = float(attitude[0])
-            point.attitude.y = float(attitude[1])
-            point.attitude.z = float(attitude[2])
-            mask |= PlannerOutputPoint.VALID_ATTITUDE
         if angular_velocity is not None:
             point.angular_velocity.x = float(angular_velocity[0])
             point.angular_velocity.y = float(angular_velocity[1])
             point.angular_velocity.z = float(angular_velocity[2])
             mask |= PlannerOutputPoint.VALID_ANGULAR_VELOCITY
-        if thrust is not None:
-            point.thrust.x = float(thrust[0])
-            point.thrust.y = float(thrust[1])
-            point.thrust.z = float(thrust[2])
-            mask |= PlannerOutputPoint.VALID_THRUST
-
         point.valid_mask = mask
         return point
 
@@ -301,7 +257,7 @@ class PlannerAdapterNode:
         planner_output = self._new_output(stamp)
         planner_output.header.frame_id = msg.header.frame_id or self.frame_id
         planner_output.trajectory_id = int(msg.trajectory_id)
-        planner_output.output_type = PlannerOutput.OUTPUT_SINGLE
+        planner_output.is_horizon = False
         planner_output.trajectory_start_time = stamp
         planner_output.points.append(
             self._make_point(
@@ -312,9 +268,7 @@ class PlannerAdapterNode:
                 jerk=(msg.jerk.x, msg.jerk.y, msg.jerk.z),
                 yaw=msg.yaw,
                 yaw_rate=msg.yaw_dot,
-                attitude=(msg.attitude.x, msg.attitude.y, msg.attitude.z),
                 angular_velocity=(msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z),
-                thrust=(msg.thrust.x, msg.thrust.y, msg.thrust.z),
             )
         )
         self._publish_outputs(planner_output)
@@ -338,7 +292,6 @@ class PlannerAdapterNode:
                 yaw_spline = UniformBsplineEval(yaw_coeff, msg.order, yaw_knots)
 
         t0, t1 = pos_spline.get_time_range()
-        duration = max(t1 - t0, 0.0)
 
         def builder(stamp):
             rel_t = (stamp - msg.start_time).to_sec() + t0
@@ -346,16 +299,10 @@ class PlannerAdapterNode:
                 return None
             planner_output = self._new_output(stamp)
             planner_output.trajectory_id = int(msg.traj_id)
-            planner_output.output_type = PlannerOutput.OUTPUT_BSPLINE | PlannerOutput.OUTPUT_SAMPLED
-            if self.publish_horizon_on_timer or self.horizon_points > 1:
-                planner_output.output_type |= PlannerOutput.OUTPUT_HORIZON
+            planner_output.is_horizon = (
+                self.publish_horizon_on_timer or self.horizon_points > 1
+            )
             planner_output.trajectory_start_time = msg.start_time
-            planner_output.trajectory_duration = rospy.Duration.from_sec(duration)
-            planner_output.bspline_order = int(msg.order)
-            planner_output.bspline_knots = list(msg.knots)
-            planner_output.bspline_pos_pts = list(msg.pos_pts)
-            planner_output.bspline_yaw_pts = list(msg.yaw_pts)
-            planner_output.bspline_yaw_dt = float(msg.yaw_dt)
 
             sample_count = self.horizon_points if self.publish_horizon_on_timer else 1
             for idx in range(sample_count):
@@ -376,10 +323,6 @@ class PlannerAdapterNode:
                     self._last_yaw = yaw
                 planner_output.points.append(
                     self._make_point(
-                        # All PlannerOutput points use the source trajectory
-                        # origin as their time origin.  A rolling window is
-                        # therefore still placed on the same monotonic time
-                        # axis as the original trajectory.
                         time_from_start=(stamp - msg.start_time).to_sec() + idx * self.sample_dt,
                         position=pos,
                         velocity=vel,
@@ -402,28 +345,8 @@ class PlannerAdapterNode:
         planner_output = self._new_output(stamp)
         planner_output.header.frame_id = msg.header.frame_id or self.frame_id
         planner_output.trajectory_id = int(msg.trajectory_id)
-        planner_output.output_type = PlannerOutput.OUTPUT_POLYNOMIAL
-        planner_output.polynomial_type = int(msg.type)
-        planner_output.polynomial_piece_num_pos = int(msg.piece_num_pos)
-        planner_output.polynomial_piece_num_yaw = int(msg.piece_num_yaw)
-        planner_output.polynomial_order_pos = int(msg.order_pos)
-        planner_output.polynomial_order_yaw = int(msg.order_yaw)
-        planner_output.polynomial_start_time_pos = msg.start_WT_pos
-        planner_output.polynomial_start_time_yaw = msg.start_WT_yaw
-        planner_output.polynomial_yaw = float(msg.yaw)
-        planner_output.polynomial_yaw_rate = float(msg.yaw_rate)
-        planner_output.polynomial_coef_yaw = list(msg.coef_yaw)
-        planner_output.polynomial_time_yaw = list(msg.time_yaw)
-        planner_output.polynomial_coef_pos_x = list(msg.coef_pos_x)
-        planner_output.polynomial_coef_pos_y = list(msg.coef_pos_y)
-        planner_output.polynomial_coef_pos_z = list(msg.coef_pos_z)
-        planner_output.polynomial_time_pos = list(msg.time_pos)
-        planner_output.debug_info = msg.debug_info
+        planner_output.is_horizon = False
         planner_output.trajectory_start_time = msg.start_WT_pos
-        planner_output.trajectory_duration = rospy.Duration.from_sec(sum(msg.time_pos))
-
-        if msg.type & PolynomialTrajectory.HEART_BEAT:
-            planner_output.output_type |= PlannerOutput.OUTPUT_HEARTBEAT
 
         has_pos = bool(msg.type & PolynomialTrajectory.POSITION_TRAJ) and bool(msg.time_pos)
         has_yaw = bool(msg.type & PolynomialTrajectory.YAW_TRAJ) and bool(msg.time_yaw)
@@ -463,9 +386,7 @@ class PlannerAdapterNode:
             if rel_t > pos_eval_x.total_duration:
                 return None
             out = self._copy_output_metadata(planner_output, now)
-            out.output_type |= PlannerOutput.OUTPUT_SAMPLED
-            if self.publish_horizon_on_timer or self.horizon_points > 1:
-                out.output_type |= PlannerOutput.OUTPUT_HORIZON
+            out.is_horizon = self.publish_horizon_on_timer or self.horizon_points > 1
 
             sample_count = self.horizon_points if self.publish_horizon_on_timer else 1
             for idx in range(sample_count):
@@ -498,9 +419,6 @@ class PlannerAdapterNode:
                     yaw_rate = yaw_eval.evaluate(yaw_t, 1)
                 out.points.append(
                     self._make_point(
-                        # Keep sampled rolling windows on the polynomial's
-                        # source trajectory time axis instead of restarting
-                        # at zero for every publication.
                         time_from_start=rel_t + idx * self.sample_dt,
                         position=pos,
                         velocity=vel,
@@ -522,7 +440,7 @@ class PlannerAdapterNode:
         stamp = msg.header.stamp if msg.header.stamp != rospy.Time() else rospy.Time.now()
         planner_output = self._new_output(stamp)
         planner_output.header.frame_id = msg.header.frame_id or self.frame_id
-        planner_output.output_type = PlannerOutput.OUTPUT_WAYPOINT | PlannerOutput.OUTPUT_SINGLE
+        planner_output.is_horizon = False
         planner_output.trajectory_start_time = stamp
 
         pos = np.array([msg.point.x, msg.point.y, msg.point.z], dtype=float)

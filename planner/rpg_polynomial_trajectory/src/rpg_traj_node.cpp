@@ -229,15 +229,9 @@ opendrone::PlannerOutput RpgTrajNode::toPlannerOutput(
   opendrone::PlannerOutput msg;
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = world_frame_;
-  msg.planner_id = "rpg_trajectory";
-  msg.planner_family = "trajectory_generator";
-  msg.source_topic = waypoint_topic_;
   msg.trajectory_id = static_cast<int64_t>(active_exec_id_);
-  msg.output_type = opendrone::PlannerOutput::OUTPUT_SAMPLED;
+  msg.is_horizon = false;
   msg.trajectory_start_time = traj_start_time_;
-  if (!tr.points.empty()) {
-    msg.trajectory_duration = tr.points.back().time_from_start;
-  }
 
   for (const auto& p : tr.points) {
     msg.points.push_back(toPlannerOutputPoint(p).points.front());
@@ -251,13 +245,9 @@ opendrone::PlannerOutput RpgTrajNode::toPlannerOutputPoint(
   opendrone::PlannerOutput msg;
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = world_frame_;
-  msg.planner_id = "rpg_trajectory";
-  msg.planner_family = "trajectory_generator";
-  msg.source_topic = waypoint_topic_;
   msg.trajectory_id = static_cast<int64_t>(active_exec_id_);
-  msg.output_type = opendrone::PlannerOutput::OUTPUT_SAMPLED;
+  msg.is_horizon = false;
   msg.trajectory_start_time = traj_start_time_;
-  msg.trajectory_duration = p.time_from_start;
 
   opendrone::PlannerOutputPoint pt;
   pt.time_from_start = p.time_from_start;

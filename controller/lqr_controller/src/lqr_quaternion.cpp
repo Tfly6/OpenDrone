@@ -367,11 +367,6 @@ bool LQR_Quaternion::setTrajectoryReference(state_vector_quat_t& xref, control_v
   uref(1) = ang_vel_body.y();
   uref(2) = ang_vel_body.z();
 
-  if (!trajectory_.is_periodic && selected_idx >= static_cast<int>(trajectory_.points.size()) - 1) {
-    ROS_INFO("LQR Controller: Trajectory finished");
-    return true;
-  }
-
   return false;
 }
 

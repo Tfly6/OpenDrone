@@ -37,16 +37,8 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
   nh_private_.param("loop_trajectory", loop_trajectory_, loop_trajectory_);
   nh_private_.param<std::string>("planner_output_topic", planner_output_topic_,
                                  "/planner/output");
-  nh_private_.param<std::string>("planner_id", planner_id_,
-                                 "mav_trajectory_planner");
-  nh_private_.param<std::string>("planner_family", planner_family_,
-                                 "trajectory_generator");
-  nh_private_.param<std::string>("source_topic", source_topic_,
-                                 "/trajectory_generation/trajectory");
   nh_private_.param<std::string>("frame_id", frame_id_, "map");
 
-  // command_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-  //     mav_msgs::default_topics::COMMAND_TRAJECTORY, 1); // command/trajectory
   planner_output_pub_ = nh_.advertise<opendrone::PlannerOutput>(
       planner_output_topic_, 1, true);
   traj_trigger_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
@@ -174,14 +166,9 @@ opendrone::PlannerOutput TrajectorySamplerNode::buildPlannerOutput(
   opendrone::PlannerOutput msg;
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = frame_id_;
-  msg.planner_id = planner_id_;
-  msg.planner_family = planner_family_;
-  msg.source_topic = source_topic_;
   msg.trajectory_id = trajectory_id_;
-  msg.output_type = split_samples ? opendrone::PlannerOutput::OUTPUT_SINGLE
-                                  : opendrone::PlannerOutput::OUTPUT_SAMPLED;
+  msg.is_horizon = false;
   msg.trajectory_start_time = start_time_;
-  msg.trajectory_duration = ros::Duration(trajectory_.getMaxTime());
 
   if (!trajectory_points.empty()) {
     msg.points.reserve(trajectory_points.size());

@@ -22,8 +22,7 @@ constexpr double kTakeoffMidpointRatio = 0.5;
 constexpr double kTakeoffReachTolerance = 0.15;
 
 std::string PlannerReferenceKey(const opendrone::PlannerOutput& output) {
-  return output.planner_id + "\\n" + output.source_topic + "\\n" +
-         std::to_string(output.trajectory_id) + "\\n" +
+  return std::to_string(output.trajectory_id) + "\\n" +
          std::to_string(output.trajectory_start_time.toNSec());
 }
 }  // namespace
@@ -230,7 +229,7 @@ void NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback(
   }
 
   const std::string key = PlannerReferenceKey(*msg);
-  const bool is_horizon = (msg->output_type & opendrone::PlannerOutput::OUTPUT_HORIZON) != 0;
+  const bool is_horizon = msg->is_horizon;
   const bool replace_existing = !is_horizon || !has_active_planner_reference_ ||
                                 key != active_planner_reference_key_;
   mav_msgs::EigenTrajectoryPointDeque reference_array;

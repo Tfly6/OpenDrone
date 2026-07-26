@@ -405,16 +405,14 @@ void LQR_Controller::trajectoryCallback(const opendrone::PlannerOutput::ConstPtr
     const auto& first_pt = msg->points.front();
     ROS_INFO_THROTTLE(
         1.0,
-        "LQR planner/output: traj_id=%ld periodic=%s points=%zu start=(%.2f, %.2f, %.2f) vel=(%.2f, %.2f, %.2f) "
-        "traj_start=%.3f duration=%.3f",
-        msg->trajectory_id,
-        msg->is_periodic ? "true" : "false",
+        "LQR planner/output: traj_id=%llu horizon=%s points=%zu start=(%.2f, %.2f, %.2f) "
+        "vel=(%.2f, %.2f, %.2f) traj_start=%.3f",
+        static_cast<unsigned long long>(msg->trajectory_id),
+        msg->is_horizon ? "true" : "false",
         msg->points.size(),
         first_pt.position.x, first_pt.position.y, first_pt.position.z,
         first_pt.velocity.x, first_pt.velocity.y, first_pt.velocity.z,
-        msg->trajectory_start_time.toSec(),
-        msg->trajectory_duration.toSec());
-    // ROS_DEBUG("LQR Controller: Received trajectory with %zu points", msg->points.size());
+        msg->trajectory_start_time.toSec());
 }
 
 void LQR_Controller::TrySetOffboard(const ros::Time& now)
