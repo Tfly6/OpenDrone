@@ -32,8 +32,9 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES opendrone
-#  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp rospy std_msgs
+#  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp rospy std_msgs trajectory_msgs message_runtime
 #  DEPENDS system_lib
+  CATKIN_DEPENDS geometry_msgs mavros_msgs message_runtime roscpp rospy sensor_msgs std_msgs std_srvs trajectory_msgs tf2_ros tf2_sensor_msgs pcl_ros
 )
 
 include_directories(
@@ -73,6 +74,10 @@ target_link_libraries(rect_other ${catkin_LIBRARIES})
 add_executable(waypoint src/basic_example/waypoint.cpp)
 add_dependencies(waypoint ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(waypoint ${catkin_LIBRARIES})
+
+add_executable(base src/base.cpp)
+add_dependencies(base ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(base ${catkin_LIBRARIES})
 
 add_executable(trigger_land src/trigger_land.cpp)
 add_dependencies(trigger_land ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

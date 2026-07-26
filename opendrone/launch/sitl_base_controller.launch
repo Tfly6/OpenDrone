@@ -1,0 +1,26 @@
+<launch>
+    <arg name="enable_sim" default="true" />
+    <arg name="enable_auto_offboard" default="true" />
+    <arg name="enable_auto_arm" default="true" />
+    <arg name="auto_takeoff" default="true" />
+    <arg name="takeoff_height" default="2.0" />
+    <arg name="publish_rate" default="50.0" />
+    <arg name="offboard_warmup_count" default="80" />
+    <arg name="request_interval" default="1.0" />
+    <arg name="arrival_threshold" default="0.10" />
+
+    <node pkg="opendrone" type="base" name="base" output="screen">
+        <param name="enable_sim" value="$(arg enable_sim)" />
+        <param name="enable_auto_offboard" value="$(arg enable_auto_offboard)" />
+        <param name="enable_auto_arm" value="$(arg enable_auto_arm)" />
+        <param name="auto_takeoff" value="$(arg auto_takeoff)" />
+        <param name="takeoff_height" value="$(arg takeoff_height)" />
+        <param name="publish_rate" value="$(arg publish_rate)" />
+        <param name="offboard_warmup_count" value="$(arg offboard_warmup_count)" />
+        <param name="request_interval" value="$(arg request_interval)" />
+        <param name="arrival_threshold" value="$(arg arrival_threshold)" />
+        <param name="geo_fence/x" value="10.0" />
+        <param name="geo_fence/y" value="10.0" />
+        <param name="geo_fence/z" value="7.0" />
+    </node>
+</launch>

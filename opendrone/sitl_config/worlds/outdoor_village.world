@@ -47,7 +47,7 @@
     <model name='vrc_driving_terrain'>
       <static>1</static>
       <link name='link'>
-        <collision name='collision'>
+        <!-- <collision name='collision'>
           <geometry>
             <heightmap>
               <uri>model://vrc_driving_terrain/materials/textures/heightmap.png</uri>
@@ -77,7 +77,7 @@
               <ode/>
             </friction>
           </surface>
-        </collision>
+        </collision> -->
         <visual name='visual'>
           <geometry>
             <heightmap>
