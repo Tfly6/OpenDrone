@@ -12,13 +12,13 @@ OpenDrone/
 │   └── Modules/
 ├── controller/           # 控制器集合，统一封装为 ROS 包，便于在 PX4 SITL 中切换不同控制策略
 ├── opendrone/            # 主 ROS 功能包
-│   ├── config/           # 参数配置
 │   ├── include/          # 公共头文件
 │   ├── launch/           # 一键启动 SITL、控制器、规划器和测试流程的 launch 文件
+│   ├── msg/              # 自定义 ROS 消息（PlannerOutput, PlannerOutputPoint）
 │   ├── rviz/             # RViz 配置
-│   ├── scripts/          # Python 辅助脚本，例如消息转换、相机位姿发布、点云处理
+│   ├── scripts/          # Python 辅助脚本（planner_adapter 统一规划器输出、消息转换等）
 │   ├── sitl_config/      # PX4/Gazebo SITL 所需的模型、世界、插件列表与仿真配置
-│   └── src/              # 基础示例和辅助工具实现
+│   └── src/              # 基础示例和统一控制器基类（base 节点）
 ├── planner/              # 规划器集合
 ├── shell/                # 常用脚本
 ├── utils/                # 公共依赖、消息定义、数学工具、可视化和配套基础库，供控制器与规划器复用
@@ -28,6 +28,17 @@ OpenDrone/
 ```
 
 > 补充说明：仓库内大多数 ROS 包都遵循类似的目录组织方式，例如 **cfg/** 用于动态参数配置，**include/** 用于头文件，**launch/** 用于启动文件，**src/** 用于源码实现，**test/** 用于测试或示例验证。
+
+## 核心架构
+
+```
+[Planner]  -->  planner_adapter.py  -->  /planner/output (PlannerOutput)
+                                              |
+                           [任一 Controller]  -->  PX4                      
+```
+
+- **planner_adapter**（`opendrone/scripts/planner_adapter.py`）：将各规划器的不同输出格式（Bspline、PolynomialTrajectory、PositionCommand 等）统一转换为 `opendrone/PlannerOutput` 消息，实现规划器与控制器的解耦。
+- **自定义消息**（`opendrone/msg/`）：`PlannerOutput` 和 `PlannerOutputPoint` 定义了统一的轨迹点格式，支持位置、速度、加速度、偏航等可选字段（通过 `valid_mask` 标记有效字段）。
 
 **控制器（controller文件夹）**
 
@@ -63,7 +74,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
   
-- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器，具体看 [README.md](./controller/lqr_controller/README.md)。
+- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器，具体看 [README.md](./controller/lqr_controller/README.md)。此控制器尚在实验中。
 
   启动：
 
@@ -71,7 +82,7 @@ OpenDrone/
   roslaunch opendrone sitl_lqr_controller.launch
   ```
 
-- **mpc_controller**：参考了 [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw) 项目，包含了线性mpc和非线性mpc，此控制器尚在实验中。
+- **mpc_controller**：参考了 [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw) 项目，包含了线性mpc和非线性mpc。
   启动：
 
   ```bash
@@ -135,7 +146,7 @@ OpenDrone/
   roslaunch opendrone sitl_rpg_trajectory.launch
   ```
 
-- **super_planner** : 参考了 [hku-mars/SUPER](https://github.com/hku-mars/SUPER) 项目，需要带3D激光雷达的无人机。此规划器尚在实验中。
+- **super_planner** : 参考了 [hku-mars/SUPER](https://github.com/hku-mars/SUPER) 项目，需要带3D激光雷达的无人机。
 
   启动：
 
@@ -147,7 +158,7 @@ OpenDrone/
 
 > 支持 Ubuntu 18.04 ROS Melodic、Ubuntu 20.04 ROS Noetic
 ## 1. 准备
-- **使用之前必须搭建** [PX4无人机仿真环境](https://blog.csdn.net/weixin_55944949/article/details/130895608?spm=1001.2014.3001.5501)
+- **使用之前必须搭建** [PX4 无人机仿真环境](https://docs.px4.io/main/zh/sim_gazebo_classic/)
 
 - **创建工作空间**
 没有创建工作空间，可以执行下列代码，如果创建了可以跳过
@@ -319,7 +330,7 @@ roslaunch opendrone sitl_ego_planner_mid360.launch
 
 [7] B. He, G. Chen, C. Fermuller, Y. Aloimonos and J. Zhang, "**Air-FAR: Fast and Adaptable Routing for Aerial Navigation in Large-Scale Complex Unknown Environments,**" 2025 IEEE International Conference on Robotics and Automation (ICRA)
 
-[8] Xin Zhou et al. ,**Swarm of micro flying robots in the wild.** *Sci. Robot.*7,eabm5954(2022)
+[8] Xin Zhou et al., **Swarm of micro flying robots in the wild.** *Sci. Robot.* 7, eabm5954 (2022).
 
 [9] Foehn, Philipp & Scaramuzza, Davide. (2018). **Onboard State Dependent LQR for Agile Quadrotors.** 10.1109/ICRA.2018.8460885.
 
@@ -327,10 +338,10 @@ roslaunch opendrone sitl_ego_planner_mid360.launch
 
 [11] M. Faessler, D. Falanga, and D. Scaramuzza, "**Thrust Mixing, Saturation, and Body-Rate Control for Accurate Aggressive Quadrotor Flight,**" IEEE Robot. Autom. Lett. (RA-L), vol. 2, no. 2, pp. 476–482, Apr. 2017.
 
-[12] Ren Y , Zhu F , Lu G ,et al.**Safety-assured high-speed navigation for MAVs**[J].Science Robotics, 2025, 10(98).DOI:10.1126/scirobotics.ado6187.
+[12] Ren Y, Zhu F, Lu G, et al. **Safety-assured high-speed navigation for MAVs.** *Science Robotics*, 2025, 10(98). DOI:10.1126/scirobotics.ado6187.
 
-[13] Lu G , Ren Y , Zhu F ,et al.**Autonomous Tail-Sitter Flights in Unknown Environments**[J]. 2024.DOI:10.1109/TRO.2025.3526102.
+[13] Lu G, Ren Y, Zhu F, et al. **Autonomous Tail-Sitter Flights in Unknown Environments.** *IEEE Trans. on Robotics*, 2025. DOI:10.1109/TRO.2025.3526102.
 
-[14] Ren Y , Cai Y , Zhu F ,et al.ROG-Map: **An Efficient Robocentric Occupancy Grid Map for Large-scene and High-resolution LiDAR-based Motion Planning[J].2024 IEEE/RSJ International Conference on Intelligent Robots and Systems** (IROS), 2024:8119-8125.DOI:10.1109/iros58592.2024.10802303.
+[14] Ren Y, Cai Y, Zhu F, et al. **ROG-Map: An Efficient Robocentric Occupancy Grid Map for Large-scene and High-resolution LiDAR-based Motion Planning.** *2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, 2024:8119-8125. DOI:10.1109/iros58592.2024.10802303.
 
 [15] M. Watterson, and V. Kumar, "**Control of Quadrotors Using the Hopf Fibration on SO(3),**" Robotics Research., pp. 199–215, 2020.

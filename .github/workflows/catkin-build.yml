@@ -10,10 +10,15 @@ on:
 jobs:
   catkin-build:
     name: Ubuntu 20.04 / ROS Noetic
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: osrf/ros:noetic-desktop-full-focal
 
     steps:
+      - name: Install Git (required for checkout with submodules)
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y git ca-certificates
+
       - name: Check out source and submodules
         uses: actions/checkout@v4
         with:

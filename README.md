@@ -12,13 +12,13 @@ OpenDrone/
 │   └── Modules/
 ├── controller/           # Controller collection, packaged as ROS packages for easy switching in PX4 SITL
 ├── opendrone/            # Main ROS package
-│   ├── config/           # Parameter configuration
 │   ├── include/          # Public header files
 │   ├── launch/           # One-click launch files for SITL, controllers, planners, and tests
+│   ├── msg/              # Custom ROS messages (PlannerOutput, PlannerOutputPoint)
 │   ├── rviz/             # RViz configurations
-│   ├── scripts/          # Python helper scripts, e.g., message conversion, camera pose publishing, point cloud processing
+│   ├── scripts/          # Python helper scripts (planner_adapter for unified planner output, message conversion, etc.)
 │   ├── sitl_config/      # Models, worlds, plugin lists, and simulation settings for PX4/Gazebo SITL
-│   └── src/              # Basic examples and helper tool implementations
+│   └── src/              # Basic examples and unified controller base (base node)
 ├── planner/              # Planner collection
 ├── shell/                # Common scripts
 ├── utils/                # Shared dependencies, message definitions, math tools, visualization, and utility libraries reused by controllers and planners
@@ -28,6 +28,17 @@ OpenDrone/
 ```
 
 > Note: Most ROS packages in this repository follow a similar structure, e.g., **cfg/** for dynamic parameter config, **include/** for headers, **launch/** for launch files, **src/** for source code, and **test/** for tests or demos.
+
+## Core Architecture
+
+```
+[Planner]  -->  planner_adapter.py  -->  /planner/output (PlannerOutput)
+                                              |
+                        [Any Controller]  -->  PX4                      
+```
+
+- **planner_adapter** (`opendrone/scripts/planner_adapter.py`): Converts various planner output formats (Bspline, PolynomialTrajectory, PositionCommand, etc.) into a unified `opendrone/PlannerOutput` message, decoupling planners from controllers.
+- **Custom messages** (`opendrone/msg/`): `PlannerOutput` and `PlannerOutputPoint` define a unified trajectory point format with optional fields for position, velocity, acceleration, yaw, etc. (valid fields are marked via `valid_mask`).
 
 **Controllers (controller folder)**
 
@@ -63,7 +74,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-- **lqr_controller**: Referenced from [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking). A simple LQR controller. See [README.md](./controller/lqr_controller/README.md).
+- **lqr_controller**: Referenced from [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking). A simple LQR controller. See [README.md](./controller/lqr_controller/README.md). This controller is still experimental.
 
   Launch:
 
@@ -71,7 +82,7 @@ OpenDrone/
   roslaunch opendrone sitl_lqr_controller.launch
   ```
 
-- **mpc_controller**: Referenced from [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw), including linear MPC and nonlinear MPC. This controller is still experimental.
+- **mpc_controller**: Referenced from [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw), including linear MPC and nonlinear MPC.
 
   Launch:
 
@@ -134,7 +145,7 @@ OpenDrone/
   roslaunch opendrone sitl_rpg_trajectory.launch
   ```
 
-- **super_planner**: Referenced from [hku-mars/SUPER](https://github.com/hku-mars/SUPER). Requires a UAV with 3D LiDAR. This planner is still experimental.
+- **super_planner**: Referenced from [hku-mars/SUPER](https://github.com/hku-mars/SUPER). Requires a UAV with 3D LiDAR.
 
   Launch:
 
