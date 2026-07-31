@@ -4,3 +4,7 @@
 [submodule "utils/mav_comm"]
 	path = utils/mav_comm
 	url = https://github.com/ethz-asl/mav_comm
+[submodule "opendrone/sitl_config"]
+	path = opendrone/sitl_config
+	url = https://github.com/Tfly6/sitl_config
+	branch = ros1
