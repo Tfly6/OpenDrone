@@ -63,8 +63,6 @@ public:
     /* Get global map size */
     Eigen::Vector3i GetMapSize() const { return world_obs_cloud_grid_->GetSize();};
 
-    bool IsInitialized() const { return is_init_; }
-
     inline int GetLayerId(const Point3D& point) {
         if (!is_init_) return -1;
         return world_obs_cloud_grid_->Pos2Sub(point.x, point.y, point.z).z();

@@ -1,0 +1,33 @@
+<launch>
+
+  <arg name="checkTerrainConn" default="false"/>
+  <arg name="odom_topic" default="/state_estimation"/>
+  <arg name="scan_topic" default="/registered_scan"/>
+  <arg name="terrain_local_topic" default="/terrain_map"/>
+  <arg name="terrain_ext_topic" default="/terrain_map_ext"/>
+
+  <node pkg="airfar_planner" type="terrainAnalysisExt" name="terrainAnalysisExt" output="screen" required="true">
+    <remap from="/state_estimation" to="$(arg odom_topic)"/>
+    <remap from="/registered_scan" to="$(arg scan_topic)"/>
+    <remap from="/terrain_map" to="$(arg terrain_local_topic)"/>
+    <remap from="/terrain_map_ext" to="$(arg terrain_ext_topic)"/>
+    <param name="scanVoxelSize" type="double" value="0.1" />
+    <param name="decayTime" type="double" value="10.0" />
+    <param name="noDecayDis" type="double" value="0" />
+    <param name="clearingDis" type="double" value="30.0" />
+    <param name="useSorting" type="bool" value="false" />
+    <param name="quantileZ" type="double" value="0.1" />
+    <param name="vehicleHeight" type="double" value="1.5" />
+    <param name="voxelPointUpdateThre" type="int" value="100" />
+    <param name="voxelTimeUpdateThre" type="double" value="2.0" />
+    <param name="lowerBoundZ" type="double" value="0.0" />
+    <param name="upperBoundZ" type="double" value="1.0" />
+    <param name="disRatioZ" type="double" value="0.1" />
+    <param name="checkTerrainConn" type="bool" value="$(arg checkTerrainConn)" />
+    <param name="terrainConnThre" type="double" value="0.5" />
+    <param name="terrainUnderVehicle" type="double" value="-0.75" />
+    <param name="ceilingFilteringThre" type="double" value="2.0" />
+    <param name="localTerrainMapRadius" type="double" value="4.0" />
+  </node>
+
+</launch>

@@ -11,18 +11,34 @@
 /***************************************************************************************/
 
 void DPMaster::Init() {
+  // target_type selects both the topic and message type of target_sub_.
+  this->LoadROSParams();
+
   /* initialize subscriber and publisher */
   reset_graph_sub_   = nh.subscribe("/reset_visibility_graph", 5, &DPMaster::ResetGraphCallBack, this);
   odom_sub_          = nh.subscribe("/odom_world", 5, &DPMaster::OdomCallBack, this);
   terrain_sub_       = nh.subscribe("/terrain_cloud", 1, &DPMaster::TerrainCallBack, this);
   scan_sub_          = nh.subscribe("/scan_cloud", 5, &DPMaster::ScanCallBack, this);
-  waypoint_sub_      = nh.subscribe("/planner/goal", 1, &DPMaster::WaypointCallBack, this);
-  waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &DPMaster::WaypointListCallBack, this);
-  target_sub_        = nh.subscribe("/move_base_simple/goal", 1, &DPMaster::TargetCallBack, this);
+  if (target_type_ == TARGET_TYPE::RVIZ_TARGET) {
+    target_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(
+        "/move_base_simple/goal", 1,
+        static_cast<void (DPMaster::*)(
+            const geometry_msgs::PoseStampedConstPtr&)>(&DPMaster::TargetCallBack),
+        this);
+    ROS_INFO("DPMaster: RVIZ_TARGET subscribes to /move_base_simple/goal.");
+  } else if (target_type_ == TARGET_TYPE::PRESET_TARGET) {
+    target_sub_ = nh.subscribe<nav_msgs::Path>(
+        "/waypoint_generator/waypoints", 1,
+        static_cast<void (DPMaster::*)(
+            const nav_msgs::PathConstPtr&)>(&DPMaster::TargetCallBack),
+        this);
+    ROS_INFO("DPMaster: PRESET_TARGET subscribes to /waypoint_generator/waypoints.");
+  } else {
+    ROS_FATAL("DPMaster: invalid target_type=%d; expected 1 or 2.", target_type_);
+    throw std::invalid_argument("invalid Air-FAR target_type");
+  }
   reach_goal_sub_    = nh.subscribe("/far_reach_goal_status", 5, &DPMaster::ReachGoalStatusCallBack, this);
   terrian_local_sub_ = nh.subscribe("/terrain_local_cloud", 1, &DPMaster::TerrainLocalCallBack, this);
-  joy_command_sub_   = nh.subscribe("/joy", 5, &DPMaster::JoyCommandCallBack, this);
-
   goal_pub_ = nh.advertise<geometry_msgs::PointStamped>("/way_point",5);
 
   vertices_PCL_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/vertics",5);
@@ -37,7 +53,6 @@ void DPMaster::Init() {
   surround_obs_debug_  = nh.advertise<sensor_msgs::PointCloud2>("/DP_obs_debug",1);
   scan_grid_debug_     = nh.advertise<sensor_msgs::PointCloud2>("/DP_scanGrid_debug",1);
 
-  this->LoadROSParams();
   /* init Dynamic Planner Processing Objects */
   map_handler_.Init(map_params_);
   const int N_Layer = map_handler_.GetMapSize().z();
@@ -129,7 +144,8 @@ void DPMaster::Loop() {
     }
     /* add main process after this line */
     map_handler_.UpdateRobotPosition(robot_pos_, cur_layer_idxs_);
-    if (graph_manager_.UpdateOdom(robot_pos_, cur_layer_idxs_, is_robot_stop_) || is_goal_update_ || is_dyobs_update_ || !is_graph_init_) {
+    if (graph_manager_.UpdateOdom(robot_pos_, cur_layer_idxs_, is_robot_stop_) ||
+        is_goal_update_ || is_dyobs_update_ || !is_graph_init_) {
       odom_node_ptr_ = graph_manager_.GetOdomNode();
       if (odom_node_ptr_ == NULL) {
         ROS_WARN("DPMaster: wait for odom node to init...");
@@ -185,7 +201,8 @@ void DPMaster::Loop() {
       }
       nav_graph_ = graph_manager_.GetNavGraph();
       contour_graph_.ExtractGlobalContours(nav_graph_, cur_layer_idxs_);
-      if (!is_graph_init_ && !ContourGraph::multi_global_contour_[odom_node_ptr_->layer_id].empty()) {
+      if (!is_graph_init_ &&
+          !ContourGraph::multi_global_contour_[odom_node_ptr_->layer_id].empty()) {
         is_graph_init_ = true;
         ROS_WARN("DPMaster: Navigation graph has been initialized.");
       }
@@ -216,7 +233,10 @@ void DPMaster::Loop() {
       bool is_current_free_nav = false;
       NodePtrStack global_path_ptr;
 
-      if (is_graph_init_ && graph_planner_.NextGoalPlanning(global_path, nav_goal_, current_free_goal, is_planning_fails, is_current_free_nav, global_path_ptr)) {
+      if (is_graph_init_ &&
+          graph_planner_.NextGoalPlanning(
+              global_path, nav_goal_, current_free_goal, is_planning_fails,
+              is_current_free_nav, global_path_ptr)) {
         graph_planner_.UpdateGraphTraverability(odom_node_ptr_);
         global_path.clear();
         global_path_ptr.clear();
@@ -224,7 +244,12 @@ void DPMaster::Loop() {
         is_current_free_nav = false;
       }
 
-      if (is_graph_init_ && graph_planner_.NextGoalPlanning(global_path, nav_goal_, current_free_goal, is_planning_fails, is_current_free_nav, global_path_ptr)) {
+      const bool has_plan =
+          is_graph_init_ &&
+          graph_planner_.NextGoalPlanning(
+              global_path, nav_goal_, current_free_goal, is_planning_fails,
+              is_current_free_nav, global_path_ptr);
+      if (has_plan) {
         graph_planner_.is_divided_path = false;
         Point3D waypoint = nav_goal_;
         if ((waypoint - current_free_goal).norm() > DPUtil::kEpsilon) {
@@ -237,15 +262,16 @@ void DPMaster::Loop() {
         planner_viz_.VizPoint3D(waypoint, "waypoint", VizColor::MAGNA, 1.5);
         planner_viz_.VizPoint3D(current_free_goal, "free_goal", VizColor::GREEN, 1.5);
         planner_viz_.VizPath(global_path, is_current_free_nav);
-      } else if (is_planner_running_) {
+      }
+      if (!has_plan && is_planner_running_) {
         // stop robot
         global_path.clear();
         planner_viz_.VizPath(global_path);
         is_planner_running_ = false;
         nav_heading_ = Point3D(0,0,0);
         if (is_planning_fails) {
-          // stops the robot
-          goal_waypoint_stamped_.point = DPUtil::Point3DToGeoMsgPoint(robot_pos_);
+          goal_waypoint_stamped_.point =
+              DPUtil::Point3DToGeoMsgPoint(robot_pos_);
           goal_pub_.publish(goal_waypoint_stamped_);
         }
       }
@@ -283,8 +309,10 @@ void DPMaster::Loop() {
   }
 }
 
-Point3D DPMaster::ProjectNavWaypoint(const Point3D& nav_waypoint, const Point3D& last_waypoint) {
-  const bool is_momentum = (last_waypoint - nav_waypoint).norm() < DPUtil::kEpsilon ? true : false; // momentum heading if same goal
+Point3D DPMaster::ProjectNavWaypoint(const Point3D& nav_waypoint,
+                                     const Point3D& last_waypoint) {
+  const bool is_momentum =
+      (last_waypoint - nav_waypoint).norm() < DPUtil::kEpsilon;
   Point3D waypoint = nav_waypoint;
   const float dist = master_params_.waypoint_project_dist;
   const Point3D diff_p = nav_waypoint - robot_pos_;
@@ -292,14 +320,17 @@ Point3D DPMaster::ProjectNavWaypoint(const Point3D& nav_waypoint, const Point3D&
   if (is_momentum && nav_heading_.norm() > DPUtil::kEpsilon) {
     const float hdist = dist / 2.0;
     const float ratio = std::min(hdist, diff_p.norm()) / hdist;
-    new_heading = diff_p.normalize() * ratio + nav_heading_ * (1.0 - ratio);
+    new_heading =
+        diff_p.normalize() * ratio + nav_heading_ * (1.0 - ratio);
   } else {
     new_heading = diff_p.normalize();
   }
-  if (nav_heading_.norm() > DPUtil::kEpsilon && new_heading.norm_dot(nav_heading_) < 0.0) { // negative direction reproject
+  if (nav_heading_.norm() > DPUtil::kEpsilon &&
+      new_heading.norm_dot(nav_heading_) < 0.0) {
     Point3D temp_heading(nav_heading_.y, -nav_heading_.x, nav_heading_.z);
     if (temp_heading.norm_dot(new_heading) < 0.0) {
-      temp_heading.x = -temp_heading.x, temp_heading.y = -temp_heading.y;
+      temp_heading.x = -temp_heading.x;
+      temp_heading.y = -temp_heading.y;
     }
     new_heading = temp_heading;
   }
@@ -326,12 +357,15 @@ void DPMaster::LoadROSParams() {
   const std::string msger_prefix    = master_prefix + "GraphMsger/";
 
   // master params
+  nh.param<int>(master_prefix + "target_type", target_type_,
+                static_cast<int>(TARGET_TYPE::RVIZ_TARGET));
   nh.param<float>(master_prefix + "main_run_freq", master_params_.main_run_freq, 5.0);
   nh.param<float>(master_prefix + "voxel_dim", master_params_.voxel_dim, 0.2);
   nh.param<float>(master_prefix + "robot_dim", master_params_.robot_dim, 0.5);
   nh.param<float>(master_prefix + "vehicle_height", master_params_.vehicle_height, 0.75);
   nh.param<float>(master_prefix + "sensor_range", master_params_.sensor_range, 100.0);
-  nh.param<float>(master_prefix + "reproject_dist", master_params_.waypoint_project_dist, 5.0);
+  nh.param<float>(master_prefix + "reproject_dist",
+                  master_params_.waypoint_project_dist, 5.0);
   nh.param<float>(master_prefix + "layer_resoltion", master_params_.layer_resolution, 1.0);
   nh.param<int>(master_prefix   + "neighbor_layer_num", master_params_.neighbor_layers, 2);
   nh.param<float>(master_prefix + "visualize_ratio", master_params_.viz_ratio, 1.0);
@@ -360,8 +394,10 @@ void DPMaster::LoadROSParams() {
   nh.param<int>(planner_prefix   + "free_counter_thred", gp_params_.free_thred, 5);
   nh.param<float>(planner_prefix + "free_box_dim", gp_params_.free_box_dim, 1.0);
   nh.param<int>(planner_prefix   + "reach_goal_vote_size", gp_params_.votes_size, 5);
-  nh.param<float>(planner_prefix + "path_momentum_ratio", gp_params_.momentum_dist, 1.0);
-  nh.param<int>(planner_prefix   + "path_momentum_thred", gp_params_.momentum_thred, 5);
+  nh.param<float>(planner_prefix + "path_momentum_ratio",
+                  gp_params_.momentum_dist, 1.0);
+  nh.param<int>(planner_prefix   + "path_momentum_thred",
+                gp_params_.momentum_thred, 5);
   nh.param<int>(planner_prefix   + "clear_inflate_size", gp_params_.clear_inflate_size, 3);
   gp_params_.is_autoswitch = master_params_.is_attempt_autoswitch;
 
@@ -530,8 +566,9 @@ void DPMaster::ScanCallBack(const sensor_msgs::PointCloud2ConstPtr& scan_pc) {
 void DPMaster::TerrainLocalCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
   if (!master_params_.is_inter_navpoint || !master_params_.is_trajectory_edge) return;
   this->PrcocessCloud(pc, local_terrian_ptr_, false);
-  // DPUtil::ExtractFreeAndObsCloud(local_terrian_ptr_, DPUtil::local_terrain_free_, DPUtil::local_terrain_obs_);
-
+  // DPUtil::ExtractFreeAndObsCloud(local_terrian_ptr_,
+  //                                DPUtil::local_terrain_free_,
+  //                                DPUtil::local_terrain_obs_);
 }
 
 void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
@@ -541,26 +578,22 @@ void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
   }
   if (!is_robot_stop_ || !is_graph_init_) {
     this->PrcocessCloud(pc, temp_cloud_ptr_, true);
-    DPUtil::ExtractFreeAndObsFromScanCloud(DPUtil::cur_scan_cloud_, temp_cloud_ptr_, temp_free_ptr_, temp_obs_ptr_);
+    DPUtil::ExtractFreeAndObsFromScanCloud(
+        DPUtil::cur_scan_cloud_, temp_cloud_ptr_, temp_free_ptr_,
+        temp_obs_ptr_);
     if (!master_params_.is_simulation) {
-      DPUtil::RemoveOverlapCloud(temp_obs_ptr_, DPUtil::stack_dyobs_cloud_, true);
+      DPUtil::RemoveOverlapCloud(
+          temp_obs_ptr_, DPUtil::stack_dyobs_cloud_, true);
     }
     map_handler_.UpdateObsCloudGrid(temp_obs_ptr_);
     map_handler_.UpdateFreeCloudGrid(temp_free_ptr_);
-    // extract new points
-    DPUtil::ExtractNewObsPointCloud(temp_obs_ptr_,
-                                    DPUtil::surround_obs_cloud_,
-                                    DPUtil::new_obs_cloud_, !is_new_iter_);
+    DPUtil::ExtractNewObsPointCloud(
+        temp_obs_ptr_, DPUtil::surround_obs_cloud_,
+        DPUtil::new_obs_cloud_, !is_new_iter_);
     is_new_iter_ = false;
- 
-    // extract surround cloud
+
     map_handler_.GetSurroundObsCloud(DPUtil::surround_obs_cloud_);
     map_handler_.GetSurroundFreeCloud(DPUtil::surround_free_cloud_);
-    ROS_INFO_THROTTLE(
-        1.0,
-        "DPMaster map input: terrain=%zu scan=%zu free=%zu obs=%zu surround_free=%zu surround_obs=%zu",
-        temp_cloud_ptr_->size(), DPUtil::cur_scan_cloud_->size(), temp_free_ptr_->size(),
-        temp_obs_ptr_->size(), DPUtil::surround_free_cloud_->size(), DPUtil::surround_obs_cloud_->size());
   }
   // extract dynamic obstacles
   DPUtil::cur_dyobs_cloud_->clear();
@@ -582,8 +615,11 @@ void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
   }
   
   // create and update kdtrees
-  if (!is_robot_stop_ || !is_graph_init_ || !DPUtil::cur_dyobs_cloud_->empty()) {
-    DPUtil::UpdateKdTrees(DPUtil::new_obs_cloud_, DPUtil::surround_free_cloud_, DPUtil::surround_obs_cloud_);
+  if (!is_robot_stop_ || !is_graph_init_ ||
+      !DPUtil::cur_dyobs_cloud_->empty()) {
+    DPUtil::UpdateKdTrees(
+        DPUtil::new_obs_cloud_, DPUtil::surround_free_cloud_,
+        DPUtil::surround_obs_cloud_);
   }
   if (!DPUtil::surround_obs_cloud_->empty()) is_cloud_init_ = true;
 
@@ -591,14 +627,16 @@ void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
   planner_viz_.VizPointCloud(new_PCL_pub_,         DPUtil::new_obs_cloud_);
   planner_viz_.VizPointCloud(dynamic_obs_pub_,     DPUtil::cur_dyobs_cloud_);
   if (!is_robot_stop_ || !is_graph_init_) {
-    planner_viz_.VizPointCloud(surround_free_debug_, DPUtil::surround_free_cloud_);
-    planner_viz_.VizPointCloud(surround_obs_debug_,  DPUtil::surround_obs_cloud_);
-    // planner_viz_.VizPointCloud(ground_pc_debug_,  DPUtil::cur_scan_cloud_);
-    // visualize map grid
+    planner_viz_.VizPointCloud(
+        surround_free_debug_, DPUtil::surround_free_cloud_);
+    planner_viz_.VizPointCloud(
+        surround_obs_debug_, DPUtil::surround_obs_cloud_);
     PointStack neighbor_centers, occupancy_centers;
     map_handler_.GetNeighborCeilsCenters(neighbor_centers);
     map_handler_.GetOccupancyCeilsCenters(occupancy_centers);
-    planner_viz_.VizMapGrids(neighbor_centers, occupancy_centers, map_params_.ceil_length, map_params_.ceil_height);
+    planner_viz_.VizMapGrids(
+        neighbor_centers, occupancy_centers, map_params_.ceil_length,
+        map_params_.ceil_height);
   }
   // DBBUG visual raycast grids
   if (!master_params_.is_simulation) {
@@ -623,8 +661,9 @@ void DPMaster::ClearWaypointQueue() {
   pending_goal_is_free_nav_ = false;
 }
 
-bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav) {
-  if (!map_handler_.IsInitialized()) {
+bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame,
+                                   const bool is_free_nav) {
+  if (!is_odom_init_) {
     pending_goal_.header.frame_id = goal_frame;
     pending_goal_.header.stamp = ros::Time::now();
     pending_goal_.point = DPUtil::Point3DToGeoMsgPoint(goal_p);
@@ -659,7 +698,7 @@ bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame
 }
 
 bool DPMaster::DispatchPendingGoal() {
-  if (!is_pending_goal_ || !map_handler_.IsInitialized()) {
+  if (!is_pending_goal_ || !is_odom_init_) {
     return false;
   }
 
@@ -679,7 +718,7 @@ bool DPMaster::DispatchPendingGoal() {
 }
 
 bool DPMaster::DispatchNextQueuedWaypoint() {
-  if (!map_handler_.IsInitialized()) {
+  if (!is_odom_init_) {
     ROS_WARN_THROTTLE(1.0, "DPMaster: map is not initialized; retaining queued waypoints.");
     return false;
   }
@@ -699,13 +738,7 @@ bool DPMaster::DispatchNextQueuedWaypoint() {
   return false;
 }
 
-void DPMaster::WaypointCallBack(const geometry_msgs::PointStampedConstPtr & msg) {
-  this->ClearWaypointQueue();
-  Point3D goal_p(msg->point.x, msg->point.y, msg->point.z);
-  this->UpdateGoalFromPoint(goal_p, msg->header.frame_id, false);
-}
-
-void DPMaster::WaypointListCallBack(const nav_msgs::PathConstPtr& msg) {
+void DPMaster::TargetCallBack(const nav_msgs::PathConstPtr& msg) {
   this->ClearWaypointQueue();
 
   if (msg->poses.empty()) {

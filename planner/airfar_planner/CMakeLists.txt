@@ -43,8 +43,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES airfar_planner
-  CATKIN_DEPENDS roscpp std_msgs sensor_msgs pcl_ros message_runtime
+  CATKIN_DEPENDS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_runtime
 )
 
 ###########
@@ -83,15 +82,27 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## Specify libraries to link a library or executable target against
 target_link_libraries(airfar_planner ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
+# Air-FAR owns its terrain preprocessing pipeline in OpenDrone.  Keeping the
+# two single-node preprocessors in this package makes the runtime boundary
+# explicit and avoids two packages that have no independent consumers.
+add_executable(terrainAnalysis src/terrain_analysis.cpp)
+add_dependencies(terrainAnalysis ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(terrainAnalysis ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(terrainAnalysisExt src/terrain_analysis_ext.cpp)
+add_dependencies(terrainAnalysisExt ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(terrainAnalysisExt ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
 add_executable(graph_decoder src/decoder_node.cpp)
 add_dependencies(graph_decoder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(graph_decoder ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
-# install(TARGETS airfar_planner
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
 
-# install(DIRECTORY launch/
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-# )
+install(TARGETS airfar_planner graph_decoder terrainAnalysis terrainAnalysisExt
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY launch config rviz
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

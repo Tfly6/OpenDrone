@@ -1,0 +1,105 @@
+<launch>
+  <!-- The path library's collision horizon is 6 m * path_scale and its
+       published segment is 2 m * path_scale. Choose the scale profile for
+       obstacle density and vehicle speed; it is not a map-size parameter.
+       Sensor field of view remains an explicit wiring concern. -->
+  <arg name="state_estimation_topic" default="/mavros/local_position/odom"/>
+  <arg name="scan_topic" default="/registered_scan"/>
+  <arg name="path_scale" default="2.0"/>
+  <arg name="minimum_path_scale" default="1.0"/>
+  <arg name="path_scale_step" default="0.5"/>
+  <arg name="sensor_max_pitch" default="25.0"/>
+  <arg name="sensor_max_yaw" default="40.0"/>
+  <arg name="maximum_speed" default="1.5"/>
+  <arg name="minimum_speed" default="0.5"/>
+  <arg name="cruise_speed" default="0.5"/>
+  <arg name="goal_tolerance" default="0.4"/>
+  <arg name="collision_check_padding" default="1.0"/>
+
+  <node pkg="airfar_reference_bridge" type="airfar_local_planner"
+        name="airfar_local_planner"
+        required="true" output="screen">
+    <param name="pathFolder" value="$(find airfar_reference_bridge)/paths"/>
+    <param name="stateEstimationTopic" value="$(arg state_estimation_topic)"/>
+    <param name="autonomyMode" value="true"/>
+    <param name="depthCloudTopic" value="$(arg scan_topic)"/>
+    <param name="depthCloudDelay" value="0.0"/>
+    <param name="depthCamPitchOffset" value="0.0"/>
+    <param name="depthCamXOffset" value="0.0"/>
+    <param name="depthCamYOffset" value="0.0"/>
+    <param name="depthCamZOffset" value="0.0"/>
+    <param name="trackingCamBackward" value="false"/>
+    <param name="trackingCamXOffset" value="0.0"/>
+    <param name="trackingCamYOffset" value="0.0"/>
+    <param name="trackingCamZOffset" value="0.0"/>
+    <param name="trackingCamScale" value="1.0"/>
+    <param name="scanVoxelSize" value="0.2"/>
+    <param name="pointPerPathThre" value="2"/>
+    <param name="maxRange" value="16.0"/>
+    <param name="maxElev" value="30.0"/>
+    <param name="keepSurrCloud" value="true"/>
+    <param name="keepHoriDis" value="2.0"/>
+    <param name="keepVertDis" value="1.0"/>
+    <param name="lowerBoundZ" value="-4.8"/>
+    <param name="upperBoundZ" value="4.8"/>
+    <param name="pitchDiffLimit" value="35.0"/>
+    <param name="pitchWeight" value="0.03"/>
+    <param name="sensorMaxPitch" value="$(arg sensor_max_pitch)"/>
+    <param name="sensorMaxYaw" value="$(arg sensor_max_yaw)"/>
+    <param name="yawDiffLimit" value="60.0"/>
+    <param name="yawWeight" value="0.015"/>
+    <param name="pathScale" value="$(arg path_scale)"/>
+    <param name="minPathScale" value="$(arg minimum_path_scale)"/>
+    <param name="pathScaleStep" value="$(arg path_scale_step)"/>
+    <param name="pathScaleBySpeed" value="true"/>
+    <param name="collisionCheckPadding" value="$(arg collision_check_padding)"/>
+    <param name="shiftGoalAtStart" value="false"/>
+    <param name="goalX" value="0.0"/>
+    <param name="goalY" value="0.0"/>
+    <param name="goalZ" value="2.0"/>
+    <param name="sim_name" value="gazebo"/>
+    <param name="sensor_name" value="lidar"/>
+  </node>
+
+  <node pkg="airfar_reference_bridge" type="airfar_path_follower"
+        name="airfar_path_follower"
+        required="true" output="screen">
+    <param name="stateEstimationTopic" value="$(arg state_estimation_topic)"/>
+    <param name="saveTrajectory" value="false"/>
+    <param name="waypointTest" value="false"/>
+    <param name="autonomyMode" value="true"/>
+    <param name="pubSkipNum" value="1"/>
+    <param name="trackingCamBackward" value="false"/>
+    <param name="trackingCamXOffset" value="0.0"/>
+    <param name="trackingCamYOffset" value="0.0"/>
+    <param name="trackingCamZOffset" value="0.0"/>
+    <param name="trackingCamScale" value="1.0"/>
+    <param name="trackPitch" value="0.0"/>
+    <param name="lookAheadScale" value="0.2"/>
+    <param name="minLookAheadDis" value="0.4"/>
+    <param name="minSpeed" value="$(arg minimum_speed)"/>
+    <param name="maxSpeed" value="$(arg maximum_speed)"/>
+    <param name="cruiseSpeed" value="$(arg cruise_speed)"/>
+    <param name="smoothIncrSpeed" value="1.5"/>
+    <param name="yawRateScale" value="1.0"/>
+    <param name="velZScale" value="1.0"/>
+    <param name="manualSpeedXY" value="$(arg maximum_speed)"/>
+    <param name="manualSpeedZ" value="1.0"/>
+    <param name="manualYawRate" value="60.0"/>
+    <param name="slowTurnRate" value="0.75"/>
+    <param name="minSlowTurnCurv" value="0.225"/>
+    <param name="minSlowTurnInterval" value="1.0"/>
+    <param name="minStopRotInterval" value="1.0"/>
+    <param name="stopRotDelayTime" value="0.0"/>
+    <param name="stopRotDis" value="1.0"/>
+    <param name="stopRotYaw1" value="90.0"/>
+    <param name="stopRotYaw2" value="10.0"/>
+    <param name="goalTolerance" value="$(arg goal_tolerance)"/>
+    <param name="slowDis" value="2.0"/>
+    <param name="speedRatioDeadband" value="0.1"/>
+    <param name="shiftGoalAtStart" value="false"/>
+    <param name="goalX" value="0.0"/>
+    <param name="goalY" value="0.0"/>
+    <param name="goalZ" value="2.0"/>
+  </node>
+</launch>

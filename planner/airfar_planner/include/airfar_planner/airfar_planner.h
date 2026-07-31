@@ -11,6 +11,7 @@
 #include "scan_handler.h"
 #include "graph_msger.h"
 #include <deque>
+#include <stdexcept>
 
 
 struct DPMasterParams {
@@ -33,6 +34,11 @@ struct DPMasterParams {
 
 class DPMaster {
 public:
+    enum TARGET_TYPE {
+        RVIZ_TARGET = 1,
+        PRESET_TARGET = 2
+    };
+
     DPMaster() : pnh("~") {}
     ~DPMaster() = default;
 
@@ -44,8 +50,8 @@ private:
     // Keep algorithm topics on the existing public handle.  Only configuration
     // belongs to the node-private namespace loaded by the launch file.
     ros::NodeHandle pnh;
-    ros::Subscriber reset_graph_sub_, joy_command_sub_;
-    ros::Subscriber odom_sub_, terrain_sub_, terrian_local_sub_, scan_sub_, waypoint_sub_, waypoint_list_sub_, target_sub_, reach_goal_sub_;
+    ros::Subscriber reset_graph_sub_;
+    ros::Subscriber odom_sub_, terrain_sub_, terrian_local_sub_, scan_sub_, target_sub_, reach_goal_sub_;
     ros::Publisher  goal_pub_;
     ros::Publisher  vertices_PCL_pub_, obs_world_pub_, new_PCL_pub_;
     ros::Publisher  dynamic_obs_pub_, surround_free_debug_, surround_obs_debug_, scan_grid_debug_, ground_pc_debug_;
@@ -53,6 +59,7 @@ private:
     ros::Publisher mapping_time_pub_;
 
     Point3D robot_pos_, robot_heading_, nav_heading_, nav_goal_;
+    int target_type_{TARGET_TYPE::RVIZ_TARGET};
     std::deque<geometry_msgs::PointStamped> queued_waypoints_;
     bool is_waypoint_queue_active_{false};
     geometry_msgs::PointStamped pending_goal_;
@@ -63,7 +70,8 @@ private:
 
     geometry_msgs::PointStamped goal_waypoint_stamped_;
 
-    bool is_cloud_init_, is_scan_init_, is_odom_init_, is_planner_running_;
+    bool is_cloud_init_;
+    bool is_scan_init_, is_odom_init_, is_planner_running_;
     bool is_goal_update_, is_dyobs_update_, is_graph_init_;
 
     std::vector<int> cur_layer_idxs_;
@@ -113,7 +121,8 @@ private:
                        const PointCloudPtr& cloudOut,
                        const bool& is_crop_cloud);
 
-    Point3D ProjectNavWaypoint(const Point3D& nav_waypoint, const Point3D& last_waypoint);
+    Point3D ProjectNavWaypoint(const Point3D& nav_waypoint,
+                              const Point3D& last_waypoint);
 
     /* Callback Functions */
     void OdomCallBack(const nav_msgs::OdometryConstPtr& msg);
@@ -124,19 +133,12 @@ private:
         is_reset_env_ = true;
     }
 
-    inline void JoyCommandCallBack(const sensor_msgs::JoyConstPtr& msg) {
-        if (msg->buttons[4] > 0.5) {
-            is_reset_env_ = true;
-        }
-    }
-
     void ScanCallBack(const sensor_msgs::PointCloud2ConstPtr& pc);
-    // void WaypointCallBack(const route_goal_msg::RouteGoal& routepoint);
-    void WaypointCallBack(const geometry_msgs::PointStampedConstPtr & msg);
-    void WaypointListCallBack(const nav_msgs::PathConstPtr& msg);
-    void TargetCallBack(const geometry_msgs::PoseStampedConstPtr & msg);
+    void TargetCallBack(const geometry_msgs::PoseStampedConstPtr& msg);
+    void TargetCallBack(const nav_msgs::PathConstPtr& msg);
     void ReachGoalStatusCallBack(const std_msgs::BoolConstPtr& msg);
-    bool UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame, const bool is_free_nav);
+    bool UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame,
+                             const bool is_free_nav);
     bool DispatchPendingGoal();
     void ClearWaypointQueue();
     bool DispatchNextQueuedWaypoint();

@@ -28,7 +28,6 @@
 #include <std_msgs/Float32.h>
 #include <std_srvs/Trigger.h>
 #include <nav_msgs/Path.h>
-#include <sensor_msgs/Joy.h>
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>

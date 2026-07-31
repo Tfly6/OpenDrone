@@ -4,10 +4,11 @@
     <arg name="terrain_cloud_topic" default="/terrain_map_ext"/>
     <arg name="terrain_local_topic" default="/terrain_map"/>
     <arg name="scan_cloud_topic" default="/registered_scan"/>
-    <arg name="goal_topic" default="/planner/goal"/>
-    <arg name="waypoint_list_topic" default="/waypoint_generator/waypoints"/>
+    <arg name="target_type" default="1"/>
     <arg name="world_frame" default="map"/>
     <arg name="is_simulation" default="true"/>
+    <arg name="enable_trajectory_edges" default="false"/>
+    <arg name="goal_tolerance" default="0.4"/>
 
     <!-- Algorithm and vehicle tuning profile: default or outdoor. -->
     <arg name="config_file" default="default"/>
@@ -17,11 +18,13 @@
         <rosparam command="load" file="$(find airfar_planner)/config/$(arg config_file).yaml" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="is_simulation" value="$(arg is_simulation)" />
+        <param name="is_trajectory"
+               value="$(arg enable_trajectory_edges)" />
+        <param name="target_type" value="$(arg target_type)" />
+        <param name="GPlanner/converge_distance" value="$(arg goal_tolerance)" />
         <remap from="/odom_world" to="$(arg odom_topic)"/> 
         <remap from="/terrain_cloud" to="$(arg terrain_cloud_topic)"/>
         <remap from="/scan_cloud" to="$(arg scan_cloud_topic)"/>
         <remap from="/terrain_local_cloud" to="$(arg terrain_local_topic)"/>
-        <remap from="/planner/goal" to="$(arg goal_topic)"/>
-        <remap from="/waypoint_generator/waypoints" to="$(arg waypoint_list_topic)"/>
     </node>
 </launch>
