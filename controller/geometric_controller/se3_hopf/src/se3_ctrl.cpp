@@ -326,6 +326,11 @@ void Se3HopfCtrl::IMUCallback(const sensor_msgs::Imu::ConstPtr &msg){
 
 void Se3HopfCtrl::StateCallback(const mavros_msgs::State::ConstPtr &msg){
     currState_ = *msg;
+    if (flightState_ == MISSION_EXECUTION && !currState_.armed) {
+        flightState_ = EMERGENCY;
+        landing_locked_ = true;
+        ROS_ERROR("se3_hopf: unexpected disarm during mission.");
+    }
     if (currState_.mode == "AUTO.LAND" && !landing_locked_) {
         landing_locked_ = true;
         ROS_WARN("se3_hopf landing lock enabled (AUTO.LAND detected).");

@@ -10,7 +10,7 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     : nodeHandle_(nh)
     , privateNodeHandle_(private_nh)
     , dynConfigServer_(privateNodeHandle_)
-    , lqr_quaternion_(nh)
+    , lqr_quaternion_(private_nh)
     , flightState_(WAITING_FOR_CONNECTED)
     , prevFlightState_(WAITING_FOR_CONNECTED)
     , offboardWarmupCounter_(0)
@@ -32,6 +32,7 @@ LQR_Controller::LQR_Controller(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     privateNodeHandle_.param<bool>("enable_auto_arm", enableAutoArm_, simEnable_);
     privateNodeHandle_.param<bool>("auto_takeoff", autoTakeoff_, true);
     privateNodeHandle_.param<bool>("use_dynamic_reconfigure", useDynamicReconfigure_, false);
+    privateNodeHandle_.param<bool>("debug", debug_, false);
     privateNodeHandle_.param<int>("offboard_warmup_count", offboardWarmupCount_, 80);
     privateNodeHandle_.param<double>("request_interval", requestInterval_, 1.0);
     privateNodeHandle_.param<double>("max_body_rate_xy", maxBodyRateXY_, 0.8);
@@ -180,7 +181,7 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
                 ref(0), ref(1), ref(2),
                 error(0), error(1), error(2),
                 ref(7), ref(8), ref(9),
-                error(7), error(8), error(9),
+                error(6), error(7), error(8),
                 lastTrajectoryId_,
                 lastTrajectoryStamp_.isZero() ? -1.0 : (ros::Time::now() - lastTrajectoryStamp_).toSec());
             missionEntryDebugLogged_ = true;
@@ -244,16 +245,32 @@ void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
     for (int i = 0; i < 3; ++i) {
         error(i) = std::max(-kMaxPosErr, std::min(kMaxPosErr, error(i)));
     }
-    // Saturate velocity error (indices 7-9)
-    for (int i = 7; i < 10; ++i) {
+    // SO(3) error state is [position(0-2), attitude(3-5), velocity(6-8)].
+    for (int i = 6; i < 9; ++i) {
         error(i) = std::max(-kMaxVelErr, std::min(kMaxVelErr, error(i)));
     }
     output = traj_control - gain * error;
     bodyRatesThrustCmd << output(0), output(1), output(2), output(3);
 
+    if (debug_) {
+        const auto ref = lqr_quaternion_.getRefStates();
+        ROS_INFO_THROTTLE(
+            0.5,
+            "LQR debug control: pos cur=[%.2f %.2f %.2f] ref=[%.2f %.2f %.2f] "
+            "err_p=[%.2f %.2f %.2f] err_R=[%.2f %.2f %.2f] err_v=[%.2f %.2f %.2f] "
+            "ff=[%.3f %.3f %.3f %.3f] raw_cmd=[%.3f %.3f %.3f %.3f]",
+            currentPos_(0), currentPos_(1), currentPos_(2),
+            ref(0), ref(1), ref(2),
+            raw_error(0), raw_error(1), raw_error(2),
+            raw_error(3), raw_error(4), raw_error(5),
+            raw_error(6), raw_error(7), raw_error(8),
+            traj_control(0), traj_control(1), traj_control(2), traj_control(3),
+            output(0), output(1), output(2), output(3));
+    }
+
     const bool saturated =
         !raw_error.head<3>().isApprox(error.head<3>()) ||
-        !raw_error.segment<3>(7).isApprox(error.segment<3>(7));
+        !raw_error.segment<3>(6).isApprox(error.segment<3>(6));
     if (saturated) {
         ROS_WARN_THROTTLE(
             0.5,
@@ -261,17 +278,17 @@ void LQR_Controller::computeControlCommands(Eigen::Vector4d& bodyRatesThrustCmd)
             "raw_vel_err [%.2f, %.2f, %.2f] -> [%.2f, %.2f, %.2f]",
             raw_error(0), raw_error(1), raw_error(2),
             error(0), error(1), error(2),
-            raw_error(7), raw_error(8), raw_error(9),
-            error(7), error(8), error(9));
+            raw_error(6), raw_error(7), raw_error(8),
+            error(6), error(7), error(8));
     }
 
-    if (raw_error.head<3>().norm() > 3.0 || raw_error.segment<3>(7).norm() > 2.5) {
+    if (raw_error.head<3>().norm() > 3.0 || raw_error.segment<3>(6).norm() > 2.5) {
         ROS_WARN_THROTTLE(
             0.5,
             "LQR large tracking error: pos_err_norm=%.2f vel_err_norm=%.2f ref_pos [%.2f, %.2f, %.2f] "
             "cur_pos [%.2f, %.2f, %.2f] cmd [%.2f, %.2f, %.2f, %.2f]",
             raw_error.head<3>().norm(),
-            raw_error.segment<3>(7).norm(),
+            raw_error.segment<3>(6).norm(),
             lqr_quaternion_.getRefStates()(0), lqr_quaternion_.getRefStates()(1), lqr_quaternion_.getRefStates()(2),
             currentPos_[0], currentPos_[1], currentPos_[2],
             bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2), bodyRatesThrustCmd(3));
@@ -345,12 +362,27 @@ void LQR_Controller::publishAttitude(Eigen::Vector4d bodyRatesThrustCmd)
     bodyrateMsg.thrust = normalized_thrust;
     bodyrateMsg.type_mask = 128;  // Use body rates
 
+    if (debug_) {
+        ROS_INFO_THROTTLE(
+            0.5,
+            "LQR debug applied: body_rate=[%.3f %.3f %.3f] thrust=%.3f "
+            "tilt=[%.1f %.1f] deg",
+            bodyRatesThrustCmd(0), bodyRatesThrustCmd(1), bodyRatesThrustCmd(2),
+            normalized_thrust,
+            currentRpy_(0) * 180.0 / M_PI, currentRpy_(1) * 180.0 / M_PI);
+    }
+
     attitudePub_.publish(bodyrateMsg);
 }
 
 void LQR_Controller::stateCallback(const mavros_msgs::State::ConstPtr& msg)
 {
     currentState_ = *msg;
+    if (flightState_ == MISSION_EXECUTION && !currentState_.armed) {
+        flightState_ = EMERGENCY;
+        landingLocked_ = true;
+        ROS_ERROR("lqr_controller: unexpected disarm during mission.");
+    }
 
     if (currentState_.mode == "AUTO.LAND" && !landingLocked_) {
         landingLocked_ = true;
@@ -484,7 +516,7 @@ void LQR_Controller::applyTuningConfig(const lqr_controller::LqrControllerConfig
     state_matrix_quat_t Q_quat;
     Q_quat.setZero();
     Q_quat.diagonal() << config.Q_pos_x, config.Q_pos_y, config.Q_pos_z,
-                         config.Q_quat_w, config.Q_quat_x, config.Q_quat_y, config.Q_quat_z,
+                         config.Q_att_x, config.Q_att_y, config.Q_att_z,
                          config.Q_vel_x, config.Q_vel_y, config.Q_vel_z;
     lqr_quaternion_.setQ(Q_quat);
 
@@ -493,8 +525,9 @@ void LQR_Controller::applyTuningConfig(const lqr_controller::LqrControllerConfig
     R_quat.diagonal() << config.R_rate_x, config.R_rate_y, config.R_rate_z, config.R_thrust;
     lqr_quaternion_.setR(R_quat);
 
-    ROS_INFO("LQR Dynamic Reconfigure: Q_pos [%.1f, %.1f, %.1f], Q_vel [%.1f, %.1f, %.1f], R_rates [%.1f, %.1f, %.1f], R_thrust %.1f",
+    ROS_INFO("LQR Dynamic Reconfigure: Q_pos [%.1f, %.1f, %.1f], Q_att [%.1f, %.1f, %.1f], Q_vel [%.1f, %.1f, %.1f], R_rates [%.1f, %.1f, %.1f], R_thrust %.1f",
              config.Q_pos_x, config.Q_pos_y, config.Q_pos_z,
+             config.Q_att_x, config.Q_att_y, config.Q_att_z,
              config.Q_vel_x, config.Q_vel_y, config.Q_vel_z,
              config.R_rate_x, config.R_rate_y, config.R_rate_z, config.R_thrust);
 }
@@ -505,10 +538,9 @@ void LQR_Controller::loadStaticTuningConfig()
     privateNodeHandle_.param("Q_pos_x", config.Q_pos_x, 100.0);
     privateNodeHandle_.param("Q_pos_y", config.Q_pos_y, 100.0);
     privateNodeHandle_.param("Q_pos_z", config.Q_pos_z, 80.0);
-    privateNodeHandle_.param("Q_quat_w", config.Q_quat_w, 0.5);
-    privateNodeHandle_.param("Q_quat_x", config.Q_quat_x, 0.5);
-    privateNodeHandle_.param("Q_quat_y", config.Q_quat_y, 0.5);
-    privateNodeHandle_.param("Q_quat_z", config.Q_quat_z, 5.0);
+    privateNodeHandle_.param("Q_att_x", config.Q_att_x, 1.0);
+    privateNodeHandle_.param("Q_att_y", config.Q_att_y, 1.0);
+    privateNodeHandle_.param("Q_att_z", config.Q_att_z, 5.0);
     privateNodeHandle_.param("Q_vel_x", config.Q_vel_x, 5.0);
     privateNodeHandle_.param("Q_vel_y", config.Q_vel_y, 5.0);
     privateNodeHandle_.param("Q_vel_z", config.Q_vel_z, 3.0);

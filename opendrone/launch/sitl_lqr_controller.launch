@@ -11,6 +11,9 @@
   <arg name="tilt_recovery_gain" default="1.5"/>
   <arg name="min_normalized_thrust" default="0.15"/>
   <arg name="max_normalized_thrust" default="0.85"/>
+  <arg name="reference_selection" default="auto"/>
+  <arg name="lqr_update_rate" default="10.0"/>
+  <arg name="debug" default="false"/>
   <!-- <arg name="init_pose_x" default="0.0"/>
   <arg name="init_pose_y" default="0.0"/>
   <arg name="init_pose_z" default="0.5"/> -->
@@ -28,6 +31,9 @@
     <param name="tilt_recovery_gain" value="$(arg tilt_recovery_gain)"/>
     <param name="min_normalized_thrust" value="$(arg min_normalized_thrust)"/>
     <param name="max_normalized_thrust" value="$(arg max_normalized_thrust)"/>
+    <param name="reference_selection" value="$(arg reference_selection)"/>
+    <param name="lqr_update_rate" value="$(arg lqr_update_rate)"/>
+    <param name="debug" value="$(arg debug)"/>
     <!-- <param name="init_pose_x" value="$(arg init_pose_x)"/>
     <param name="init_pose_y" value="$(arg init_pose_y)"/>
     <param name="init_pose_z" value="$(arg init_pose_z)"/> -->

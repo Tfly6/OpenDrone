@@ -75,6 +75,7 @@ class LQR_Controller {
     bool enableAutoArm_{false};
     bool autoTakeoff_{false};
     bool useDynamicReconfigure_{false};
+    bool debug_{false};
     int offboardWarmupCounter_;
     int offboardWarmupCount_;
     double requestInterval_;

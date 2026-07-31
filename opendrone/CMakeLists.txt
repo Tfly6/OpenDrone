@@ -109,7 +109,7 @@ catkin_install_python(PROGRAMS
   scripts/planner_adapter.py
   scripts/airfar_terrain_mapper.py
   scripts/pointcloud_to_world.py
-  scripts/trajectory_msg_converter.py
-  scripts/waypoint_msg_converter.py
+  # scripts/trajectory_msg_converter.py
+  # scripts/waypoint_msg_converter.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

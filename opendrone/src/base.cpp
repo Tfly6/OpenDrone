@@ -318,6 +318,11 @@ private:
     void stateCallback(const mavros_msgs::State::ConstPtr& msg)
     {
         current_state_ = *msg;
+        if (flight_state_ == MISSION_EXECUTION && !current_state_.armed) {
+            flight_state_ = EMERGENCY;
+            landing_locked_ = true;
+            ROS_ERROR("base position baseline: unexpected disarm during mission.");
+        }
         if (current_state_.mode == "AUTO.LAND" && !landing_locked_) {
             landing_locked_ = true;
             ROS_WARN("base position baseline landing lock enabled (AUTO.LAND detected).");

@@ -1,18 +1,29 @@
-Q_pos_x: 100.0
-Q_pos_y: 100.0
+Q_pos_x: 20.0
+Q_pos_y: 20.0
 Q_pos_z: 80.0
 
-Q_quat_w: 0.5
-Q_quat_x: 0.5
-Q_quat_y: 0.5
-Q_quat_z: 5.0
+# SO(3) rotation-vector error [rad], not raw quaternion coefficients.
+Q_att_x: 1.0
+Q_att_y: 1.0
+Q_att_z: 5.0
+
+# auto: spatial projection for complete trajectories, timestamp selection for
+# streaming horizons (which intentionally contain no past samples).
+reference_selection: auto
+
+# State-dependent Riccati gain update rate.  The body-rate command still runs
+# at the controller timer rate (100 Hz by default).
+lqr_update_rate: 10.0
+
+# Enable 2 Hz control-state and applied-command diagnostic logs.
+debug: false
 
 Q_vel_x: 5.0
 Q_vel_y: 5.0
 Q_vel_z: 3.0
 
-R_rate_x: 15.0
-R_rate_y: 15.0
+R_rate_x: 30.0
+R_rate_y: 30.0
 R_rate_z: 10.0
 R_thrust: 0.4
 

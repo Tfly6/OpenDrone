@@ -281,6 +281,11 @@ void LinearModelPredictiveControllerNode::OdometryCallback(
 void LinearModelPredictiveControllerNode::MavrosStateCallback(
     const mavros_msgs::State::ConstPtr& msg) {
   current_mavros_state_ = *msg;
+  if (flightState_ == MISSION_EXECUTION && !current_mavros_state_.armed) {
+    flightState_ = EMERGENCY;
+    landing_locked_ = true;
+    ROS_ERROR("Linear MPC node: unexpected disarm during mission.");
+  }
   if (current_mavros_state_.mode == "AUTO.LAND" && !landing_locked_) {
     landing_locked_ = true;
     ROS_WARN("Linear MPC node landing lock enabled (AUTO.LAND detected).");

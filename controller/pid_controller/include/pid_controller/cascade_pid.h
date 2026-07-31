@@ -66,7 +66,9 @@ class cascadePID {
             //                     pos_integral_max_, pos_error_max_, dt);
             
             // target_vel = kp_p_.asDiagonal() * pos_error + ki_p_.asDiagonal() * integral_ + kd_p_.asDiagonal() * derivative_p;
-
+            if (target_vel.norm() > maxVel_) {
+                target_vel *= maxVel_ / target_vel.norm();
+            }
             // 速度环输出为加速度指令
             // Eigen::Vector3d vel_error = target_vel - currVel;
             // integral_v_ += vel_error * dt;

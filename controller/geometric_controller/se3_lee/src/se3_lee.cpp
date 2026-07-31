@@ -372,6 +372,11 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
 
 void Se3LeeCtrl::mavstateCallback(const mavros_msgs::State::ConstPtr &msg) {
   current_state_ = *msg;
+  if (flightState_ == MISSION_EXECUTION && !current_state_.armed) {
+    flightState_ = EMERGENCY;
+    landing_locked_ = true;
+    ROS_ERROR("se3_lee: unexpected disarm during mission.");
+  }
   if (current_state_.mode == "AUTO.LAND" && !landing_locked_) {
     landing_locked_ = true;
     ROS_WARN("se3_lee landing lock enabled (AUTO.LAND detected).");

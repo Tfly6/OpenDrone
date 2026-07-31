@@ -310,6 +310,11 @@ void pidCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &ms
 void pidCtrl::state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
     currState_ = *msg;
+    if (flightState_ == MISSION_EXECUTION && !currState_.armed) {
+        flightState_ = EMERGENCY;
+        landing_locked_ = true;
+        ROS_ERROR("pid_controller: unexpected disarm during mission.");
+    }
     if (currState_.mode == "AUTO.LAND" && !landing_locked_) {
         landing_locked_ = true;
         ROS_WARN("pid_controller landing lock enabled (AUTO.LAND detected).");
