@@ -1,0 +1,18 @@
+<launch>
+  <arg name="command_input" default="2" />
+  <arg name="gazebo_simulation" default="true" />
+  <arg name="log_output" default="screen" />
+  <arg name="max_acc" default="4" />
+  <arg name="max_vel" default="2.0" />
+  <arg name="takeoff_height" default="2.0" />
+  <arg name="use_dynamic_reconfigure" default="false" />
+  <include file="$(find opendrone)/launch/sitl_se3_lee.launch">
+    <arg name="command_input" value="$(arg command_input)" />
+    <arg name="gazebo_simulation" value="$(arg gazebo_simulation)" />
+    <arg name="log_output" value="$(arg log_output)" />
+    <arg name="max_acc" value="$(arg max_acc)" />
+    <arg name="max_vel" value="$(arg max_vel)" />
+    <arg name="takeoff_height" value="$(arg takeoff_height)" />
+    <arg name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)" />
+  </include>
+</launch>

@@ -1,0 +1,20 @@
+<launch>
+  <arg name="enable_sim" default="true" />
+  <arg name="takeoff_height" default="2.0" />
+  <arg name="enable_auto_offboard" default="$(arg enable_sim)" />
+  <arg name="enable_auto_arm" default="$(arg enable_sim)" />
+  <arg name="auto_takeoff" default="true" />
+  <arg name="use_dynamic_reconfigure" default="false" />
+  <arg name="reference_selection" default="auto" />
+  <arg name="debug" default="false" />
+  <include file="$(find opendrone)/launch/sitl_lqr_controller.launch">
+    <arg name="enable_sim" value="$(arg enable_sim)" />
+    <arg name="takeoff_height" value="$(arg takeoff_height)" />
+    <arg name="enable_auto_offboard" value="$(arg enable_auto_offboard)" />
+    <arg name="enable_auto_arm" value="$(arg enable_auto_arm)" />
+    <arg name="auto_takeoff" value="$(arg auto_takeoff)" />
+    <arg name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)" />
+    <arg name="reference_selection" value="$(arg reference_selection)" />
+    <arg name="debug" value="$(arg debug)" />
+  </include>
+</launch>

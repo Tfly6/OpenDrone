@@ -1,0 +1,30 @@
+<launch>
+  <arg name="use_mpc" default="false" />
+  <arg name="use_preset_waypoints" default="false" />
+  <arg name="waypoint_type" default="circle" />
+  <arg name="auto_trigger_waypoints" default="false" />
+  <arg name="start_from_current_position" default="true" />
+  <arg name="use_kino_planner" default="true" />
+  <arg name="map_size_x" default="100.0" />
+  <arg name="map_size_y" default="100.0" />
+  <arg name="map_size_z" default="7.0" />
+  <arg name="odom_topic" default="/mavros/local_position/odom" />
+  <arg name="camera_pose_topic" default="/camera/pose" />
+  <arg name="depth_topic" default="/camera/depth/image_raw" />
+  <arg name="debug_verbose" default="true" />
+  <include file="$(find opendrone)/launch/sitl_fast_planner.launch">
+    <arg name="use_mpc" value="$(arg use_mpc)" />
+    <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
+    <arg name="waypoint_type" value="$(arg waypoint_type)" />
+    <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />
+    <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    <arg name="use_kino_planner" value="$(arg use_kino_planner)" />
+    <arg name="map_size_x" value="$(arg map_size_x)" />
+    <arg name="map_size_y" value="$(arg map_size_y)" />
+    <arg name="map_size_z" value="$(arg map_size_z)" />
+    <arg name="odom_topic" value="$(arg odom_topic)" />
+    <arg name="camera_pose_topic" value="$(arg camera_pose_topic)" />
+    <arg name="depth_topic" value="$(arg depth_topic)" />
+    <arg name="debug_verbose" value="$(arg debug_verbose)" />
+  </include>
+</launch>

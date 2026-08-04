@@ -105,6 +105,7 @@ target_link_libraries(depth_camera_processor ${catkin_LIBRARIES})
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 catkin_install_python(PROGRAMS
+  scripts/analytic_reference_publisher.py
   scripts/camera_pose_publisher.py
   scripts/planner_adapter.py
   scripts/pointcloud_to_world.py

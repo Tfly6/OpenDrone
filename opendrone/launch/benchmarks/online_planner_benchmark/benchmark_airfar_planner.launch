@@ -1,0 +1,24 @@
+<launch>
+  <arg name="odom_topic" default="/mavros/local_position/odom" />
+  <arg name="camera_depth_topic" default="/camera/depth/points" />
+  <arg name="config_file" default="default" />
+  <arg name="use_preset_waypoints" default="false" />
+  <arg name="waypoint_type" default="circle" />
+  <arg name="auto_trigger_waypoints" default="false" />
+  <arg name="start_from_current_position" default="true" />
+  <arg name="cruise_speed" default="0.5" />
+  <arg name="goal_tolerance" default="0.4" />
+  <arg name="collision_check_padding" default="1.0" />
+  <include file="$(find opendrone)/launch/sitl_airfar_planner.launch">
+    <arg name="odom_topic" value="$(arg odom_topic)" />
+    <arg name="camera_depth_topic" value="$(arg camera_depth_topic)" />
+    <arg name="config_file" value="$(arg config_file)" />
+    <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
+    <arg name="waypoint_type" value="$(arg waypoint_type)" />
+    <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />
+    <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    <arg name="cruise_speed" value="$(arg cruise_speed)" />
+    <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
+    <arg name="collision_check_padding" value="$(arg collision_check_padding)" />
+  </include>
+</launch>

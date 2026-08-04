@@ -1,0 +1,22 @@
+<launch>
+  <arg name="max_acc" default="4" />
+  <arg name="max_vel" default="2.5" />
+  <arg name="use_nonlinear_opt" default="false" />
+  <arg name="nonlinear_max_iterations" default="200" />
+  <arg name="nonlinear_time_penalty" default="500.0" />
+  <arg name="use_preset_waypoints" default="true" />
+  <arg name="waypoint_type" default="circle" />
+  <arg name="auto_trigger_waypoints" default="true" />
+  <arg name="start_from_current_position" default="true" />
+  <include file="$(find opendrone)/launch/sitl_mav_trajectory_planner.launch">
+    <arg name="max_acc" value="$(arg max_acc)" />
+    <arg name="max_vel" value="$(arg max_vel)" />
+    <arg name="use_nonlinear_opt" value="$(arg use_nonlinear_opt)" />
+    <arg name="nonlinear_max_iterations" value="$(arg nonlinear_max_iterations)" />
+    <arg name="nonlinear_time_penalty" value="$(arg nonlinear_time_penalty)" />
+    <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
+    <arg name="waypoint_type" value="$(arg waypoint_type)" />
+    <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />
+    <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+  </include>
+</launch>

@@ -1,0 +1,10 @@
+<launch>
+  <arg name="takeoff_height" default="2.0" />
+  <arg name="use_dynamic_reconfigure" default="false" />
+  <arg name="debug" default="false" />
+  <include file="$(find opendrone)/launch/sitl_mpc_controller.launch">
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="takeoff_height" value="$(arg takeoff_height)" />
+    <arg name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)" />
+  </include>
+</launch>

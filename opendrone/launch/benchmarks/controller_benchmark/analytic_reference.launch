@@ -1,0 +1,40 @@
+<launch>
+  <arg name="trajectory_type" default="circle" />
+  <arg name="planner_output_topic" default="/planner/output" />
+  <arg name="publish_rate" default="50.0" />
+  <arg name="sample_dt" default="0.05" />
+  <arg name="horizon_duration" default="2.0" />
+  <arg name="radius" default="5.0" />
+  <arg name="linear_speed" default="1.0" />
+  <arg name="center_x" default="0.0" />
+  <arg name="center_y" default="0.0" />
+  <arg name="center_z" default="2.0" />
+  <arg name="start_phase" default="0.0" />
+  <arg name="yaw_mode" default="tangent" />
+  <arg name="figure8_scale_y" default="0.5" />
+  <arg name="spiral_climb_rate" default="0.2" />
+  <arg name="startup_duration" default="2.5" />
+  <!-- LQR derives the roll/pitch feed-forward rates from jerk. -->
+  <arg name="publish_jerk" default="true" />
+  <arg name="start_from_current_position" default="true" />
+
+  <node pkg="opendrone" type="analytic_reference_publisher.py" name="analytic_reference_publisher" output="screen">
+    <param name="trajectory_type" value="$(arg trajectory_type)" />
+    <param name="planner_output_topic" value="$(arg planner_output_topic)" />
+    <param name="publish_rate" value="$(arg publish_rate)" />
+    <param name="sample_dt" value="$(arg sample_dt)" />
+    <param name="horizon_duration" value="$(arg horizon_duration)" />
+    <param name="radius" value="$(arg radius)" />
+    <param name="linear_speed" value="$(arg linear_speed)" />
+    <param name="center_x" value="$(arg center_x)" />
+    <param name="center_y" value="$(arg center_y)" />
+    <param name="center_z" value="$(arg center_z)" />
+    <param name="start_phase" value="$(arg start_phase)" />
+    <param name="yaw_mode" value="$(arg yaw_mode)" />
+    <param name="figure8_scale_y" value="$(arg figure8_scale_y)" />
+    <param name="spiral_climb_rate" value="$(arg spiral_climb_rate)" />
+    <param name="startup_duration" value="$(arg startup_duration)" />
+    <param name="publish_jerk" value="$(arg publish_jerk)" />
+    <param name="start_from_current_position" value="$(arg start_from_current_position)" />
+  </node>
+</launch>
