@@ -216,7 +216,7 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
             send_cmd(output, true);
             se3_hopf_.estimateTa(imu_data_.a);
         }
-        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02){
+        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.1){
             ROS_INFO("TakeOff Complete");
             flightState_ = MISSION_EXECUTION;
         }
@@ -324,6 +324,11 @@ void Se3HopfCtrl::IMUCallback(const sensor_msgs::Imu::ConstPtr &msg){
 
 void Se3HopfCtrl::StateCallback(const mavros_msgs::State::ConstPtr &msg){
     currState_ = *msg;
+    if (flightState_ == MISSION_EXECUTION && !currState_.armed) {
+        flightState_ = EMERGENCY;
+        landing_locked_ = true;
+        ROS_ERROR("se3_hopf: unexpected disarm during mission.");
+    }
     if (currState_.mode == "AUTO.LAND" && !landing_locked_) {
         landing_locked_ = true;
         ROS_WARN("se3_hopf landing lock enabled (AUTO.LAND detected).");

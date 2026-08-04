@@ -1,5 +1,7 @@
 #include "rpg_polynomial_trajectory/polynomial_trajectories_common.h"
 
+#include <cmath>
+
 #include <ros/ros.h>
 
 namespace polynomial_trajectories {
@@ -35,6 +37,16 @@ TrajectoryPoint getPointFromTrajectory(
     return desired_state;
   }
 
+  // Ring trajectories are periodic on [0, T), so t == T should wrap to the
+  // start state instead of re-evaluating the seam as a separate endpoint.
+  const bool is_ring_trajectory =
+      trajectory.trajectory_type ==
+          polynomial_trajectories::TrajectoryType::MINIMUM_SNAP_RING ||
+      trajectory.trajectory_type ==
+          polynomial_trajectories::TrajectoryType::
+              MINIMUM_SNAP_RING_OPTIMIZED_SEGMENTS;
+  const double trajectory_duration = trajectory.T.toSec();
+
   // Check if time is between 0 and trajectory duration
   double time_eval = time_from_start.toSec();
   if (time_eval < 0) {
@@ -42,23 +54,23 @@ TrajectoryPoint getPointFromTrajectory(
         "[%s] Requested desired state from trajectory for a time where the "
         "trajectory is not defined (t = %f). Trajectory is defined for "
         "t = [%f, %f]. Trajectory at time t = %f is returned instead.",
-        ros::this_node::getName().c_str(), time_eval, 0.0, trajectory.T.toSec(),
+        ros::this_node::getName().c_str(), time_eval, 0.0, trajectory_duration,
         0.0);
     return trajectory.start_state;
-  } else if (time_eval > trajectory.T.toSec()) {
-    if (trajectory.trajectory_type ==
-            polynomial_trajectories::TrajectoryType::MINIMUM_SNAP_RING ||
-        trajectory.trajectory_type ==
-            polynomial_trajectories::TrajectoryType::
-                MINIMUM_SNAP_RING_OPTIMIZED_SEGMENTS) {
-      time_eval = fmod(time_eval, trajectory.T.toSec());
-    } else if (time_eval > trajectory.T.toSec() + 0.01) {
+  } else if (is_ring_trajectory && trajectory_duration > 0.0 &&
+             time_eval >= trajectory_duration) {
+    time_eval = std::fmod(time_eval, trajectory_duration);
+    if (time_eval < 0.0) {
+      time_eval += trajectory_duration;
+    }
+  } else if (time_eval > trajectory_duration) {
+    if (time_eval > trajectory_duration + 0.01) {
       ROS_WARN(
           "[%s] Requested desired state from trajectory for a time where the "
           "trajectory is not defined (t = %f). Trajectory is defined for "
           "t = [%f, %f]. Trajectory at time t = %f is returned instead.",
           ros::this_node::getName().c_str(), time_eval, 0.0,
-          trajectory.T.toSec(), trajectory.T.toSec());
+          trajectory_duration, trajectory_duration);
       return trajectory.end_state;
     }
   }
@@ -169,7 +181,8 @@ TrajectoryPoint getPointFromTrajectory(
     desired_state.heading_acceleration = 0.0;
   }
 
-  desired_state.time_from_start = ros::Duration(time_eval);
+  desired_state.time_from_start =
+      is_ring_trajectory ? time_from_start : ros::Duration(time_eval);
 
   return desired_state;
 }

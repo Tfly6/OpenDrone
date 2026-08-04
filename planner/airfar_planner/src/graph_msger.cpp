@@ -31,10 +31,18 @@ void GraphMsger::EncodeGraph(const NodePtrStack& graphIn, airfar_planner::NavGra
         msg_node.position.y = node_ptr->position.y;
         msg_node.position.z = node_ptr->position.z;
         msg_node.id = node_ptr->id;
+        msg_node.FreeType = static_cast<uint8_t>(node_ptr->free_direct);
+        msg_node.is_frontier = node_ptr->is_frontier;
+        msg_node.is_navpoint = node_ptr->is_navpoint;
         msg_node.connect_nodes.clear();
         for (const auto& cnode_ptr : node_ptr->connect_nodes) {
             if (!IsEncodeType(cnode_ptr)) continue;
             msg_node.connect_nodes.push_back(cnode_ptr->id);
+        }
+        msg_node.trajectory_connects.clear();
+        for (const auto& cnode_ptr : node_ptr->trajectory_connects) {
+            if (cnode_ptr == NULL || !IsEncodeType(cnode_ptr)) continue;
+            msg_node.trajectory_connects.push_back(cnode_ptr->id);
         }
         graphOut.nodes.push_back(msg_node);
     }
@@ -52,5 +60,3 @@ bool GraphMsger::RequestGraphService(std_srvs::Trigger::Request& req, std_srvs::
     ROS_WARN("GM: Graph of robot %d has been published, total number of nodes: %d", gm_params_.robot_id, nav_graph_.size);
     return res.success;
 }
-
-

@@ -23,7 +23,7 @@
   <arg name="point4_x" default="6.0"/><arg name="point4_y" default="0.0"/><arg name="point4_z" default="1.0"/> -->
 
   <!-- Algorithm, physical-limit, and optimizer tuning profile. -->
-  <arg name="config_file" default="$(find ego_planner)/config/default.yaml"/>
+  <arg name="config_file" default="$(find ego_planner)/config/depth.yaml"/>
 
   <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node"
         type="ego_planner_node" output="screen" clear_params="true">

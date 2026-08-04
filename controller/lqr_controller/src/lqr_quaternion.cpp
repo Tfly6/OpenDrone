@@ -1,422 +1,401 @@
 #include "lqr_controller/lqr_quaternion.hpp"
+
+#include <algorithm>
+#include <cstdlib>
+#include <string>
+
 #include "opendrone/planner_output_utils.h"
 
 namespace lqr {
+namespace {
 
-LQR_Quaternion::LQR_Quaternion(ros::NodeHandle& nodeHandle)
-  : nodeHandle_(nodeHandle)
-{
-  // Initialize Q and R matrices with default values
-  // Q: state weighting (position, quaternion, velocity) - 10 states
+constexpr double kGravity = 9.81;
+constexpr double kSmallNumber = 1.0e-8;
+
+Eigen::Quaterniond QuaternionFromRawState(const raw_state_vector_quat_t& state) {
+  Eigen::Quaterniond quaternion(state(3), state(4), state(5), state(6));
+  if (quaternion.norm() < kSmallNumber || !quaternion.coeffs().allFinite()) {
+    return Eigen::Quaterniond::Identity();
+  }
+  quaternion.normalize();
+  return quaternion;
+}
+
+}  // namespace
+
+LQR_Quaternion::LQR_Quaternion(ros::NodeHandle& privateNodeHandle)
+    : privateNodeHandle_(privateNodeHandle) {
+  // State is [position error, SO(3) rotation-vector error, velocity error].
   Q_.setZero();
-  Q_.diagonal() << 10, 10, 10,     // position x, y, z
-                   5, 5, 5, 5,    // quaternion w, x, y, z
-                   1, 1, 1;       // velocity x, y, z
+  Q_.diagonal() << 10, 10, 10, 1, 1, 5, 1, 1, 1;
 
-  // R: control weighting (angular rates, thrust) - 4 controls
   R_.setZero();
-  R_.diagonal() << 1, 1, 1, 0.1;  // wx, wy, wz, thrust
+  R_.diagonal() << 1, 1, 1, 0.1;
+
+  std::string reference_selection("auto");
+  privateNodeHandle_.param<std::string>("reference_selection", reference_selection,
+                                        reference_selection);
+  if (reference_selection == "temporal") {
+    useSpatialReference_ = false;
+  } else if (reference_selection == "auto" || reference_selection == "spatial") {
+    useSpatialReference_ = true;
+  } else {
+    ROS_WARN("LQR: unknown reference_selection='%s'; using auto", reference_selection.c_str());
+  }
+  double lqr_update_rate = 10.0;
+  privateNodeHandle_.param<double>("lqr_update_rate", lqr_update_rate, lqr_update_rate);
+  lqr_update_rate = std::max(1.0, lqr_update_rate);
+  gainUpdatePeriodSec_ = 1.0 / lqr_update_rate;
 
   initiated = false;
+  x_.setZero();
+  xref_.setZero();
+  x_(3) = 1.0;
+  xref_(3) = 1.0;
+  u_.setZero();
+  uref_.setZero();
+  uref_(3) = kGravity;
+  xerror_.setZero();
+  output_.setZero();
+  Kold_.setZero();
+  Knew_.setZero();
   callBack_ = ros::Time::now();
   init_time_ = ros::Time::now();
+
+  ROS_INFO("LQR: SO(3) error-state model enabled; gain update %.1f Hz; reference selection=%s%s",
+           lqr_update_rate,
+           reference_selection.c_str(),
+           useSpatialReference_ ? " (spatial for complete trajectories, temporal for horizons)"
+                                : " (temporal)");
 }
 
-LQR_Quaternion::~LQR_Quaternion()
-{
-}
+LQR_Quaternion::~LQR_Quaternion() {}
 
-void LQR_Quaternion::setQ(const state_matrix_quat_t& Q)
-{
+void LQR_Quaternion::setQ(const state_matrix_quat_t& Q) {
   Q_ = Q;
 }
 
-void LQR_Quaternion::setR(const control_matrix_quat_t& R)
-{
+void LQR_Quaternion::setR(const control_matrix_quat_t& R) {
   R_ = R;
 }
 
-void LQR_Quaternion::setHoverReference(double x, double y, double z)
-{
-  // Set hover reference position (used when no trajectory is available)
+void LQR_Quaternion::setHoverReference(double x, double y, double z) {
   xref_.setZero();
-  xref_(0) = x;  // target x
-  xref_(1) = y;  // target y
-  xref_(2) = z;  // target z
-  // Use current orientation as reference
-  xref_(3) = 1.0;
-  xref_(4) = 0.0;
-  xref_(5) = 0.0;
-  xref_(6) = 0.0;
-  // Zero velocity reference for hover
-  xref_(7) = 0;
-  xref_(8) = 0;
-  xref_(9) = 0;
+  xref_(0) = x;
+  xref_(1) = y;
+  xref_(2) = z;
+  const Eigen::Quaterniond reference_quaternion =
+      haveState_ ? q_enu_ : Eigen::Quaterniond::Identity();
+  xref_(3) = reference_quaternion.w();
+  xref_(4) = reference_quaternion.x();
+  xref_(5) = reference_quaternion.y();
+  xref_(6) = reference_quaternion.z();
   uref_.setZero();
-  uref_(3) = 9.81;  // Hover thrust
+  uref_(3) = kGravity;
+  if (haveState_) {
+    setError(xref_, x_, xerror_);
+  }
 }
 
-void LQR_Quaternion::setStates(const nav_msgs::Odometry::ConstPtr& msg)
-{
-  // Extract states from odometry message
+void LQR_Quaternion::setStates(const nav_msgs::Odometry::ConstPtr& msg) {
   position_enu_ << msg->pose.pose.position.x,
                    msg->pose.pose.position.y,
                    msg->pose.pose.position.z;
 
-  q_enu_.w() = msg->pose.pose.orientation.w;
-  q_enu_.x() = msg->pose.pose.orientation.x;
-  q_enu_.y() = msg->pose.pose.orientation.y;
-  q_enu_.z() = msg->pose.pose.orientation.z;
+  q_enu_ = Eigen::Quaterniond(msg->pose.pose.orientation.w,
+                               msg->pose.pose.orientation.x,
+                               msg->pose.pose.orientation.y,
+                               msg->pose.pose.orientation.z);
+  if (q_enu_.norm() < kSmallNumber || !q_enu_.coeffs().allFinite()) {
+    ROS_WARN_THROTTLE(1.0, "LQR: received invalid odometry orientation; using identity");
+    q_enu_ = Eigen::Quaterniond::Identity();
+  } else {
+    q_enu_.normalize();
+  }
 
   velocity_enu_ << msg->twist.twist.linear.x,
                    msg->twist.twist.linear.y,
                    msg->twist.twist.linear.z;
-  velocity_enu_ = mavros::ftf::transform_frame_baselink_enu(velocity_enu_,q_enu_);
+  velocity_enu_ = mavros::ftf::transform_frame_baselink_enu(velocity_enu_, q_enu_);
 
-  /*Position*/
   x_(0) = position_enu_(0);
   x_(1) = position_enu_(1);
   x_(2) = position_enu_(2);
-
-  /*Orientation*/
   x_(3) = q_enu_.w();
   x_(4) = q_enu_.x();
   x_(5) = q_enu_.y();
   x_(6) = q_enu_.z();
-
-  /*Linear Velocities*/
   x_(7) = velocity_enu_(0);
   x_(8) = velocity_enu_(1);
   x_(9) = velocity_enu_(2);
+  haveState_ = true;
 
-  // Update reference based on trajectory if available
   if (!trajectory_.points.empty()) {
     setTrajectoryReference(xref_, uref_);
   }
-
-  // Compute error
-  setError(xref_,x_,xerror_);
+  setError(xref_, x_, xerror_);
 }
 
-void LQR_Quaternion::computeLQR()
-{
-  if ((ros::Time::now().toSec() - callBack_.toSec()) > 0.1)
-  {
-    A_ = A_quadrotor(xref_,uref_);
-    B_ = B_quadrotor(xref_,uref_);
+void LQR_Quaternion::computeLQR() {
+  if (!haveState_ || (ros::Time::now() - callBack_).toSec() <= gainUpdatePeriodSec_) {
+    return;
+  }
 
-    if (lqrSolver_.compute(Q_, R_, A_, B_, Knew_))
-    {
-      if (!Knew_.hasNaN())
-      {
-        Kold_ = Knew_;
-        // ROS_INFO("LQR Quaternion: solver converged in %zu iterations", lqrSolver_.getIterations());
+  // State-dependent LQR: linearize the nonlinear model at the latest state
+  // estimate, while retaining the trajectory input as the feed-forward term.
+  A_ = A_quadrotor(x_, uref_);
+  B_ = B_quadrotor(x_, uref_);
+  if (lqrSolver_.compute(Q_, R_, A_, B_, Knew_)) {
+    if (Knew_.allFinite()) {
+      Kold_ = Knew_;
+    }
+  } else {
+    ROS_WARN_THROTTLE(5.0, "LQR: Riccati solver did not converge; retaining previous gain");
+  }
+  callBack_ = ros::Time::now();
+}
+
+void LQR_Quaternion::setTrajectory(const opendrone::PlannerOutput& msg) {
+  if (msg.trajectory_id != spatialReferenceTrajectoryId_) {
+    lastSpatialReferenceIndex_ = 0;
+    spatialReferenceTrajectoryId_ = msg.trajectory_id;
+  }
+  trajectory_ = msg;
+}
+
+Eigen::Matrix3d LQR_Quaternion::hat(const Eigen::Vector3d& vector) {
+  Eigen::Matrix3d result;
+  result << 0.0, -vector.z(), vector.y(),
+            vector.z(), 0.0, -vector.x(),
+            -vector.y(), vector.x(), 0.0;
+  return result;
+}
+
+Eigen::Vector3d LQR_Quaternion::rotationVector(const Eigen::Quaterniond& input) {
+  Eigen::Quaterniond quaternion = input;
+  if (quaternion.norm() < kSmallNumber || !quaternion.coeffs().allFinite()) {
+    return Eigen::Vector3d::Zero();
+  }
+  quaternion.normalize();
+  // q and -q describe the same rotation.  Select the shortest SO(3) error.
+  if (quaternion.w() < 0.0) {
+    quaternion.coeffs() *= -1.0;
+  }
+  const Eigen::Vector3d imaginary = quaternion.vec();
+  const double imaginary_norm = imaginary.norm();
+  if (imaginary_norm < kSmallNumber) {
+    return 2.0 * imaginary;
+  }
+  const double angle = 2.0 * std::atan2(imaginary_norm, quaternion.w());
+  return angle * imaginary / imaginary_norm;
+}
+
+state_matrix_quat_t LQR_Quaternion::A_quadrotor(const raw_state_vector_quat_t& x,
+                                                 const control_vector_quat_t& u) {
+  const Eigen::Quaterniond quaternion = QuaternionFromRawState(x);
+  const Eigen::Vector3d body_z = quaternion.toRotationMatrix().col(2);
+
+  state_matrix_quat_t A;
+  A.setZero();
+  A.block<3, 3>(0, 6).setIdentity();
+  // δ(R e3) = δθ x (R e3) = -hat(R e3) δθ for a world-frame SO(3) error.
+  A.block<3, 3>(6, 3) = -u(3) * hat(body_z);
+  return A;
+}
+
+control_gain_matrix_quat_t LQR_Quaternion::B_quadrotor(
+    const raw_state_vector_quat_t& x, const control_vector_quat_t&) {
+  const Eigen::Quaterniond quaternion = QuaternionFromRawState(x);
+  const Eigen::Matrix3d rotation = quaternion.toRotationMatrix();
+
+  control_gain_matrix_quat_t B;
+  B.setZero();
+  // Body-rate commands live in the body frame; the SO(3) error is world-frame.
+  B.block<3, 3>(3, 0) = rotation;
+  B.block<3, 1>(6, 3) = rotation.col(2);
+  return B;
+}
+
+void LQR_Quaternion::setError(const raw_state_vector_quat_t& xref,
+                               const raw_state_vector_quat_t& x,
+                               state_vector_quat_t& xerror) {
+  xerror.segment<3>(0) = x.segment<3>(0) - xref.segment<3>(0);
+
+  const Eigen::Quaterniond current = QuaternionFromRawState(x);
+  const Eigen::Quaterniond reference = QuaternionFromRawState(xref);
+  // Left-invariant error R R_ref^T is expressed in world coordinates, exactly
+  // the coordinates used by the translational dynamics and the Jacobian.
+  xerror.segment<3>(3) = rotationVector(current * reference.conjugate());
+  xerror.segment<3>(6) = x.segment<3>(7) - xref.segment<3>(7);
+}
+
+int LQR_Quaternion::selectTrajectoryReferenceIndex() const {
+  if (trajectory_.points.empty()) {
+    return -1;
+  }
+
+  // A horizon only contains present/future samples, so timestamp selection is
+  // required.  Complete trajectories use the paper's spatial projection.
+  if (trajectory_.is_horizon || !useSpatialReference_) {
+    ros::Time reference_time = trajectory_.trajectory_start_time;
+    if (reference_time.isZero()) {
+      reference_time = trajectory_.header.stamp;
+    }
+    ros::Duration target_time = ros::Time::now() - reference_time;
+    if (target_time.toSec() < 0.0) {
+      target_time = ros::Duration(0.0);
+    }
+
+    const int64_t target_ns = opendrone::planner_output::ToNanoseconds(target_time);
+    int selected_idx = static_cast<int>(trajectory_.points.size()) - 1;
+    int64_t best_error_ns = std::numeric_limits<int64_t>::max();
+    for (int i = 0; i < static_cast<int>(trajectory_.points.size()); ++i) {
+      const int64_t point_ns =
+          opendrone::planner_output::ToNanoseconds(trajectory_.points[i].time_from_start);
+      const int64_t error_ns = std::llabs(point_ns - target_ns);
+      if (error_ns < best_error_ns) {
+        best_error_ns = error_ns;
+        selected_idx = i;
+      }
+      if (point_ns >= target_ns) {
+        break;
       }
     }
-    else
-    {
-      ROS_WARN_THROTTLE(5.0, "LQR Quaternion: solver did not converge, K may be stale");
-    }
-
-    // Debug: print reference and some state info periodically
-    // ROS_INFO_THROTTLE(2.0, "LQR Quat: xref [%.2f, %.2f, %.2f] uref [%.2f, %.2f, %.2f, %.2f]",
-    //                   xref_(0), xref_(1), xref_(2), uref_(0), uref_(1), uref_(2), uref_(3));
-
-    callBack_ = ros::Time::now();
+    return selected_idx;
   }
+
+  const size_t first_index = std::min(lastSpatialReferenceIndex_, trajectory_.points.size() - 1);
+  int selected_idx = static_cast<int>(first_index);
+  double best_distance_squared = std::numeric_limits<double>::infinity();
+  for (size_t i = first_index; i < trajectory_.points.size(); ++i) {
+    const Eigen::Vector3d position =
+        opendrone::planner_output::SelectPosition(trajectory_.points[i], position_enu_);
+    const double distance_squared = (position - position_enu_).squaredNorm();
+    if (distance_squared < best_distance_squared) {
+      best_distance_squared = distance_squared;
+      selected_idx = static_cast<int>(i);
+    }
+  }
+  return selected_idx;
 }
 
-void LQR_Quaternion::setTrajectory(const opendrone::PlannerOutput& msg)
-{
-  trajectory_ = msg;
-  // ROS_INFO("LQR Controller: Received trajectory with %zu points", msg.points.size());
+Eigen::Vector3d LQR_Quaternion::referenceAngularVelocityBody(
+    const opendrone::PlannerOutputPoint& point,
+    const Eigen::Matrix3d& rotation,
+    const Eigen::Vector3d& thrust_direction,
+    const double thrust_norm,
+    const double yaw) const {
+  if (opendrone::planner_output::HasField(
+          point, opendrone::PlannerOutputPoint::VALID_ANGULAR_VELOCITY)) {
+    return rotation.transpose() * opendrone::planner_output::SelectAngularVelocity(point);
+  }
+
+  if (opendrone::planner_output::HasField(point, opendrone::PlannerOutputPoint::VALID_JERK) &&
+      thrust_norm > kSmallNumber) {
+    const Eigen::Vector3d jerk = opendrone::planner_output::SelectJerk(point);
+    const Eigen::Vector3d thrust_direction_dot =
+        (Eigen::Matrix3d::Identity() - thrust_direction * thrust_direction.transpose()) * jerk /
+        thrust_norm;
+    const double yaw_rate = opendrone::planner_output::SelectYawRate(point);
+    const Eigen::Vector3d heading(std::cos(yaw), std::sin(yaw), 0.0);
+    const Eigen::Vector3d heading_dot(-std::sin(yaw) * yaw_rate,
+                                      std::cos(yaw) * yaw_rate, 0.0);
+    const Eigen::Vector3d cross = thrust_direction.cross(heading);
+    if (cross.norm() > kSmallNumber) {
+      const Eigen::Vector3d body_y = rotation.col(1);
+      const Eigen::Vector3d cross_dot =
+          thrust_direction_dot.cross(heading) + thrust_direction.cross(heading_dot);
+      const Eigen::Vector3d body_y_dot =
+          (Eigen::Matrix3d::Identity() - body_y * body_y.transpose()) * cross_dot / cross.norm();
+      const Eigen::Vector3d body_x_dot =
+          body_y_dot.cross(thrust_direction) + body_y.cross(thrust_direction_dot);
+      Eigen::Matrix3d rotation_dot;
+      rotation_dot.col(0) = body_x_dot;
+      rotation_dot.col(1) = body_y_dot;
+      rotation_dot.col(2) = thrust_direction_dot;
+      Eigen::Matrix3d omega_hat = rotation.transpose() * rotation_dot;
+      omega_hat = 0.5 * (omega_hat - omega_hat.transpose());
+      return Eigen::Vector3d(omega_hat(2, 1), omega_hat(0, 2), omega_hat(1, 0));
+    }
+  }
+
+  // PlannerOutput yaw_rate is expressed in ENU/world coordinates.
+  return rotation.transpose() * Eigen::Vector3d(0.0, 0.0,
+                                                  opendrone::planner_output::SelectYawRate(point));
 }
 
-state_matrix_quat_t LQR_Quaternion::A_quadrotor(const state_vector_quat_t& x, const control_vector_quat_t& u)
-{
-    double wx = u(0);
-    double wy = u(1);
-    double wz = u(2);
-    double norm_thrust  = u(3);
-    Eigen::Quaternion<double> q(x(3),x(4),x(5),x(6));
-    Eigen::Matrix<double,4,4> q_partial_correction;
-    Eigen::Matrix<double,4,4> dqdot_dq;
-    Eigen::Matrix<double,3,4> dvdot_dq;
-    Eigen::Matrix<double,4,1> q_vec;
-
-    q_vec(0) = q.w();
-    q_vec(1) = q.x();
-    q_vec(2) = q.y();
-    q_vec(3) = q.z();
-
-    state_matrix_quat_t A;
-    A.setZero();
-
-    //Position
-    A(0,7) = 1;
-    A(1,8)= 1;
-    A(2,9)= 1;
-    Eigen::Matrix<double,4,4> Identity;
-
-    //Orientation
-    q_partial_correction = pow(q.norm(),-1.0)*(Identity.Identity() - pow(q.norm(),-2.0)*(q_vec * q_vec.transpose()));
-
-    dqdot_dq << 0, -wx, -wy, -wz,
-                wx, 0, wz, -wy,
-                wy, -wz, 0, wx,
-                wz, wy, -wx, 0;
-    dqdot_dq = 0.5*dqdot_dq*q_partial_correction;
-
-    A(3,3) = dqdot_dq(0,0);
-    A(3,4) = dqdot_dq(0,1);
-    A(3,5) = dqdot_dq(0,2);
-    A(3,6) = dqdot_dq(0,3);
-
-    A(4,3) = dqdot_dq(1,0);
-    A(4,4) = dqdot_dq(1,1);
-    A(4,5) = dqdot_dq(1,2);
-    A(4,6) = dqdot_dq(1,3);
-
-    A(5,3) = dqdot_dq(2,0);
-    A(5,4) = dqdot_dq(2,1);
-    A(5,5) = dqdot_dq(2,2);
-    A(5,6) = dqdot_dq(2,3);
-
-    A(6,3) = dqdot_dq(3,0);
-    A(6,4) = dqdot_dq(3,1);
-    A(6,5) = dqdot_dq(3,2);
-    A(6,6) = dqdot_dq(3,3);
-
-
-    //Velocity
-    dvdot_dq << q.y(),  q.z(),  q.w(), q.x(),
-              -q.x(), -q.w(),  q.z(), q.y(),
-               q.w(), -q.x(), -q.y(), q.z();
-
-    dvdot_dq = 2*norm_thrust*dvdot_dq*q_partial_correction;
-
-    A(7,3) = dvdot_dq(0,0);
-    A(7,4) = dvdot_dq(0,1);
-    A(7,5) = dvdot_dq(0,2);
-    A(7,6) = dvdot_dq(0,3);
-
-    A(8,3) = dvdot_dq(1,0);
-    A(8,4) = dvdot_dq(1,1);
-    A(8,5) = dvdot_dq(1,2);
-    A(8,6) = dvdot_dq(1,3);
-
-    A(9,3) = dvdot_dq(2,0);
-    A(9,4) = dvdot_dq(2,1);
-    A(9,5) = dvdot_dq(2,2);
-    A(9,6) = dvdot_dq(2,3);
-
-    return A;
-}
-
-control_gain_matrix_quat_t LQR_Quaternion::B_quadrotor(const state_vector_quat_t& x, const control_vector_quat_t& u)
-{
-   double wx = u(0);
-   double wy = u(1);
-   double wz = u(2);
-   double norm_thrust  = u(3);
-   Eigen::Quaternion<double> q(x(3),x(4),x(5),x(6));
-   Eigen::Matrix<double,3,1> dvdot_dc;
-   Eigen::Matrix<double,4,3> dqdot_dw;
-
-   control_gain_matrix_quat_t B;
-   B.setZero();
-
-   dvdot_dc << 2*(q.w()*q.y() + q.x()*q.z()),
-               2*(q.y()*q.z() - q.w()*q.x()),
-               pow(q.w(),2) - pow(q.x(),2) - pow(q.y(),2) + pow(q.z(),2);
-
-   B(7,3) = dvdot_dc(0);
-   B(8,3) = dvdot_dc(1);
-   B(9,3) = dvdot_dc(2);
-
-   dqdot_dw << -q.x(), -q.y(), -q.z(),
-                q.w(), -q.z(),  q.y(),
-                q.z(),  q.w(), -q.x(),
-               -q.y(),  q.x(),  q.w();
-
-   dqdot_dw = 0.5*dqdot_dw;
-
-   B(3,0) = dqdot_dw(0,0);
-   B(3,1) = dqdot_dw(0,1);
-   B(3,2) = dqdot_dw(0,2);
-
-   B(4,0) = dqdot_dw(1,0);
-   B(4,1) = dqdot_dw(1,1);
-   B(4,2) = dqdot_dw(1,2);
-
-   B(5,0) = dqdot_dw(2,0);
-   B(5,1) = dqdot_dw(2,1);
-   B(5,2) = dqdot_dw(2,2);
-
-   B(6,0) = dqdot_dw(3,0);
-   B(6,1) = dqdot_dw(3,1);
-   B(6,2) = dqdot_dw(3,2);
-
-   return B;
-}
-
-void LQR_Quaternion::setError(const state_vector_quat_t& xref, const state_vector_quat_t& x, state_vector_quat_t& xerror)
-{
-  /*Position error*/
-  xerror(0) = (x(0) - xref(0));
-  xerror(1) = (x(1) - xref(1));
-  xerror(2) = (x(2) - xref(2));
-
-  /*Orientation error*/
-  Eigen::Quaterniond q(x(3),x(4),x(5),x(6));
-  Eigen::Quaterniond qref(xref(3),xref(4),xref(5),xref(6));
-  Eigen::Quaterniond qerror = q.inverse() * qref;
-  xerror(3) = 0;
-  xerror(4) = qerror.x();
-  xerror(5) = qerror.y();
-  xerror(6) = qerror.z();
-
-  /*Velocity error*/
-  xerror(7) = (x(7) - xref(7));
-  xerror(8) = (x(8) - xref(8));
-  xerror(9) = (x(9) - xref(9));
-}
-
-bool LQR_Quaternion::setTrajectoryReference(state_vector_quat_t& xref, control_vector_quat_t& uref)
-{
-  if (trajectory_.points.empty()) {
+bool LQR_Quaternion::setTrajectoryReference(raw_state_vector_quat_t& xref,
+                                             control_vector_quat_t& uref) {
+  const int selected_idx = selectTrajectoryReferenceIndex();
+  if (selected_idx < 0) {
     return false;
   }
-
-  ros::Time reference_time = trajectory_.trajectory_start_time;
-  if (reference_time.isZero()) {
-    reference_time = trajectory_.header.stamp;
+  if (!trajectory_.is_horizon && useSpatialReference_) {
+    lastSpatialReferenceIndex_ = static_cast<size_t>(selected_idx);
   }
+  const auto& point = trajectory_.points[static_cast<size_t>(selected_idx)];
 
-  ros::Duration target_time = ros::Time::now() - reference_time;
-  if (target_time.toSec() < 0.0) {
-    target_time = ros::Duration(0.0);
-  }
+  const Eigen::Vector3d position = opendrone::planner_output::SelectPosition(point, position_enu_);
+  xref.segment<3>(0) = position;
+  xref.segment<3>(7) = opendrone::planner_output::SelectVelocity(point);
 
-  int selected_idx = static_cast<int>(trajectory_.points.size()) - 1;
-  int64_t target_ns = opendrone::planner_output::ToNanoseconds(target_time);
-  int64_t best_error_ns = std::numeric_limits<int64_t>::max();
-
-  for (int i = 0; i < static_cast<int>(trajectory_.points.size()); ++i) {
-    const int64_t point_ns =
-        opendrone::planner_output::ToNanoseconds(trajectory_.points[i].time_from_start);
-    const int64_t error_ns = std::llabs(point_ns - target_ns);
-    if (error_ns < best_error_ns) {
-      best_error_ns = error_ns;
-      selected_idx = i;
-    }
-    if (point_ns >= target_ns) {
-      break;
-    }
-  }
-
-  const auto& pt = trajectory_.points[selected_idx];
-
-  Eigen::Vector3d position = opendrone::planner_output::SelectPosition(pt, position_enu_);
-  xref(0) = position.x();
-  xref(1) = position.y();
-  xref(2) = position.z();
-
-  Eigen::Vector3d velocity = opendrone::planner_output::SelectVelocity(pt);
-  xref(7) = velocity.x();
-  xref(8) = velocity.y();
-  xref(9) = velocity.z();
-
-  Eigen::Vector3d accel = opendrone::planner_output::SelectAcceleration(pt);
-  Eigen::Vector3d thrust = Eigen::Vector3d(0.0, 0.0, 9.81) + accel;
+  const Eigen::Vector3d acceleration = opendrone::planner_output::SelectAcceleration(point);
+  const Eigen::Vector3d thrust = Eigen::Vector3d(0.0, 0.0, kGravity) + acceleration;
   const double thrust_norm = thrust.norm();
-  Eigen::Vector3d zb = Eigen::Vector3d::UnitZ();
-  if (thrust_norm > 1.0e-6) {
-    zb = thrust / thrust_norm;
+  Eigen::Vector3d body_z = Eigen::Vector3d::UnitZ();
+  if (thrust_norm > kSmallNumber) {
+    body_z = thrust / thrust_norm;
   }
-
-  const double yaw =
-      opendrone::planner_output::SelectYaw(pt, quaternion_to_rpy_wrap(q_enu_).z());
-  const Eigen::Vector3d xc(std::cos(yaw), std::sin(yaw), 0.0);
-  Eigen::Vector3d yb = zb.cross(xc);
-  if (yb.norm() < 1.0e-6) {
-    const Eigen::Vector3d fallback_xc(-std::sin(yaw), std::cos(yaw), 0.0);
-    yb = zb.cross(fallback_xc);
+  const double yaw = opendrone::planner_output::SelectYaw(point, quaternion_to_rpy_wrap(q_enu_).z());
+  const Eigen::Vector3d heading(std::cos(yaw), std::sin(yaw), 0.0);
+  Eigen::Vector3d body_y = body_z.cross(heading);
+  if (body_y.norm() < kSmallNumber) {
+    body_y = body_z.cross(Eigen::Vector3d(-std::sin(yaw), std::cos(yaw), 0.0));
   }
-  yb.normalize();
-  Eigen::Vector3d xb = yb.cross(zb);
-  xb.normalize();
+  body_y.normalize();
+  const Eigen::Vector3d body_x = body_y.cross(body_z).normalized();
 
   Eigen::Matrix3d rotation;
-  rotation.col(0) = xb;
-  rotation.col(1) = yb;
-  rotation.col(2) = zb;
-  Eigen::Quaterniond q(rotation);
-  q.normalize();
-
-  xref(3) = q.w();
-  xref(4) = q.x();
-  xref(5) = q.y();
-  xref(6) = q.z();
+  rotation.col(0) = body_x;
+  rotation.col(1) = body_y;
+  rotation.col(2) = body_z;
+  Eigen::Quaterniond reference(rotation);
+  reference.normalize();
+  const Eigen::Quaterniond previous_reference = QuaternionFromRawState(xref);
+  if (previous_reference.coeffs().dot(reference.coeffs()) < 0.0) {
+    reference.coeffs() *= -1.0;
+  }
+  xref(3) = reference.w();
+  xref(4) = reference.x();
+  xref(5) = reference.y();
+  xref(6) = reference.z();
 
   uref(3) = thrust_norm;
-
-  Eigen::Vector3d ang_vel = opendrone::planner_output::SelectAngularVelocity(pt);
-  Eigen::Vector3d ang_vel_body = mavros::ftf::transform_frame_enu_baselink(ang_vel, q);
-  uref(0) = ang_vel_body.x();
-  uref(1) = ang_vel_body.y();
-  uref(2) = ang_vel_body.z();
-
-  return false;
+  uref.head<3>() = referenceAngularVelocityBody(point, rotation, body_z, thrust_norm, yaw);
+  return true;
 }
 
-Eigen::Vector3d LQR_Quaternion::quaternion_to_rpy_wrap(const Eigen::Quaterniond& q)
-{
-  Eigen::Vector3d rpy;
-  double roll = atan2(2*(q.w()*q.x()+q.y()*q.z()),1-2*(pow(q.x(),2)+pow(q.y(),2)));
-  double pitch = asin(2*(q.w()*q.y()-q.z()*q.x()));
-  double yaw = atan2(2*(q.w()*q.z()+q.x()*q.y()),1-2*(pow(q.y(),2)+pow(q.z(),2)));
-
-  rpy << roll,
-         pitch,
-         yaw;
-
-  return rpy;
+Eigen::Vector3d LQR_Quaternion::quaternion_to_rpy_wrap(const Eigen::Quaterniond& q) {
+  const Eigen::Matrix3d rotation = q.normalized().toRotationMatrix();
+  return Eigen::Vector3d(std::atan2(rotation(2, 1), rotation(2, 2)),
+                         std::asin(std::max(-1.0, std::min(1.0, -rotation(2, 0)))),
+                         std::atan2(rotation(1, 0), rotation(0, 0)));
 }
 
-state_vector_quat_t LQR_Quaternion::getError()
-{
-  return this->xerror_;
+state_vector_quat_t LQR_Quaternion::getError() { return xerror_; }
+
+Eigen::Matrix<double, nControlsQuaternion, nStatesQuaternion> LQR_Quaternion::getGain() {
+  return Kold_;
 }
 
-Eigen::Matrix<double, nControlsQuaternion, nStatesQuaternion> LQR_Quaternion::getGain()
-{
-  return this->Kold_;
-}
+void LQR_Quaternion::setOutput(double output, int j) { output_(j) = output; }
 
-void LQR_Quaternion::setOutput(double output,int j)
-{
-  this->output_(j) = output;
-}
+void LQR_Quaternion::setOutput(control_vector_quat_t output) { output_ = output; }
 
-void LQR_Quaternion::setOutput(control_vector_quat_t output)
-{
-  this->output_ = output;
-}
+control_vector_quat_t LQR_Quaternion::getOutput() { return output_; }
 
-control_vector_quat_t LQR_Quaternion::getOutput()
-{
-  return this->output_;
-}
+raw_state_vector_quat_t LQR_Quaternion::getRefStates() { return xref_; }
 
-state_vector_quat_t LQR_Quaternion::getRefStates()
-{
-  return this->xref_;
-}
+control_vector_quat_t LQR_Quaternion::getTrajectoryControl() { return uref_; }
 
-control_vector_quat_t LQR_Quaternion::getTrajectoryControl()
-{
-  return this->uref_;
-}
-
-}/* namespace lqr */
+}  // namespace lqr

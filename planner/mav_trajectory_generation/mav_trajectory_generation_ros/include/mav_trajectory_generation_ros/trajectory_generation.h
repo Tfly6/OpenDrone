@@ -45,6 +45,7 @@ class TrajectoryGeneration {
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;
   bool has_current_odom_;
+  bool plan_pending_;
   double max_v_;  // m/s
   double max_a_;  // m/s^2
   // A preset path may deliberately begin at the current vehicle pose.  The

@@ -1,5 +1,10 @@
 # Fast-Planner topological tuning parameters.  Sensor bindings, map extents,
 # mission inputs, and vehicle limits are launch-time behaviour parameters.
+
+limits:
+  max_vel: &max_vel 1.4
+  max_acc: &max_acc 2.5
+
 fsm:
   thresh_replan: 0.5
   thresh_no_replan: 2.0
@@ -12,7 +17,7 @@ sdf_map:
   local_update_range_x: 5.5
   local_update_range_y: 5.5
   local_update_range_z: 4.5
-  obstacles_inflation: 0.099
+  obstacles_inflation: 0.25
   local_bound_inflate: 0.5
   local_map_margin: 50
   ground_height: -1.0
@@ -32,12 +37,14 @@ sdf_map:
   max_ray_length: 4.5
   esdf_slice_height: 0.3
   visualization_truncate_height: 2.5
-  virtual_ceil_height: 3.0
+  virtual_ceil_height: 5.0
   show_occ_time: false
   show_esdf_time: false
   pose_type: 1
 
 manager:
+  max_vel: *max_vel
+  max_acc: *max_acc
   max_jerk: 4.0
   dynamic_environment: 0
   local_segment_length: 7.0
@@ -74,6 +81,8 @@ optimization:
   dist1: 0.0
   algorithm1: 15
   algorithm2: 11
+  max_vel: *max_vel
+  max_acc: *max_acc
   max_iteration_num1: 2
   max_iteration_num2: 300
   max_iteration_time1: 0.0001
@@ -82,6 +91,8 @@ optimization:
 
 bspline:
   limit_ratio: 1.1
+  limit_vel: *max_vel
+  limit_acc: *max_acc
 
 heading_planner:
   yaw_diff: 0.08726646111111111

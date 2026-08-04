@@ -1,18 +1,40 @@
-Q_pos_x: 100.0
-Q_pos_y: 100.0
+# Vehicle conversion and static controller configuration.
+mass: 1.5
+hover_thrust: 0.7
+# init_pose_x: 0.0
+# init_pose_y: 0.0
+# init_pose_z: 0.5
+
+# Keep the existing SITL fence in configuration, not in the launch file.
+# geo_fence:
+#   x: 50.0
+#   y: 50.0
+#   z: 6.0
+
+# OFFBOARD protocol timing; launch exposes only the high-level enable flags.
+offboard_warmup_count: 80
+request_interval: 1.0
+
+# LQR static tuning.  The same Q/R defaults are used by dynamic_reconfigure.
+Q_pos_x: 20.0
+Q_pos_y: 20.0
 Q_pos_z: 80.0
 
-Q_quat_w: 0.5
-Q_quat_x: 0.5
-Q_quat_y: 0.5
-Q_quat_z: 5.0
+# SO(3) rotation-vector error [rad], not raw quaternion coefficients.
+Q_att_x: 1.0
+Q_att_y: 1.0
+Q_att_z: 5.0
+
+# State-dependent Riccati gain update rate.  The body-rate command still runs
+# at the controller timer rate (100 Hz by default).
+lqr_update_rate: 10.0
 
 Q_vel_x: 5.0
 Q_vel_y: 5.0
 Q_vel_z: 3.0
 
-R_rate_x: 15.0
-R_rate_y: 15.0
+R_rate_x: 30.0
+R_rate_y: 30.0
 R_rate_z: 10.0
 R_thrust: 0.4
 

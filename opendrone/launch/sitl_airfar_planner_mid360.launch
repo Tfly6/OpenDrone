@@ -7,10 +7,14 @@
     <arg name="is_simulation" default="true" />
     <arg name="use_rviz" default="true" />
     <arg name="use_preset_waypoints" default="false" />
+    <arg name="target_type"
+         default="$(eval 2 if arg('use_preset_waypoints') else 1)" />
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
     <arg name="start_from_current_position" default="true" />
-
+    <arg name="cruise_speed" default="1.0" />
+    <arg name="goal_tolerance" default="0.4" />
+    <arg name="collision_check_padding" default="1.0" />
     <!-- TF: world -> map, base_link -> livox_link -->
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_map_linker"
           args="0 0 0 0 0 0 world map 100" /> -->
@@ -27,32 +31,29 @@
         <param name="filter_enable" value="false" />
     </node>
 
-    <!-- Air-FAR requires a semantic terrain map: free voxels have intensity 0,
-         while scan endpoints remain obstacles on /registered_scan. -->
-    <node pkg="opendrone" name="airfar_terrain_mapper" type="airfar_terrain_mapper.py" output="screen">
-        <param name="input_topic" value="/registered_scan" />
-        <param name="output_topic" value="/airfar/terrain_map_ext" />
-        <param name="map_frame" value="$(arg world_frame)" />
-        <param name="sensor_frame" value="$(arg lidar_frame)" />
-        <param name="ray_step" value="0.20" />
-        <param name="voxel_size" value="0.20" />
-        <param name="endpoint_clearance" value="0.75" />
-        <param name="min_range" value="0.20" />
-        <param name="max_range" value="25.0" />
-        <param name="map_radius" value="30.0" />
-        <param name="observation_ttl" value="10.0" />
-        <param name="max_rays" value="2500" />
-    </node>
+    <include file="$(find airfar_planner)/launch/terrain_analysis.launch">
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <arg name="terrain_topic" value="/terrain_map" />
+    </include>
+    <include file="$(find airfar_planner)/launch/terrain_analysis_ext.launch">
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <arg name="terrain_local_topic" value="/terrain_map" />
+        <arg name="terrain_ext_topic" value="/terrain_map_ext" />
+    </include>
 
     <!-- Air-FAR Planner -->
     <include file="$(find airfar_planner)/launch/airfar.launch">
         <arg name="odom_topic" value="$(arg odom_topic)" />
-        <arg name="terrain_cloud_topic" value="/airfar/terrain_map_ext" />
-        <arg name="terrain_local_topic" value="/terrain_local_cloud" />
+        <arg name="terrain_cloud_topic" value="/terrain_map_ext" />
+        <arg name="terrain_local_topic" value="/terrain_map" />
         <arg name="scan_cloud_topic" value="/registered_scan" />
         <arg name="config_file" value="$(arg config_file)" />
         <arg name="world_frame" value="$(arg world_frame)" />
         <arg name="is_simulation" value="$(arg is_simulation)" />
+        <arg name="target_type" value="$(arg target_type)" />
+        <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
     </include>
 
      <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
@@ -62,13 +63,23 @@
         <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
     </include>
 
-     <node pkg="opendrone" name="planner_adapter"
-          type="planner_adapter.py" output="screen">
-        <param name="adapter_type" value="waypoint" />
-        <param name="input_topic" value="/way_point" />
-        <param name="planner_output_topic" value="/planner/output" />
-        <param name="frame_id" value="map" />
-    </node>
+    <include file="$(find airfar_reference_bridge)/launch/airfar_reference_bridge.launch">
+        <arg name="state_estimation_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <!-- The path library's collision horizon is 6 m * scale and its
+             published local segment is 2 m * scale. Keep the long outdoor
+             horizon when clear, but permit a dense-scene fallback. -->
+        <arg name="path_scale" value="2.0" />
+        <arg name="minimum_path_scale" value="0.5" />
+        <arg name="path_scale_step" value="0.25" />
+        <arg name="sensor_max_pitch" value="30.0" />
+        <arg name="sensor_max_yaw" value="180.0" />
+        <arg name="maximum_speed" value="1.5" />
+        <arg name="minimum_speed" value="0.5" />
+        <arg name="cruise_speed" value="$(arg cruise_speed)" />
+        <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
+        <arg name="collision_check_padding" value="$(arg collision_check_padding)" />
+    </include>
 
     <!-- RViz -->
     <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz"

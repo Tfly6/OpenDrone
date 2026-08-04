@@ -1,0 +1,1252 @@
+<?xml version="1.0" ?>
+<sdf version='1.6'>
+  <world name="random_cylinder_world">
+    <gravity>0 0 -9.8</gravity>
+    <physics name='default_physics' default='0' type='ode'>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <scene><ambient>0.4 0.4 0.4 1</ambient><background>0.7 0.7 0.7 1</background><shadows>1</shadows></scene>
+    <light name='sun' type='directional'><cast_shadows>1</cast_shadows><direction>-0.5 0.1 -0.9</direction><diffuse>0.8 0.8 0.8 1</diffuse></light>
+    <model name='ground_plane'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'><geometry><plane><normal>0 0 1</normal><size>55.300000 55.300000</size></plane></geometry></collision>
+        <visual name='visual'><geometry><plane><normal>0 0 1</normal><size>55.300000 55.300000</size></plane></geometry><material><script><uri>file://media/materials/scripts/gazebo.material</uri><name>Gazebo/Grey</name></script></material></visual>
+      </link>
+    </model>
+    <model name='wall_north'>
+      <static>1</static>
+      <pose>0.000000 15.075000 2.500000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>45.300000 0.150000 5.000000</size></box></geometry></collision>
+        <visual name='visual'>
+          <geometry><box><size>45.300000 0.150000 5.000000</size></box></geometry>
+          <material><script><uri>file://media/materials/scripts/gazebo.material</uri><name>Gazebo/Bricks</name></script></material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_south'>
+      <static>1</static>
+      <pose>0.000000 -15.075000 2.500000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>45.300000 0.150000 5.000000</size></box></geometry></collision>
+        <visual name='visual'>
+          <geometry><box><size>45.300000 0.150000 5.000000</size></box></geometry>
+          <material><script><uri>file://media/materials/scripts/gazebo.material</uri><name>Gazebo/Bricks</name></script></material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_east'>
+      <static>1</static>
+      <pose>22.575000 0.000000 2.500000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>0.150000 30.000000 5.000000</size></box></geometry></collision>
+        <visual name='visual'>
+          <geometry><box><size>0.150000 30.000000 5.000000</size></box></geometry>
+          <material><script><uri>file://media/materials/scripts/gazebo.material</uri><name>Gazebo/Bricks</name></script></material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_west'>
+      <static>1</static>
+      <pose>-22.575000 0.000000 2.500000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>0.150000 30.000000 5.000000</size></box></geometry></collision>
+        <visual name='visual'>
+          <geometry><box><size>0.150000 30.000000 5.000000</size></box></geometry>
+          <material><script><uri>file://media/materials/scripts/gazebo.material</uri><name>Gazebo/Bricks</name></script></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0000'>
+      <static>1</static>
+      <pose>-3.167085 11.953957 2.323860 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.647720</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.647720</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0001'>
+      <static>1</static>
+      <pose>20.139858 6.363656 2.768641 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.537282</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.537282</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0002'>
+      <static>1</static>
+      <pose>-8.221317 14.086157 1.764251 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.528502</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.528502</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0003'>
+      <static>1</static>
+      <pose>-13.762231 -10.904049 2.139732 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.279463</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.279463</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0004'>
+      <static>1</static>
+      <pose>9.927123 -4.739425 1.340808 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.681615</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.681615</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0005'>
+      <static>1</static>
+      <pose>2.663205 11.211086 2.849889 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.699777</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.699777</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0006'>
+      <static>1</static>
+      <pose>-2.925973 -13.578138 1.910709 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.821418</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.821418</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0007'>
+      <static>1</static>
+      <pose>-21.959884 -12.853402 1.990813 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.981625</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.981625</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0008'>
+      <static>1</static>
+      <pose>-0.885447 -6.391591 2.492052 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.984104</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.984104</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0009'>
+      <static>1</static>
+      <pose>17.468596 9.387879 1.656072 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.312144</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.312144</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0010'>
+      <static>1</static>
+      <pose>15.036488 -3.265975 1.978389 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.956779</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.956779</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0011'>
+      <static>1</static>
+      <pose>14.783443 -4.570495 1.250010 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.500019</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.500019</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0012'>
+      <static>1</static>
+      <pose>-8.378820 7.033207 2.127923 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.255846</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.255846</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0013'>
+      <static>1</static>
+      <pose>18.416783 -0.333910 1.733071 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.466142</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.466142</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0014'>
+      <static>1</static>
+      <pose>-8.532530 -6.924293 2.763043 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.526087</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.526087</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0015'>
+      <static>1</static>
+      <pose>-3.383510 -1.434265 1.488336 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.976672</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.976672</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0016'>
+      <static>1</static>
+      <pose>-2.625741 7.609434 2.378173 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.756346</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.756346</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0017'>
+      <static>1</static>
+      <pose>11.004103 10.858600 1.358218 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.716435</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.716435</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0018'>
+      <static>1</static>
+      <pose>-8.075124 -10.367343 2.665858 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.331715</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.331715</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0019'>
+      <static>1</static>
+      <pose>-14.218673 -12.068070 1.904102 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.808205</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.808205</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0020'>
+      <static>1</static>
+      <pose>7.248783 -1.651230 2.391151 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.782302</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.782302</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0021'>
+      <static>1</static>
+      <pose>-10.800099 1.929645 2.137692 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.275383</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.275383</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0022'>
+      <static>1</static>
+      <pose>15.695493 11.681830 1.734286 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.468573</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.468573</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0023'>
+      <static>1</static>
+      <pose>-18.796412 -1.959741 2.160347 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.320694</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.320694</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0024'>
+      <static>1</static>
+      <pose>-19.099212 -6.841414 2.916641 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.833282</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.833282</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0025'>
+      <static>1</static>
+      <pose>0.339230 -5.578163 2.224892 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.449785</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.449785</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0026'>
+      <static>1</static>
+      <pose>-14.419566 2.002662 2.122941 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.245882</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.245882</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0027'>
+      <static>1</static>
+      <pose>1.479525 1.356764 1.412433 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.824867</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.824867</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0028'>
+      <static>1</static>
+      <pose>-2.186210 9.104931 1.522767 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.045533</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.045533</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0029'>
+      <static>1</static>
+      <pose>-7.651984 12.160558 2.857650 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.715299</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.715299</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0030'>
+      <static>1</static>
+      <pose>-1.046592 7.922910 1.300578 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.601157</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.601157</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0031'>
+      <static>1</static>
+      <pose>17.047492 -11.327654 2.090872 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.181744</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.181744</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0032'>
+      <static>1</static>
+      <pose>-0.157746 6.016227 2.150497 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.300993</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.300993</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0033'>
+      <static>1</static>
+      <pose>14.023453 6.857236 1.284324 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.568647</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.568647</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0034'>
+      <static>1</static>
+      <pose>20.016353 3.430274 2.229204 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.458408</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.458408</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0035'>
+      <static>1</static>
+      <pose>7.945790 9.702905 2.818441 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.636881</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.636881</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0036'>
+      <static>1</static>
+      <pose>14.237618 -11.517587 2.812331 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.624662</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.624662</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0037'>
+      <static>1</static>
+      <pose>-15.061785 -10.466532 1.935564 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.871128</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.871128</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0038'>
+      <static>1</static>
+      <pose>-6.171053 4.179700 1.621770 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.243540</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.243540</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0039'>
+      <static>1</static>
+      <pose>9.200802 -9.349303 1.549058 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.098116</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.098116</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0040'>
+      <static>1</static>
+      <pose>13.585540 -8.233521 1.465262 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.930525</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.930525</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0041'>
+      <static>1</static>
+      <pose>7.439905 -8.566046 2.392277 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.784553</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.784553</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0042'>
+      <static>1</static>
+      <pose>21.940533 -11.191376 2.569427 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.138855</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.138855</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0043'>
+      <static>1</static>
+      <pose>-5.638101 14.435229 1.930592 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.861183</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.861183</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0044'>
+      <static>1</static>
+      <pose>-3.577526 -12.454730 2.262050 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.524100</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.524100</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0045'>
+      <static>1</static>
+      <pose>14.944226 -8.639199 2.201906 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.403812</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.403812</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0046'>
+      <static>1</static>
+      <pose>-20.452989 -10.290010 2.107298 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.214596</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.214596</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0047'>
+      <static>1</static>
+      <pose>5.001846 9.655285 2.954631 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.909263</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.909263</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0048'>
+      <static>1</static>
+      <pose>21.664302 -4.645713 1.287938 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.575876</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.575876</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0049'>
+      <static>1</static>
+      <pose>-13.580790 3.220708 2.522421 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.044842</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.044842</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0050'>
+      <static>1</static>
+      <pose>8.910482 -8.380057 2.096227 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.192455</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.192455</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0051'>
+      <static>1</static>
+      <pose>2.417595 2.631717 2.161926 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.323852</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.323852</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0052'>
+      <static>1</static>
+      <pose>13.090600 5.490116 1.765017 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.530033</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.530033</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0053'>
+      <static>1</static>
+      <pose>18.060938 5.605727 2.590475 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.180949</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.180949</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0054'>
+      <static>1</static>
+      <pose>11.711624 8.874902 1.858073 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.716147</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.716147</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0055'>
+      <static>1</static>
+      <pose>-11.936258 -7.517108 1.534335 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.068671</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.068671</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0056'>
+      <static>1</static>
+      <pose>-14.276676 10.173376 1.472257 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.944513</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.944513</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0057'>
+      <static>1</static>
+      <pose>20.599946 4.375937 2.688642 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.377285</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.377285</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0058'>
+      <static>1</static>
+      <pose>8.900745 -0.895415 1.473377 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.946754</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.946754</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0059'>
+      <static>1</static>
+      <pose>-21.167707 11.711493 2.984012 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.968025</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.968025</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0060'>
+      <static>1</static>
+      <pose>4.175427 7.676862 2.033295 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.066590</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.066590</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0061'>
+      <static>1</static>
+      <pose>21.090075 -11.917934 2.075363 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.150726</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.150726</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0062'>
+      <static>1</static>
+      <pose>-16.323807 2.376961 1.381521 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.763041</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.763041</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0063'>
+      <static>1</static>
+      <pose>16.910847 -5.582342 1.360139 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.720278</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.720278</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0064'>
+      <static>1</static>
+      <pose>-18.052537 -7.378900 1.416453 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.832906</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.832906</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0065'>
+      <static>1</static>
+      <pose>12.478478 -5.411082 2.870754 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.741507</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.741507</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0066'>
+      <static>1</static>
+      <pose>16.330892 5.953519 2.658412 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.316825</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.316825</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0067'>
+      <static>1</static>
+      <pose>21.148448 -1.174023 2.125199 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.250398</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.250398</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0068'>
+      <static>1</static>
+      <pose>-2.845313 -5.297883 2.935421 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.870842</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.870842</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0069'>
+      <static>1</static>
+      <pose>20.860480 -7.118276 2.628290 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.256579</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.256579</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0070'>
+      <static>1</static>
+      <pose>-2.026089 -4.872165 2.928861 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.857723</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.857723</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0071'>
+      <static>1</static>
+      <pose>-11.743494 4.770687 2.705905 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.411810</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.411810</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0072'>
+      <static>1</static>
+      <pose>-9.637297 -1.536535 2.909439 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.818879</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.818879</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0073'>
+      <static>1</static>
+      <pose>19.721851 1.658450 2.684368 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.368735</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.368735</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0074'>
+      <static>1</static>
+      <pose>-1.692634 10.753670 1.535402 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.070803</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.070803</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0075'>
+      <static>1</static>
+      <pose>3.412948 -11.370767 1.855254 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.710508</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.710508</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0076'>
+      <static>1</static>
+      <pose>9.632657 10.470132 2.035470 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.070940</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.070940</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0077'>
+      <static>1</static>
+      <pose>10.274915 5.791449 1.479228 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.958456</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.958456</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0078'>
+      <static>1</static>
+      <pose>7.926416 5.714838 2.733133 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.466265</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.466265</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0079'>
+      <static>1</static>
+      <pose>5.937080 -2.959046 1.680953 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.361906</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.361906</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0080'>
+      <static>1</static>
+      <pose>5.348630 -4.011370 1.822604 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.645207</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.645207</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0081'>
+      <static>1</static>
+      <pose>-21.565860 -9.282681 1.347388 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.694776</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.694776</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0082'>
+      <static>1</static>
+      <pose>4.005221 2.583281 2.932006 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.864012</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.864012</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0083'>
+      <static>1</static>
+      <pose>-4.824357 -10.316843 2.439687 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.879373</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.879373</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0084'>
+      <static>1</static>
+      <pose>5.991270 9.958791 1.450565 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.901130</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.901130</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0085'>
+      <static>1</static>
+      <pose>-8.707295 8.842491 2.685415 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.370830</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.370830</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0086'>
+      <static>1</static>
+      <pose>2.526604 1.834158 2.615833 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.231666</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.231666</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0087'>
+      <static>1</static>
+      <pose>20.097498 -13.987941 2.512432 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.024864</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.024864</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0088'>
+      <static>1</static>
+      <pose>-17.731823 -13.109919 2.369793 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.739586</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.739586</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0089'>
+      <static>1</static>
+      <pose>15.809945 0.880335 1.526695 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.053390</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.053390</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0090'>
+      <static>1</static>
+      <pose>-3.883567 -4.956214 2.148343 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.296687</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.296687</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0091'>
+      <static>1</static>
+      <pose>20.640406 -4.624977 2.389747 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.779494</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.779494</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0092'>
+      <static>1</static>
+      <pose>3.176400 6.153456 2.417476 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.834953</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.834953</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0093'>
+      <static>1</static>
+      <pose>-5.208568 4.418084 2.034991 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.069983</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.069983</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0094'>
+      <static>1</static>
+      <pose>-7.559071 4.551666 1.343014 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.686028</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.686028</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0095'>
+      <static>1</static>
+      <pose>11.811116 0.687795 2.293556 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.587112</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.587112</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0096'>
+      <static>1</static>
+      <pose>-18.117130 4.391608 2.053185 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.106371</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.106371</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0097'>
+      <static>1</static>
+      <pose>-20.718302 12.699753 1.438417 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.876834</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.876834</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0098'>
+      <static>1</static>
+      <pose>-3.087027 -3.233961 1.362153 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.724307</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.724307</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0099'>
+      <static>1</static>
+      <pose>-2.444633 -9.589393 2.839244 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.678488</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.678488</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0100'>
+      <static>1</static>
+      <pose>8.856093 12.577262 1.478350 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.956700</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.956700</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0101'>
+      <static>1</static>
+      <pose>8.002954 11.635247 2.122381 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.244762</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.244762</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0102'>
+      <static>1</static>
+      <pose>12.493602 6.571044 1.329360 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>2.658721</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>2.658721</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0103'>
+      <static>1</static>
+      <pose>19.465643 -12.568187 2.821165 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.642330</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.642330</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0104'>
+      <static>1</static>
+      <pose>-8.897361 -2.158264 2.562415 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>5.124829</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>5.124829</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0105'>
+      <static>1</static>
+      <pose>-11.228265 12.595004 2.490829 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.981657</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.981657</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0106'>
+      <static>1</static>
+      <pose>15.940235 2.806317 1.785249 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>3.570498</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>3.570498</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name='cylinder_0107'>
+      <static>1</static>
+      <pose>16.397462 -0.899411 2.181804 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><cylinder><radius>0.300000</radius><length>4.363607</length></cylinder></geometry></collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.300000</radius><length>4.363607</length></cylinder></geometry>
+          <material><ambient>0.447 0.624 0.812 1</ambient><diffuse>0.447 0.624 0.812 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

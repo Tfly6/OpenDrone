@@ -6,10 +6,14 @@
     <arg name="is_simulation" default="true" />
     <arg name="use_rviz" default="true" />
     <arg name="use_preset_waypoints" default="false" />
+    <arg name="target_type"
+         default="$(eval 2 if arg('use_preset_waypoints') else 1)" />
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
     <arg name="start_from_current_position" default="true" />
-
+    <arg name="cruise_speed" default="0.5" />
+    <arg name="goal_tolerance" default="0.4" />
+    <arg name="collision_check_padding" default="1.0" />
     <!-- Static transforms: world -> base_link -> camera_link -->
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_map_linker"
           args="0 0 0 0 0 0 world map 100" /> -->
@@ -20,21 +24,42 @@
     <node pkg="opendrone" name="depth_camera_processor"
           type="depth_camera_processor" output="screen">
         <param name="input_topic" value="$(arg camera_depth_topic)" />
-        <param name="output_topic" value="/scan_cloud" />
-        <param name="target_frame" value="map" />
+        <param name="output_topic" value="/registered_scan" />
+        <param name="target_frame" value="$(arg world_frame)" />
         <param name="source_frame" value="camera_link" />
         <param name="intensity_value" value="255.0" />
+        <!-- Subsample the organized 640x480 cloud before transforming it. -->
+        <param name="max_points" value="12000" />
+        <param name="min_range" value="0.20" />
+        <param name="max_range" value="25.0" />
+        <param name="tf_timeout" value="0.10" />
     </node>
+
+    <!-- Upstream terrain pipeline: registered scan -> local terrain ->
+         extended terrain. Both nodes keep their upstream algorithms. -->
+    <include file="$(find airfar_planner)/launch/terrain_analysis.launch">
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <arg name="terrain_topic" value="/terrain_map" />
+    </include>
+    <include file="$(find airfar_planner)/launch/terrain_analysis_ext.launch">
+        <arg name="odom_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <arg name="terrain_local_topic" value="/terrain_map" />
+        <arg name="terrain_ext_topic" value="/terrain_map_ext" />
+    </include>
 
     <!-- Air-FAR Planner -->
     <include file="$(find airfar_planner)/launch/airfar.launch">
         <arg name="odom_topic" value="$(arg odom_topic)" />
-        <arg name="terrain_cloud_topic" value="/scan_cloud" />
-        <arg name="terrain_local_topic" value="/terrain_local_cloud" />
-        <arg name="scan_cloud_topic" value="/scan_cloud" />
+        <arg name="terrain_cloud_topic" value="/terrain_map_ext" />
+        <arg name="terrain_local_topic" value="/terrain_map" />
+        <arg name="scan_cloud_topic" value="/registered_scan" />
         <arg name="config_file" value="$(arg config_file)" />
         <arg name="world_frame" value="$(arg world_frame)" />
         <arg name="is_simulation" value="$(arg is_simulation)" />
+        <arg name="target_type" value="$(arg target_type)" />
+        <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
     </include>
 
     <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
@@ -44,14 +69,22 @@
         <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
     </include>
 
-    <!-- Waypoint to trajectory converter -->
-    <node pkg="opendrone" name="planner_adapter"
-          type="planner_adapter.py" output="screen">
-        <param name="adapter_type" value="waypoint" />
-        <param name="input_topic" value="/way_point" />
-        <param name="planner_output_topic" value="/planner/output" />
-        <param name="frame_id" value="map" />
-    </node>
+    <!-- Air-FAR-specific bridge using upstream local path selection and
+         track-path/turn logic. It publishes PlannerOutput directly. -->
+    <include file="$(find airfar_reference_bridge)/launch/airfar_reference_bridge.launch">
+        <arg name="state_estimation_topic" value="$(arg odom_topic)" />
+        <arg name="scan_topic" value="/registered_scan" />
+        <arg name="path_scale" value="0.5" />
+        <arg name="minimum_path_scale" value="0.25" />
+        <arg name="path_scale_step" value="0.125" />
+        <arg name="sensor_max_pitch" value="25.0" />
+        <arg name="sensor_max_yaw" value="40.0" />
+        <arg name="maximum_speed" value="1.5" />
+        <arg name="minimum_speed" value="0.5" />
+        <arg name="cruise_speed" value="$(arg cruise_speed)" />
+        <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
+        <arg name="collision_check_padding" value="$(arg collision_check_padding)" />
+    </include>
 
     <!-- RViz -->
     <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz"

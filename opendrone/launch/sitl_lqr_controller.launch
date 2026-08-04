@@ -2,41 +2,30 @@
 <launch>
   <arg name="enable_sim" default="true"/>
   <arg name="takeoff_height" default="2.0"/>
-  <arg name="mass" default="1.5"/>
-  <arg name="hover_thrust" default="0.7"/>
+  <arg name="enable_auto_offboard" default="$(arg enable_sim)"/>
+  <arg name="enable_auto_arm" default="$(arg enable_sim)"/>
+  <arg name="auto_takeoff" default="true"/>
   <arg name="use_dynamic_reconfigure" default="false"/>
-  <arg name="max_body_rate_xy" default="0.8"/>
-  <arg name="max_body_rate_z" default="0.6"/>
-  <arg name="max_tilt_deg" default="30.0"/>
-  <arg name="tilt_recovery_gain" default="1.5"/>
-  <arg name="min_normalized_thrust" default="0.15"/>
-  <arg name="max_normalized_thrust" default="0.85"/>
-  <!-- <arg name="init_pose_x" default="0.0"/>
-  <arg name="init_pose_y" default="0.0"/>
-  <arg name="init_pose_z" default="0.5"/> -->
+  <arg name="reference_selection" default="auto"/>
+  <arg name="debug" default="false"/>
 
   <node pkg="lqr_controller" type="lqr_controller_node" name="lqr_controller_node" output="screen" respawn="true" clear_params="true">
     <rosparam file="$(find lqr_controller)/config/default.yaml"/>
     <param name="enable_sim" value="$(arg enable_sim)"/>
     <param name="use_dynamic_reconfigure" value="$(arg use_dynamic_reconfigure)"/>
     <param name="takeoff_height" value="$(arg takeoff_height)"/>
-    <param name="mass" value="$(arg mass)"/>
-    <param name="hover_thrust" value="$(arg hover_thrust)"/>
-    <param name="max_body_rate_xy" value="$(arg max_body_rate_xy)"/>
-    <param name="max_body_rate_z" value="$(arg max_body_rate_z)"/>
-    <param name="max_tilt_deg" value="$(arg max_tilt_deg)"/>
-    <param name="tilt_recovery_gain" value="$(arg tilt_recovery_gain)"/>
-    <param name="min_normalized_thrust" value="$(arg min_normalized_thrust)"/>
-    <param name="max_normalized_thrust" value="$(arg max_normalized_thrust)"/>
-    <!-- <param name="init_pose_x" value="$(arg init_pose_x)"/>
-    <param name="init_pose_y" value="$(arg init_pose_y)"/>
-    <param name="init_pose_z" value="$(arg init_pose_z)"/> -->
+    <param name="enable_auto_offboard" value="$(arg enable_auto_offboard)"/>
+    <param name="enable_auto_arm" value="$(arg enable_auto_arm)"/>
+    <param name="auto_takeoff" value="$(arg auto_takeoff)"/>
+    <param name="reference_selection" value="$(arg reference_selection)"/>
+    <param name="debug" value="$(arg debug)"/>
 
     <!-- Geofence parameters -->
     <param name="geo_fence/x" value="50.0"/>
     <param name="geo_fence/y" value="50.0"/>
     <param name="geo_fence/z" value="6.0"/>
   </node>
+  
   <group if="$(arg use_dynamic_reconfigure)">
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
   </group>

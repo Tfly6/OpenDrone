@@ -189,7 +189,7 @@ namespace rog_map {
             loader.LoadParam(name_space + "/raycasting/p_max", p_max, 0.97f);
             loader.LoadParam(name_space + "/raycasting/p_occ", p_occ, 0.80f);
             loader.LoadParam(name_space + "/raycasting/p_free", p_free, 0.30f);
-            loader.LoadParam(name_space + "/raycasting/p_free", p_free, 0.30f);
+            // loader.LoadParam(name_space + "/raycasting/p_free", p_free, 0.30f);
 
             vector<double> temp_ray_range;
             loader.LoadParam(name_space + "/raycasting/ray_range", temp_ray_range, vector<double>{0.3, 10});

@@ -2,7 +2,7 @@
 <launch>
   <arg name="takeoff_height" default="2.0" />
   <arg name="use_dynamic_reconfigure" default="false" />
-  <node pkg="se3_hopf" type="se3_hopf_node" name="se3_hopf_node" output="screen">
+  <node pkg="se3_hopf" type="se3_hopf_node" name="se3_hopf_node" output="screen" clear_params="true">
     <rosparam file="$(find se3_hopf)/config/default.yaml" />
     <!-- <param name="x" type="double" value="5.0"/>
     <param name="y" type="double" value="7.0"/>

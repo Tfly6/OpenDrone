@@ -1,3 +1,19 @@
+mass: 1.5
+hover_thrust: 0.7
+normalized_thrust_min: 0.0
+normalized_thrust_max: 1.0
+yaw_rate_scale: 1.0
+control_rate: 100.0
+odom_timeout: 0.5
+enable_auto_offboard: true
+enable_auto_arm: true
+auto_takeoff: true
+offboard_warmup_count: 50
+request_interval: 1.0
+takeoff_height: 2.0
+takeoff_point_count: 30
+takeoff_duration: 3.0
+
 roll_time_constant: 0.15
 pitch_time_constant: 0.15
 roll_gain: 1.0

@@ -60,7 +60,9 @@ class cascadePID {
 
             Eigen::Vector3d target_vel;
             target_vel = kp_p_.asDiagonal() * pos_error;
-
+            if (target_vel.norm() > maxVel_) {
+                target_vel *= maxVel_ / target_vel.norm();
+            }
             // 速度环输出为加速度指令
 
             Eigen::Vector3d target_acc;

@@ -1,8 +1,9 @@
 # EGO Planner (v1) tuning profile.  Topics, frames, map dimensions, camera
 # calibration and mission selection are launch-time behaviour parameters.
 limits:
-  max_vel: &max_vel 1.5
-  max_acc: &max_acc 3.0
+  # The Iris rotor disk reaches 0.384 m from the vehicle centre.
+  max_vel: &max_vel 1.4
+  max_acc: &max_acc 2.5
 
 debug:
   map: false
@@ -37,11 +38,14 @@ fsm:
 
 grid_map:
   resolution: 0.1
-  local_update_range_x: 5.5
-  local_update_range_y: 5.5
-  local_update_range_z: 4.5
-  obstacles_inflation: 0.099
-  local_map_margin: 10
+  local_update_range_x: 8
+  local_update_range_y: 8
+  local_update_range_z: 5
+  # Inflation is a hard configuration-space footprint, not a tracking-error
+  # budget.  The implementation rounds up in 0.1 m voxels and uses a box
+  # metric, so 0.4 m already contains the complete 0.384 m rotor disk.
+  obstacles_inflation: 0.4
+  local_map_margin: 20
   ground_height: -0.15
   use_depth_filter: true
   depth_filter_tolerance: 0.15
@@ -50,14 +54,16 @@ grid_map:
   depth_filter_margin: 2
   k_depth_scaling_factor: 1000.0
   skip_pixel: 2
-  p_hit: 0.65
+  p_hit: 0.75
   p_miss: 0.35
   p_min: 0.12
   p_max: 0.90
-  p_occ: 0.80
+  p_occ: 0.65
   min_ray_length: 0.1
-  max_ray_length: 4.5
-  virtual_ceil_height: 2.9
+  max_ray_length: 12.0
+  # The benchmark goal is z=3.5 m.  Keep the virtual ceiling above the goal
+  # plus the vehicle footprint instead of making the terminal state invalid.
+  virtual_ceil_height: 5.0
   visualization_truncate_height: 1.8
   show_occ_time: false
 
@@ -80,15 +86,17 @@ optimization:
   lambda_collision: 0.5
   lambda_feasibility: 0.1
   lambda_fitness: 1.0
+  # Soft rebound clearance.  Physical footprint is represented by the hard
+  # inflated map above; do not count it a second time here.
   dist0: 0.5
   swarm_clearance: 0.5
   max_vel: *max_vel
   max_acc: *max_acc
 
-bspline:
-  limit_vel: *max_vel
-  limit_acc: *max_acc
-  limit_ratio: 1.1
+# bspline:
+#   limit_vel: *max_vel
+#   limit_acc: *max_acc
+#   limit_ratio: 1.1
 
 prediction:
   obj_num: 10

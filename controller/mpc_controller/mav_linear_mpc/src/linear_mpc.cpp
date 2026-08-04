@@ -51,7 +51,7 @@ LinearModelPredictiveController::LinearModelPredictiveController(const ros::Node
       command_roll_pitch_yaw_thrust_(0, 0, 0, 0),
       linearized_command_roll_pitch_thrust_(0, 0, 0),
       disturbance_observer_(nh, private_nh),
-      verbose_(false),
+      debug_(false),
       solve_time_average_(0),
       steady_state_calculation_(nh, private_nh),
       received_first_odometry_(false)
@@ -81,7 +81,7 @@ void LinearModelPredictiveController::initializeParameters()
   std::vector<double> drag_coefficients;
 
   //Get parameters from RosParam server
-  private_nh_.param<bool>("verbose", verbose_, false);
+  private_nh_.param<bool>("debug", debug_, false);
 
   if (!private_nh_.getParam("mass", mass_)) {
     ROS_ERROR("mass in MPC is not loaded from ros parameter server");
@@ -179,7 +179,7 @@ void LinearModelPredictiveController::initializeParameters()
 
   steady_state_calculation_.initialize(model_A_, model_B_, model_Bd_);
 
-  if (verbose_) {
+  if (debug_) {
     ROS_INFO_STREAM("A: \n" << model_A_);
     ROS_INFO_STREAM("B: \n" << model_B_);
     ROS_INFO_STREAM("B_d: \n" << model_Bd_);
@@ -251,7 +251,7 @@ void LinearModelPredictiveController::applyParameters()
   params.u_min[2] = thrust_min_;
 
   ROS_INFO("Linear MPC: Tuning parameters updated...");
-  if (verbose_) {
+  if (debug_) {
     ROS_INFO_STREAM("diag(Q) = \n" << Q.diagonal().transpose());
     ROS_INFO_STREAM("diag(R) = \n" << R.diagonal().transpose());
     ROS_INFO_STREAM("diag(R_delta) = \n " << R_delta.diagonal().transpose());
@@ -468,10 +468,10 @@ void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
   command_roll_pitch_yaw_thrust_(1) = ux * cos(yaw) - uy * sin(yaw);
   command_roll_pitch_yaw_thrust_(2) = yaw_ref_.front();
 
-  // Keep this behind verbose_ so normal flights are not flooded.  This is the
+  // Keep this behind debug_ so normal flights are not flooded.  This is the
   // minimum set of values needed to distinguish a stalled timed reference
   // from an MPC solve that elects not to generate vertical acceleration.
-  if (verbose_) {
+  if (debug_) {
     const std::size_t horizon_last = position_ref_.size() - 1;
     ROS_INFO_STREAM_THROTTLE(
         1.0, "Linear MPC debug: odom[z,vz]=[" << odometry_.position_W.z()
@@ -512,7 +512,7 @@ void LinearModelPredictiveController::calculateRollPitchYawrateThrustCommand(
 
   double diff_time = (ros::WallTime::now() - starting_time).toSec();
 
-  if (verbose_) {
+  if (debug_) {
     static int counter = 0;
     if (counter > 100) {
       ROS_INFO_STREAM("average solve time: " << 1000.0 * solve_time_average_ / counter << " ms");

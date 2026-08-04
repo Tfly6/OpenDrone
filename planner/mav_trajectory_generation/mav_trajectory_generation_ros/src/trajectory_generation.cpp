@@ -12,6 +12,7 @@ TrajectoryGeneration::TrajectoryGeneration(const ros::NodeHandle& nh, const ros:
     : nh_(nh),
       nh_private_(nh_private),
       has_current_odom_(false),
+      plan_pending_(false),
       max_v_(2.0),
       max_a_(2.0),
       duplicate_start_waypoint_distance_(0.1),
@@ -51,6 +52,10 @@ void TrajectoryGeneration::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& o
                                  odom->twist.twist.linear.z);
   current_velocity_ = q * body_vel;
   has_current_odom_ = true;
+  if (plan_pending_) {
+    planTrajectory();
+    plan_pending_ = false;
+  }
 }
 
 void TrajectoryGeneration::waypointCallback(const nav_msgs::Path::ConstPtr& msg) {
@@ -61,7 +66,13 @@ void TrajectoryGeneration::waypointCallback(const nav_msgs::Path::ConstPtr& msg)
 
   ROS_INFO("Received %zu waypoints.", waypoints_.size());
   if (!waypoints_.empty()) {
-    planTrajectory();
+    if (!has_current_odom_) {
+      ROS_WARN("[TrajectoryGeneration] No odometry received yet, cannot use current odom as trajectory start. "
+               "Trajectory planning will be triggered once odometry is received.");
+      plan_pending_ = true;
+    } else {
+      planTrajectory();
+    }
   }
 }
 

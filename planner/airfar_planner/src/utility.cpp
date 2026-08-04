@@ -229,21 +229,19 @@ void DPUtil::ExtractFreeAndObsCloud(const PointCloudPtr& newCloudIn,
 void DPUtil::ExtractFreeAndObsFromScanCloud(const PointCloudPtr& scanCloudIn,
                                             const PointCloudPtr& terrainCloudIn,
                                             const PointCloudPtr& freeCloudOut,
-                                            const PointCloudPtr& obsCloudOut) 
+                                            const PointCloudPtr& obsCloudOut)
 {
-  // pre-process cloud
   freeCloudOut->clear(), obsCloudOut->clear();
   const std::size_t cloud_size = terrainCloudIn->size();
   pcl::copyPointCloud(*scanCloudIn, *obsCloudOut);
   freeCloudOut->resize(cloud_size);
   std::size_t free_idx = 0;
-  // iteratte through points
   for (const auto& p : terrainCloudIn->points) {
     if (p.intensity < DPUtil::kFreeZ) {
       freeCloudOut->points[free_idx] = p;
-      free_idx ++;
+      free_idx++;
     }
-  } 
+  }
   freeCloudOut->resize(free_idx);
   DPUtil::RemoveOverlapCloud(obsCloudOut, freeCloudOut);
 }
