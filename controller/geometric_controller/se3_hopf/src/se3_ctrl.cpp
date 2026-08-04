@@ -218,7 +218,7 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
             send_cmd(output, true);
             se3_hopf_.estimateTa(imu_data_.a);
         }
-        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.02){
+        if(fabs(odom_data_.p(2) - takeoff_height_) < 0.1){
             ROS_INFO("TakeOff Complete");
             flightState_ = MISSION_EXECUTION;
         }

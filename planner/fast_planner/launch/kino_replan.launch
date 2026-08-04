@@ -11,8 +11,6 @@
   <arg name="cy" default="243.44969177246094"/>
   <arg name="fx" default="387.229248046875"/>
   <arg name="fy" default="387.229248046875"/>
-  <arg name="max_vel" default="1.0"/>
-  <arg name="max_acc" default="2.5"/>
   <arg name="debug_verbose" default="false"/>
   <arg name="flight_type" default="2"/>
   <!-- <arg name="point_num" default="1"/>
@@ -56,14 +54,6 @@
     <param name="sdf_map/fx" value="$(arg fx)" type="double"/>
     <param name="sdf_map/fy" value="$(arg fy)" type="double"/>
     <param name="sdf_map/frame_id" value="world"/>
-    <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
-    <param name="manager/max_acc" value="$(arg max_acc)" type="double"/>
-    <param name="search/max_vel" value="$(arg max_vel)" type="double"/>
-    <param name="search/max_acc" value="$(arg max_acc)" type="double"/>
-    <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
-    <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>
-    <param name="bspline/limit_vel" value="$(arg max_vel)" type="double"/>
-    <param name="bspline/limit_acc" value="$(arg max_acc)" type="double"/>
   </node>
 
   <node pkg="fast_planner" name="fast_planner_traj_server" type="fast_planner_traj_server"

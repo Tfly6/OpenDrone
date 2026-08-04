@@ -45,7 +45,7 @@ NonlinearModelPredictiveControl::NonlinearModelPredictiveControl(const ros::Node
       position_error_integration_(0, 0, 0),
       command_roll_pitch_yaw_thrust_(0, 0, 0, 0),
       disturbance_observer_(nh, private_nh),
-      verbose_(false),
+      debug_(false),
       solve_time_average_(0),
       received_first_odometry_(false)
 {
@@ -86,7 +86,7 @@ void NonlinearModelPredictiveControl::initializeParameters()
   std::vector<double> drag_coefficients;
 
   //Get parameters from RosParam server
-  private_nh_.param<bool>("verbose", verbose_, false);
+  private_nh_.param<bool>("debug", debug_, false);
 
   if (!private_nh_.getParam("mass", mass_)) {
     ROS_ERROR("mass in nonlinear MPC controller is not loaded from ros parameter "
@@ -159,7 +159,7 @@ void NonlinearModelPredictiveControl::initializeParameters()
   Eigen::Map<Eigen::Matrix<double, ACADO_NOD, ACADO_N + 1>>(const_cast<double*>(acadoVariables.od)) =
       acado_online_data_.transpose();
 
-  if (verbose_) {
+  if (debug_) {
     std::cout << "acado online data: " << std::endl << acado_online_data_ << std::endl;
   }
 
@@ -191,7 +191,7 @@ void NonlinearModelPredictiveControl::applyParameters()
     acadoVariables.ubValues[3 * i + 2] = thrust_max_;    // max thrust
   }
 
-  if (verbose_) {
+  if (debug_) {
     std::cout << "q_position_: " << q_position_.transpose() << std::endl;
     std::cout << "q_velocity_: " << q_velocity_.transpose() << std::endl;
     std::cout << "r_command_: " << r_command_.transpose() << std::endl;
@@ -438,7 +438,7 @@ void NonlinearModelPredictiveControl::calculateRollPitchYawrateThrustCommand(
 
   double diff_time = (ros::WallTime::now() - starting_time).toSec();
 
-  if (verbose_) {
+  if (debug_) {
     static int counter = 0;
     if (counter > 100) {
       ROS_INFO_STREAM("average solve time: " << solve_time_average_ / counter << " ms");

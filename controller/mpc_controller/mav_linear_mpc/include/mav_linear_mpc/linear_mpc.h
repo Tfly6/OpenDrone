@@ -228,7 +228,7 @@ class LinearModelPredictiveController
   SteadyStateCalculation steady_state_calculation_;
 
   // debug info
-  bool verbose_;
+  bool debug_;
   double solve_time_average_;
 
   // most recent odometry information

@@ -80,6 +80,30 @@ Trajectory ConcatenateTrajectories(const Trajectory& prefix,
   return combined;
 }
 
+double DistanceBetweenPositions(const TrajectoryPoint& a,
+                                const TrajectoryPoint& b) {
+  return (a.position - b.position).norm();
+}
+
+void MakeTerminalHover(TrajectoryPoint* point) {
+  if (!point) {
+    return;
+  }
+
+  point->velocity.setZero();
+  point->acceleration.setZero();
+  point->jerk.setZero();
+  point->snap.setZero();
+
+  point->bodyrates.setZero();
+  point->angular_acceleration.setZero();
+  point->angular_jerk.setZero();
+  point->angular_snap.setZero();
+
+  point->heading_rate = 0.0;
+  point->heading_acceleration = 0.0;
+}
+
 }  // namespace
 
 RpgTrajNode::RpgTrajNode(const ros::NodeHandle& nh, const ros::NodeHandle& pnh)
@@ -323,6 +347,10 @@ void RpgTrajNode::preemptAndActivateTrajectory(
   const uint64_t new_id = ++traj_id_;
   active_exec_id_ = new_id;
 
+  if (!new_traj.points.empty()) {
+    MakeTerminalHover(&new_traj.points.back());
+  }
+
   traj_ = std::move(new_traj);
   traj_start_time_ = ros::Time::now();
   has_traj_ = !traj_.points.empty();
@@ -465,13 +493,23 @@ void RpgTrajNode::planFromWaypoints(const nav_msgs::Path& path) {
             use_segment_refine_ ? "true" : "false",
             max_velocity_);
 
-        auto approach_end =
+        const auto approach_end =
             makeEndStateFromPose(ring_points.front(), start.heading);
-        auto approach = trajectory_generation_helper::polynomials::
-            computeTimeOptimalTrajectory(
-                start, approach_end, order_of_continuity_, max_velocity_,
-                max_normalized_thrust_, max_roll_pitch_rate_,
-                sampling_frequency_);
+        polynomial_trajectories::Trajectory approach;
+        constexpr double kMinimumApproachDistance = 1e-3;
+        const double approach_distance =
+            DistanceBetweenPositions(start, approach_end);
+        if (approach_distance > kMinimumApproachDistance) {
+          approach = trajectory_generation_helper::polynomials::
+              computeTimeOptimalTrajectory(
+                  start, approach_end, order_of_continuity_, max_velocity_,
+                  max_normalized_thrust_, max_roll_pitch_rate_,
+                  sampling_frequency_);
+        } else {
+          ROS_INFO(
+              "[rpg_traj_node] skipping %.6f m approach to ring start.",
+              approach_distance);
+        }
 
         polynomial_trajectories::Trajectory ring;
         if (use_segment_refine_) {

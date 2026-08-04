@@ -55,27 +55,27 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
       offboard_warmup_count_(80),
       request_interval_(1.0) {
   std::string command_pose_topic;
-  std::string planner_output_topic;
+  // std::string planner_output_topic;
   std::string odometry_topic;
   std::string command_output_topic;
-  std::string attitude_target_topic;
-  std::string state_topic;
-  std::string set_mode_service;
-  std::string arming_service;
+  // std::string attitude_target_topic;
+  // std::string state_topic;
+  // std::string set_mode_service;
+  // std::string arming_service;
 
   private_nh_.param<std::string>("command_pose_topic", command_pose_topic,
                                  mav_msgs::default_topics::COMMAND_POSE);
-  private_nh_.param<std::string>("planner_output_topic", planner_output_topic,
-                                 "/planner/output");
+  // private_nh_.param<std::string>("planner_output_topic", planner_output_topic,
+  //                                "/planner/output");
   private_nh_.param<std::string>("odometry_topic", odometry_topic,
                                  mav_msgs::default_topics::ODOMETRY);
   private_nh_.param<std::string>("command_output_topic", command_output_topic,
                                  mav_msgs::default_topics::COMMAND_ROLL_PITCH_YAWRATE_THRUST);
-  private_nh_.param<std::string>("attitude_target_topic", attitude_target_topic,
-                                 "/mavros/setpoint_raw/attitude");
-  private_nh_.param<std::string>("state_topic", state_topic, "/mavros/state");
-  private_nh_.param<std::string>("set_mode_service", set_mode_service, "/mavros/set_mode");
-  private_nh_.param<std::string>("arming_service", arming_service, "/mavros/cmd/arming");
+  // private_nh_.param<std::string>("attitude_target_topic", attitude_target_topic,
+  //                                "/mavros/setpoint_raw/attitude");
+  // private_nh_.param<std::string>("state_topic", state_topic, "/mavros/state");
+  // private_nh_.param<std::string>("set_mode_service", set_mode_service, "/mavros/set_mode");
+  // private_nh_.param<std::string>("arming_service", arming_service, "/mavros/cmd/arming");
 
   private_nh_.param("mass", mass_, 1.0);
   private_nh_.param("hover_thrust", hover_thrust_, 0.5);
@@ -114,20 +114,20 @@ NonLinearModelPredictiveControllerNode::NonLinearModelPredictiveControllerNode(
                                            &NonLinearModelPredictiveControllerNode::CommandPoseCallback,
                                            this);
   planner_output_subscriber_ = nh_.subscribe(
-      planner_output_topic, 1,
+      "/planner/output", 1,
       &NonLinearModelPredictiveControllerNode::CommandTrajectoryCallback, this);
   odometry_subscriber_ = nh_.subscribe(odometry_topic, 1,
                                        &NonLinearModelPredictiveControllerNode::OdometryCallback,
                                        this, ros::TransportHints().tcpNoDelay());
-  mavros_state_subscriber_ = nh_.subscribe(state_topic, 1,
+  mavros_state_subscriber_ = nh_.subscribe("/mavros/state", 1,
                                            &NonLinearModelPredictiveControllerNode::MavrosStateCallback,
                                            this, ros::TransportHints().tcpNoDelay());
 
   command_publisher_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust>(command_output_topic, 1);
-  attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>(attitude_target_topic, 1);
+  attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 1);
 
-  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_service);
-  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_service);
+  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
   land_service_ = nh_.advertiseService("/land", &NonLinearModelPredictiveControllerNode::LandCallback, this);
 
   flight_state_publisher_ = nh_.advertise<std_msgs::Int8>("/flight_state", 1);
@@ -188,27 +188,27 @@ void NonLinearModelPredictiveControllerNode::ApplyTuningConfig(
 
 void NonLinearModelPredictiveControllerNode::LoadStaticTuningConfig() {
   mav_nonlinear_mpc::NonLinearMPCConfig config;
-  private_nh_.param("q_x", config.q_x, 50.0);
-  private_nh_.param("q_y", config.q_y, 50.0);
-  private_nh_.param("q_z", config.q_z, 80.0);
-  private_nh_.param("q_vx", config.q_vx, 20.0);
-  private_nh_.param("q_vy", config.q_vy, 20.0);
-  private_nh_.param("q_vz", config.q_vz, 35.0);
-  private_nh_.param("q_roll", config.q_roll, 20.0);
-  private_nh_.param("q_pitch", config.q_pitch, 20.0);
-  private_nh_.param("r_roll", config.r_roll, 30.0);
-  private_nh_.param("r_pitch", config.r_pitch, 30.0);
-  private_nh_.param("r_thrust", config.r_thrust, 5.0);
-  private_nh_.param("roll_max", config.roll_max, 0.45);
-  private_nh_.param("pitch_max", config.pitch_max, 0.45);
-  private_nh_.param("yaw_rate_max", config.yaw_rate_max, 1.5);
+  private_nh_.param("q_x", config.q_x, 60.0);
+  private_nh_.param("q_y", config.q_y, 60.0);
+  private_nh_.param("q_z", config.q_z, 120.0);
+  private_nh_.param("q_vx", config.q_vx, 60.0);
+  private_nh_.param("q_vy", config.q_vy, 60.0);
+  private_nh_.param("q_vz", config.q_vz, 70.0);
+  private_nh_.param("q_roll", config.q_roll, 10.0);
+  private_nh_.param("q_pitch", config.q_pitch, 10.0);
+  private_nh_.param("r_roll", config.r_roll, 140.0);
+  private_nh_.param("r_pitch", config.r_pitch, 170.0);
+  private_nh_.param("r_thrust", config.r_thrust, 2.2);
+  private_nh_.param("roll_max", config.roll_max, 0.3490658503988659);
+  private_nh_.param("pitch_max", config.pitch_max, 0.2617993877991494);
+  private_nh_.param("yaw_rate_max", config.yaw_rate_max, 0.8726646259971648);
   private_nh_.param("thrust_min", config.thrust_min, 5.0);
-  private_nh_.param("thrust_max", config.thrust_max, 15.0);
-  private_nh_.param("K_yaw", config.K_yaw, 0.5);
-  private_nh_.param("Ki_xy", config.Ki_xy, 0.2);
-  private_nh_.param("Ki_altitude", config.Ki_altitude, 0.2);
-  private_nh_.param("enable_offset_free", config.enable_offset_free, true);
-  private_nh_.param("enable_integrator", config.enable_integrator, false);
+  private_nh_.param("thrust_max", config.thrust_max, 20.0);
+  private_nh_.param("K_yaw", config.K_yaw, 1.2);
+  private_nh_.param("Ki_xy", config.Ki_xy, 0.08);
+  private_nh_.param("Ki_altitude", config.Ki_altitude, 0.10);
+  private_nh_.param("enable_offset_free", config.enable_offset_free, false);
+  private_nh_.param("enable_integrator", config.enable_integrator, true);
   ApplyTuningConfig(config);
 }
 

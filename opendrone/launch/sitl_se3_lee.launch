@@ -3,12 +3,12 @@
     <arg name="gazebo_simulation" default="true" />
     <arg name="visualization" default="true"/>
     <arg name="log_output" default="screen" />
-    <arg name="max_acc" default="3" />
-    <arg name="max_vel" default="1.5" />
+    <arg name="max_acc" default="4" />
+    <arg name="max_vel" default="2.0" />
     <arg name="takeoff_height" default="2.0" />
     <arg name="use_dynamic_reconfigure" default="false" />
     
-    <node pkg="se3_lee" type="se3_lee_node" name="se3_lee" output="screen">
+    <node pkg="se3_lee" type="se3_lee_node" name="se3_lee" output="screen" clear_params="true">
             <!-- <param name="mav_name" type="string" value="$(arg mav_name)" /> -->
             <remap from="command/bodyrate_command" to="/mavros/setpoint_raw/attitude"/>
             <rosparam file="$(find se3_lee)/config/default.yaml" />

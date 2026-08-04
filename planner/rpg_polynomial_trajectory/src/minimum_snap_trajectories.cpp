@@ -203,7 +203,7 @@ PolynomialTrajectory generateMinimumSnapTrajectoryWithSegmentRefinement(
       polynomial_trajectories::TrajectoryType::UNDEFINED) {
     return initial_trajectory;
   }
-  initial_trajectory.trajectory_type ==
+  initial_trajectory.trajectory_type =
       polynomial_trajectories::TrajectoryType::MINIMUM_SNAP_OPTIMIZED_SEGMENTS;
 
   if (trajectory_settings.way_points.empty()) {
@@ -476,7 +476,7 @@ PolynomialTrajectory generateMinimumSnapRingTrajectoryWithSegmentRefinement(
       polynomial_trajectories::TrajectoryType::UNDEFINED) {
     return initial_trajectory;
   }
-  initial_trajectory.trajectory_type ==
+  initial_trajectory.trajectory_type =
       polynomial_trajectories::TrajectoryType::
           MINIMUM_SNAP_RING_OPTIMIZED_SEGMENTS;
 
@@ -902,11 +902,21 @@ Eigen::VectorXd updateSegmentTimes(
 
   const double backtracking_alpha = 0.1;
   const double backtracking_beta = 0.5;
+  const double min_step_ratio = 1e-6;
+  const int max_backtracking_iterations = 60;
 
-  for (;;) {
+  for (int iteration = 0; iteration < max_backtracking_iterations;
+       ++iteration) {
     Eigen::VectorXd step = step_ratio * search_direction;
 
     updated_segment_times = initial_trajectory.segment_times + step;
+    if (updated_segment_times.minCoeff() <= 1e-6) {
+      step_ratio *= backtracking_beta;
+      if (step_ratio < min_step_ratio) {
+        break;
+      }
+      continue;
+    }
 
     // compute new cost by solving optimization with new segment times
     PolynomialTrajectory trajectory;
@@ -923,15 +933,26 @@ Eigen::VectorXd updateSegmentTimes(
                                                      trajectory_settings);
     }
 
-    step_ratio *= backtracking_beta;
-    if (trajectory.optimization_cost <
+    if (trajectory.trajectory_type !=
+            polynomial_trajectories::TrajectoryType::UNDEFINED &&
+        std::isfinite(trajectory.optimization_cost) &&
+        trajectory.optimization_cost <
         initial_trajectory.optimization_cost +
             backtracking_alpha * step.dot(gradient)) {
+      return updated_segment_times;
+    }
+
+    step_ratio *= backtracking_beta;
+    if (step_ratio < min_step_ratio) {
       break;
     }
   }
 
-  return updated_segment_times;
+  ROS_WARN(
+      "[%s] Segment refinement backtracking did not converge; "
+      "keeping previous segment times.",
+      ros::this_node::getName().c_str());
+  return initial_trajectory.segment_times;
 }
 
 PolynomialTrajectory enforceMaximumVelocityAndThrust(

@@ -30,6 +30,7 @@ class MissionManager {
     private_nh_.param<double>("republish_dt", republish_dt_, 0.5);
     private_nh_.param<double>("lookahead_distance", lookahead_distance_, 2.0);
     private_nh_.param<double>("goal_reached_distance", goal_reached_distance_, 0.4);
+    private_nh_.param<double>("goal_dwell_time", goal_dwell_time_, 0.5);
     private_nh_.param<double>("goal_update_distance", goal_update_distance_, 0.35);
     private_nh_.param<double>("goal_update_yaw", goal_update_yaw_, 0.26);
     private_nh_.param<bool>("use_final_waypoint_orientation", use_final_waypoint_orientation_, true);
@@ -66,6 +67,7 @@ class MissionManager {
   double republish_dt_ = 0.5;
   double lookahead_distance_ = 2.0;
   double goal_reached_distance_ = 0.4;
+  double goal_dwell_time_ = 0.5;
   double goal_update_distance_ = 0.35;
   double goal_update_yaw_ = 0.26;
   bool use_final_waypoint_orientation_ = true;
@@ -75,6 +77,7 @@ class MissionManager {
   bool mission_complete_ = false;
   bool has_last_goal_ = false;
   ros::Time last_publish_time_;
+  ros::Time goal_inside_since_;
 
   static bool isValidOrientation(const geometry_msgs::Quaternion& q) {
     const bool finite =
@@ -120,6 +123,7 @@ class MissionManager {
     cumulative_lengths_.clear();
     has_last_goal_ = false;
     mission_complete_ = false;
+    goal_inside_since_ = ros::Time();
 
     if (mission_path_.poses.empty()) {
       has_path_ = false;
@@ -317,11 +321,25 @@ class MissionManager {
     const SampledPoint closest = closestPointOnPath(current_position);
     const geometry_msgs::Point& final_point = mission_path_.poses.back().pose.position;
 
-    if (pointDistance(current_position, final_point) <= goal_reached_distance_ &&
-        closest.progress >= totalLength() - std::max(lookahead_distance_, 0.5)) {
-      mission_complete_ = true;
-      ROS_INFO("[mission_manager] Mission complete.");
-      return;
+    const bool at_final_goal =
+        pointDistance(current_position, final_point) <= goal_reached_distance_ &&
+        closest.progress >= totalLength() - std::max(lookahead_distance_, 0.5);
+    if (at_final_goal) {
+      const ros::Time now = ros::Time::now();
+      if (goal_inside_since_.isZero()) {
+        goal_inside_since_ = now;
+      }
+      if (goal_dwell_time_ <= 0.0 ||
+          (now - goal_inside_since_).toSec() >= goal_dwell_time_) {
+        mission_complete_ = true;
+        ROS_INFO(
+            "[mission_manager] Mission complete after %.2f s inside %.2f m.",
+            goal_dwell_time_,
+            goal_reached_distance_);
+        return;
+      }
+    } else {
+      goal_inside_since_ = ros::Time();
     }
 
     const double target_progress = std::min(closest.progress + lookahead_distance_, totalLength());

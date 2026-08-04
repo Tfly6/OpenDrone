@@ -56,27 +56,27 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
       offboard_warmup_count_(80),
       request_interval_(1.0) {
   std::string command_pose_topic;
-  std::string planner_output_topic;
+  // std::string planner_output_topic;
   std::string odometry_topic;
   std::string command_output_topic;
-  std::string attitude_target_topic;
-  std::string state_topic;
-  std::string set_mode_service;
-  std::string arming_service;
+  // std::string attitude_target_topic;
+  // std::string state_topic;
+  // std::string set_mode_service;
+  // std::string arming_service;
 
   private_nh_.param<std::string>("command_pose_topic", command_pose_topic,
                                  mav_msgs::default_topics::COMMAND_POSE);
-  private_nh_.param<std::string>("planner_output_topic", planner_output_topic,
-                                 "/planner/output");
+  // private_nh_.param<std::string>("planner_output_topic", planner_output_topic,
+  //                                "/planner/output");
   private_nh_.param<std::string>("odometry_topic", odometry_topic,
                                  mav_msgs::default_topics::ODOMETRY);
   private_nh_.param<std::string>("command_output_topic", command_output_topic,
                                  mav_msgs::default_topics::COMMAND_ROLL_PITCH_YAWRATE_THRUST);
-  private_nh_.param<std::string>("attitude_target_topic", attitude_target_topic,
-                                 "/mavros/setpoint_raw/attitude");
-  private_nh_.param<std::string>("state_topic", state_topic, "/mavros/state");
-  private_nh_.param<std::string>("set_mode_service", set_mode_service, "/mavros/set_mode");
-  private_nh_.param<std::string>("arming_service", arming_service, "/mavros/cmd/arming");
+  // private_nh_.param<std::string>("attitude_target_topic", attitude_target_topic,
+  //                                "/mavros/setpoint_raw/attitude");
+  // private_nh_.param<std::string>("state_topic", state_topic, "/mavros/state");
+  // private_nh_.param<std::string>("set_mode_service", set_mode_service, "/mavros/set_mode");
+  // private_nh_.param<std::string>("arming_service", arming_service, "/mavros/cmd/arming");
 
   private_nh_.param("mass", mass_, 1.0);
   private_nh_.param("hover_thrust", hover_thrust_, 0.5);
@@ -113,20 +113,20 @@ LinearModelPredictiveControllerNode::LinearModelPredictiveControllerNode(
                                            &LinearModelPredictiveControllerNode::CommandPoseCallback,
                                            this);
   planner_output_subscriber_ = nh_.subscribe(
-      planner_output_topic, 1,
+      "/planner/output", 1,
       &LinearModelPredictiveControllerNode::CommandTrajectoryCallback, this);
   odometry_subscriber_ = nh_.subscribe(odometry_topic, 1,
                                        &LinearModelPredictiveControllerNode::OdometryCallback,
                                        this, ros::TransportHints().tcpNoDelay());
-  mavros_state_subscriber_ = nh_.subscribe(state_topic, 1,
+  mavros_state_subscriber_ = nh_.subscribe("/mavros/state", 1,
                                            &LinearModelPredictiveControllerNode::MavrosStateCallback,
                                            this, ros::TransportHints().tcpNoDelay());
 
   command_publisher_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust>(command_output_topic, 1);
-  attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>(attitude_target_topic, 1);
+  attitude_target_publisher_ = nh_.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 1);
 
-  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_service);
-  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_service);
+  set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+  arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
   land_service_ = nh_.advertiseService("/land", &LinearModelPredictiveControllerNode::LandCallback, this);
 
   flight_state_publisher_ = nh_.advertise<std_msgs::Int8>("/flight_state", 1);

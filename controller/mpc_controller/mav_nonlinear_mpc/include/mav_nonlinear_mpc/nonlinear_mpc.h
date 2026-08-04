@@ -221,7 +221,7 @@ class NonlinearModelPredictiveControl
   Eigen::Vector4d command_roll_pitch_yaw_thrust_;
 
   // debug info
-  bool verbose_;
+  bool debug_;
   double solve_time_average_;
 
   // most recent odometry information

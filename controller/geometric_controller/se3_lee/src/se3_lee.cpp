@@ -308,7 +308,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       }
       computeBodyRateCmd(cmdBodyRate_, desired_acc);
       pubRateCommands(cmdBodyRate_, q_des);
-      if(fabs(mavPos_(2) - takeoff_height_) < 0.02){
+      if(fabs(mavPos_(2) - takeoff_height_) < 0.1){
         ROS_INFO("takeoff completed");
         flightState_ = MISSION_EXECUTION;
       }

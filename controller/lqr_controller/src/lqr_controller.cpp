@@ -535,8 +535,8 @@ void LQR_Controller::applyTuningConfig(const lqr_controller::LqrControllerConfig
 void LQR_Controller::loadStaticTuningConfig()
 {
     lqr_controller::LqrControllerConfig config;
-    privateNodeHandle_.param("Q_pos_x", config.Q_pos_x, 100.0);
-    privateNodeHandle_.param("Q_pos_y", config.Q_pos_y, 100.0);
+    privateNodeHandle_.param("Q_pos_x", config.Q_pos_x, 20.0);
+    privateNodeHandle_.param("Q_pos_y", config.Q_pos_y, 20.0);
     privateNodeHandle_.param("Q_pos_z", config.Q_pos_z, 80.0);
     privateNodeHandle_.param("Q_att_x", config.Q_att_x, 1.0);
     privateNodeHandle_.param("Q_att_y", config.Q_att_y, 1.0);
@@ -544,8 +544,8 @@ void LQR_Controller::loadStaticTuningConfig()
     privateNodeHandle_.param("Q_vel_x", config.Q_vel_x, 5.0);
     privateNodeHandle_.param("Q_vel_y", config.Q_vel_y, 5.0);
     privateNodeHandle_.param("Q_vel_z", config.Q_vel_z, 3.0);
-    privateNodeHandle_.param("R_rate_x", config.R_rate_x, 15.0);
-    privateNodeHandle_.param("R_rate_y", config.R_rate_y, 15.0);
+    privateNodeHandle_.param("R_rate_x", config.R_rate_x, 30.0);
+    privateNodeHandle_.param("R_rate_y", config.R_rate_y, 30.0);
     privateNodeHandle_.param("R_rate_z", config.R_rate_z, 10.0);
     privateNodeHandle_.param("R_thrust", config.R_thrust, 0.4);
     applyTuningConfig(config);

@@ -32,8 +32,5 @@
     <group if="$(arg use_dynamic_reconfigure)">
         <node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />
     </group>  
-    <!-- <group if="$(arg visualization)">
-        <node type="rviz" name="rviz" pkg="rviz" args="-d $(find se3_lee)/launch/config_file.rviz" />
-    </group> -->
   
   </launch>

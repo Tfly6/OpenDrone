@@ -7,7 +7,7 @@
   <include if="$(arg use_preset_waypoints)" file="$(find waypoint_generator)/launch/waypoint_generator.launch">
     <arg name="odom_topic" value="/mavros/local_position/odom"/>
     <arg name="waypoint_type" value="$(arg waypoint_type)"/>
-    <arg name="num_points" value="8"/>
+    <arg name="num_points" value="16"/>
     <arg name="closure_points" value="1"/>
     <arg name="auto_trigger" value="$(arg auto_trigger_waypoints)"/>
     <arg name="start_from_current_position" value="$(arg start_from_current_position)"/>

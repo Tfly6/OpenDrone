@@ -39,5 +39,8 @@ cs_add_library(${PROJECT_NAME} src/polynomial_trajectory.cpp
 cs_add_executable(rpg_traj_node src/rpg_traj_node.cpp)
 target_link_libraries(rpg_traj_node ${PROJECT_NAME} ${catkin_LIBRARIES})
 
+cs_add_executable(ring_boundary_regression src/ring_boundary_regression.cpp)
+target_link_libraries(ring_boundary_regression ${PROJECT_NAME} ${catkin_LIBRARIES})
+
 cs_install()
 cs_export()

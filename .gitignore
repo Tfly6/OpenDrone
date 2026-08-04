@@ -2,6 +2,7 @@
 .github
 .catkin_tools
 __pycache__/
+.pytest_cache/
 build/
 devel/
 logs/

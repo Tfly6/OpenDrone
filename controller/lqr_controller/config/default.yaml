@@ -1,3 +1,21 @@
+# Vehicle conversion and static controller configuration.
+mass: 1.5
+hover_thrust: 0.7
+# init_pose_x: 0.0
+# init_pose_y: 0.0
+# init_pose_z: 0.5
+
+# Keep the existing SITL fence in configuration, not in the launch file.
+# geo_fence:
+#   x: 50.0
+#   y: 50.0
+#   z: 6.0
+
+# OFFBOARD protocol timing; launch exposes only the high-level enable flags.
+offboard_warmup_count: 80
+request_interval: 1.0
+
+# LQR static tuning.  The same Q/R defaults are used by dynamic_reconfigure.
 Q_pos_x: 20.0
 Q_pos_y: 20.0
 Q_pos_z: 80.0
@@ -7,16 +25,9 @@ Q_att_x: 1.0
 Q_att_y: 1.0
 Q_att_z: 5.0
 
-# auto: spatial projection for complete trajectories, timestamp selection for
-# streaming horizons (which intentionally contain no past samples).
-reference_selection: auto
-
 # State-dependent Riccati gain update rate.  The body-rate command still runs
 # at the controller timer rate (100 Hz by default).
 lqr_update_rate: 10.0
-
-# Enable 2 Hz control-state and applied-command diagnostic logs.
-debug: false
 
 Q_vel_x: 5.0
 Q_vel_y: 5.0
