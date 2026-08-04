@@ -19,15 +19,17 @@ OpenDrone/
 │   ├── scripts/          # Python helper scripts (planner_adapter for unified planner output, message conversion, etc.)
 │   ├── sitl_config/      # Models, worlds, plugin lists, and simulation settings for PX4/Gazebo SITL
 │   └── src/              # Basic examples and unified controller base (base node)
-├── planner/              # Planner collection
+├── planner/              # Planner collection integrating multiple excellent planning algorithms
 ├── shell/                # Common scripts
 ├── utils/                # Shared dependencies, message definitions, math tools, visualization, and utility libraries reused by controllers and planners
+│   ├── opendrone_gazebo_plugins/  # Gazebo simulation plugins (contact detection, etc.)
+│   └── ...               # Other shared utility packages
 ├── CMakeLists_Template.txt
 ├── LICENSE
 └── README.md
 ```
 
-> Note: Most ROS packages in this repository follow a similar structure, e.g., **cfg/** for dynamic parameter config, **include/** for headers, **launch/** for launch files, **src/** for source code, and **test/** for tests or demos.
+> Note: Most ROS packages in this repository follow a similar structure, e.g., **cfg/** for dynamic parameter config (with `dynamic_reconfigure` support), **include/** for headers, **launch/** for launch files, **src/** for source code.
 
 ## Core Architecture
 
@@ -44,7 +46,7 @@ OpenDrone/
 
 - **geometric_controller**:
 
-  - **se3_lee**: Referenced from [Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers). See [README.md](./controller/geometric_controller/se3_lee/README.md).
+  - **se3_lee**: Referenced from [Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers).
 
   Launch:
 
@@ -54,7 +56,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-  - **se3_hopf**: Referenced from [HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller). See [README.md](./controller/geometric_controller/se3_hopf/README.md). (**Recommended**)
+  - **se3_hopf**: Referenced from [HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller). (**Recommended**)
 
   Launch:
 
@@ -64,7 +66,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-- **pid_controller**: Includes simple PID (for learning only) and cascade PID. See [README.md](./controller/pid_controller/README.md).
+- **pid_controller**: Includes simple PID (for learning only) and cascade PID.
 
   Launch:
 
@@ -74,7 +76,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-- **lqr_controller**: Referenced from [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking). A simple LQR controller. See [README.md](./controller/lqr_controller/README.md). This controller is still experimental.
+- **lqr_controller**: Referenced from [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking). An LQR controller.
 
   Launch:
 
@@ -128,7 +130,7 @@ OpenDrone/
   roslaunch opendrone sitl_ego_planner_v2.launch # depth camera
   ```
 
-- **airfar_planner**: Referenced from [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR). Requires a UAV with a depth camera or 3D LiDAR. This planner is still experimental.
+- **airfar_planner**: Referenced from [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR). Requires a UAV with a depth camera or 3D LiDAR. Includes terrain analysis nodes (`terrain_analysis`) and reference bridge (`airfar_reference_bridge`).
 
   Launch:
 
@@ -137,7 +139,7 @@ OpenDrone/
   roslaunch opendrone sitl_airfar_planner_mid360.launch # LiDAR
   ```
 
-- **rpg_polynomial_trajectory**: Referenced from [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles. This planner is still experimental.
+- **rpg_polynomial_trajectory**: Referenced from [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles.
 
   Launch:
 

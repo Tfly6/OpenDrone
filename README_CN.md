@@ -19,15 +19,18 @@ OpenDrone/
 │   ├── scripts/          # Python 辅助脚本（planner_adapter 统一规划器输出、消息转换等）
 │   ├── sitl_config/      # PX4/Gazebo SITL 所需的模型、世界、插件列表与仿真配置
 │   └── src/              # 基础示例和统一控制器基类（base 节点）
-├── planner/              # 规划器集合
+├── planner/              # 规划器集合，集成了多个优秀的规划算法
 ├── shell/                # 常用脚本
 ├── utils/                # 公共依赖、消息定义、数学工具、可视化和配套基础库，供控制器与规划器复用
+│   ├── opendrone_gazebo_plugins/  # Gazebo 仿真插件（接触检测等）
+│   └── ...               # 其他公共工具包
 ├── CMakeLists_Template.txt
 ├── LICENSE
 └── README.md
 ```
 
-> 补充说明：仓库内大多数 ROS 包都遵循类似的目录组织方式，例如 **cfg/** 用于动态参数配置，**include/** 用于头文件，**launch/** 用于启动文件，**src/** 用于源码实现，**test/** 用于测试或示例验证。
+> 补充说明：仓库内大多数 ROS 包都遵循类似的目录组织方式，例如 **cfg/** 用于动态参数配置（支持 `dynamic_reconfigure`），**include/** 用于头文件，**launch/** 用于启动文件，**src/** 用于源码实现。
+>
 
 ## 核心架构
 
@@ -44,7 +47,7 @@ OpenDrone/
 
 - **geometric_controller**：
 
-  - **se3_lee** : 参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目，具体看 [README.md](./controller/geometric_controller/se3_lee/README.md) 。
+  - **se3_lee** : 参考了[Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) 项目 。
 
   启动：
 
@@ -54,7 +57,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-  - **se3_hopf** : 参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目，具体看 [README.md](./controller/geometric_controller/se3_hopf/README.md) 。(**推荐使用**)
+  - **se3_hopf** : 参考了[HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller) 项目。(**推荐使用**)
 
   启动：
 
@@ -64,7 +67,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
 
-- **pid_controller**：里面包含了简单pid（仅供学习）和级联pid，具体看 [README.md](./controller/pid_controller/README.md)。
+- **pid_controller**：里面包含了简单pid（仅供学习）和级联pid。
 
   启动：
 
@@ -74,7 +77,7 @@ OpenDrone/
   # ./shell/trigger_land.sh
   ```
   
-- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个简单的 lqr 控制器，具体看 [README.md](./controller/lqr_controller/README.md)。此控制器尚在实验中。
+- **lqr_controller** : 参考了 [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking) 项目，是一个 lqr 控制器。
 
   启动：
 
@@ -129,7 +132,7 @@ OpenDrone/
   roslaunch opendrone sitl_ego_planner_v2.launch # 深度相机
   ```
 
-- **airfar_planner** : 参考了 [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR) 项目，需要带深度相机或3D激光雷达的无人机。此规划器尚在实验中。
+- **airfar_planner** : 参考了 [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR) 项目，需要带深度相机或3D激光雷达的无人机。包含地形分析节点（`terrain_analysis`）和参考桥接（`airfar_reference_bridge`）。
 
   启动：
 
@@ -138,7 +141,7 @@ OpenDrone/
   roslaunch opendrone sitl_airfar_planner_mid360.launch # 激光雷达
   ```
 
-- **rpg_polynomial_trajectory** : 参考了 [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control) 项目，是一个基于优化方法的多项式轨迹生成，并不能避障。此规划器尚在实验中。
+- **rpg_polynomial_trajectory** : 参考了 [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control) 项目，是一个基于优化方法的多项式轨迹生成，并不能避障。
 
   启动：
 
@@ -280,10 +283,6 @@ roslaunch opendrone sitl_ego_planner.launch
 ### 实例四：geometric_controller + ego_planner+Mid360
 
 实时规划与避障
-
-- 根据下面仓库配置Mid360仿真 👇
-
-[Tfly6/Mid360_px4_sim_plugin: Plugin for the simulation of the Livox Mid-360 in Gazebo](https://github.com/Tfly6/Mid360_px4_sim_plugin)
 
 - 终端一：启动gazebo仿真
 

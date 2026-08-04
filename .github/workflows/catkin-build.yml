@@ -43,6 +43,7 @@ jobs:
             libyaml-cpp-dev
 
       - name: Install ROS package dependencies
+        shell: bash
         run: |
           source /opt/ros/noetic/setup.bash
           rosdep init || true
