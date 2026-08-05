@@ -60,4 +60,12 @@
     <remap from="~planning/trajectory" to="drone_$(arg drone_id)_planning/trajectory"/>
     <param name="traj_server/time_forward" value="1.0" type="double"/>
   </node>
+
+  <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization" type="odom_visualization" output="screen">
+    <remap from="~odom" to="$(arg odom_topic)"/>
+    <param name="color/a" value="1.0"/><param name="color/r" value="0.0"/>
+    <param name="color/g" value="0.0"/><param name="color/b" value="0.0"/>
+    <param name="covariance_scale" value="100.0"/><param name="robot_scale" value="0.35"/>
+    <param name="tf45" value="false"/><param name="drone_id" value="$(arg drone_id)"/>
+  </node>
 </launch>

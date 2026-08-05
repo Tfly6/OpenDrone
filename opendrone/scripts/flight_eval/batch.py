@@ -10,6 +10,7 @@ import re
 import shutil
 import signal
 import subprocess
+import threading
 import time
 import traceback
 from dataclasses import dataclass
@@ -593,6 +594,51 @@ class _ManagedProcess:
             pass
 
 
+class _MavrosStateObserver:
+    """Process-owned subscription used for MAVROS link lifecycle checks."""
+
+    def __init__(self, rospy_module, state_type):
+        self._lock = threading.Lock()
+        self._connected: Optional[bool] = None
+        self._sequence = 0
+        self._received_at = 0.0
+        self._subscriber = rospy_module.Subscriber(
+            '/mavros/state', state_type, self._on_state, queue_size=1,
+        )
+
+    def _on_state(self, message) -> None:
+        with self._lock:
+            self._connected = bool(message.connected)
+            self._sequence += 1
+            self._received_at = time.monotonic()
+
+    @property
+    def sequence(self) -> int:
+        with self._lock:
+            return self._sequence
+
+    def matches(
+        self,
+        connected: bool,
+        after_sequence: int,
+        max_age: float,
+    ) -> bool:
+        with self._lock:
+            return (
+                self._sequence > after_sequence
+                and self._connected is connected
+                and time.monotonic() - self._received_at <= max_age
+            )
+
+    def close(self) -> None:
+        subscriber, self._subscriber = self._subscriber, None
+        if subscriber is not None:
+            try:
+                subscriber.unregister()
+            except Exception:
+                pass
+
+
 class _SimulationSession:
     """连接使用者的 Gazebo/MAVROS，并按 case 生命周期运行 PX4。"""
 
@@ -606,6 +652,8 @@ class _SimulationSession:
         self.config_dir = config_dir
         self.log_dir = log_dir
         self.px4_process: Optional[_ManagedProcess] = None
+        self._mavros_state: Optional[_MavrosStateObserver] = None
+        self._mavros_transition_sequence = 0
         self._has_run_case = False
 
         self.px4_source_dir = ''
@@ -934,6 +982,18 @@ class _SimulationSession:
             return False
         return result.returncode == 0 and service in result.stdout.splitlines()
 
+    def _start_mavros_state_observer(self) -> None:
+        if self._mavros_state is not None:
+            return
+        try:
+            import rospy
+            from mavros_msgs.msg import State
+        except ImportError as exc:
+            raise RuntimeError('缺少 rospy 或 mavros_msgs，无法观察 MAVROS 链路') from exc
+        if not rospy.core.is_initialized():
+            rospy.init_node('flight_eval_batch', anonymous=True, disable_signals=True)
+        self._mavros_state = _MavrosStateObserver(rospy, State)
+
     def _wait_until(
         self, predicate: Callable[[], bool], timeout: float, label: str,
         processes: Iterable[Optional[_ManagedProcess]],
@@ -964,6 +1024,7 @@ class _SimulationSession:
             '使用者启动的 MAVROS（缺少 /mavros/set_mode）',
             [],
         )
+        self._start_mavros_state_observer()
 
     def _reset_world(self) -> None:
         try:
@@ -979,28 +1040,20 @@ class _SimulationSession:
         time.sleep(0.5)
 
     def _mavros_connected(self) -> bool:
-        try:
-            result = subprocess.run(
-                ['rostopic', 'echo', '-n', '1', '/mavros/state'],
-                env=self.environment, capture_output=True, text=True,
-                timeout=2.0, check=False,
+        return bool(
+            self._mavros_state
+            and self._mavros_state.matches(
+                True, self._mavros_transition_sequence, max_age=3.0,
             )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return False
-        return result.returncode == 0 and re.search(r'^connected:\s*True\s*$', result.stdout, re.MULTILINE) is not None
+        )
 
     def _mavros_disconnected(self) -> bool:
-        try:
-            result = subprocess.run(
-                ['rostopic', 'echo', '-n', '1', '/mavros/state'],
-                env=self.environment, capture_output=True, text=True,
-                timeout=2.0, check=False,
+        return bool(
+            self._mavros_state
+            and self._mavros_state.matches(
+                False, self._mavros_transition_sequence, max_age=3.0,
             )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return False
-        return result.returncode == 0 and re.search(
-            r'^connected:\s*False\s*$', result.stdout, re.MULTILINE,
-        ) is not None
+        )
 
     def _wait_for_px4_ready(self) -> None:
         """等待新的 MAVROS 链路和稳定心跳均就绪。"""
@@ -1023,6 +1076,9 @@ class _SimulationSession:
             raise RuntimeError('PX4 已在运行')
         os.makedirs(working_dir, exist_ok=False)
         data_dir, startup_script = self._prepare_px4_data_dir(working_dir)
+        if self._mavros_state is None:
+            raise RuntimeError('MAVROS 状态观察器尚未启动')
+        self._mavros_transition_sequence = self._mavros_state.sequence
 
         px4_command = [
             os.path.join(self.px4_build_dir, 'bin', 'px4'),
@@ -1037,6 +1093,8 @@ class _SimulationSession:
 
     def stop_px4(self, wait_for_disconnect: bool = False) -> None:
         if self.px4_process is not None:
+            if self._mavros_state is not None:
+                self._mavros_transition_sequence = self._mavros_state.sequence
             self.px4_process.stop()
             self.px4_process = None
             if wait_for_disconnect:
@@ -1077,7 +1135,12 @@ class _SimulationSession:
         }
 
     def close(self) -> None:
-        self.stop_px4()
+        try:
+            self.stop_px4()
+        finally:
+            if self._mavros_state is not None:
+                self._mavros_state.close()
+                self._mavros_state = None
 
 
 class FlightEvalBatchRunner:

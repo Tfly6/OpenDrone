@@ -1,5 +1,5 @@
 <launch>
-    <arg name="use_mpc" default="false" />
+    <arg name="publish_horizon_reference" default="false" />
     <arg name="use_preset_waypoints" default="false" />
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
@@ -68,8 +68,8 @@
         <arg name="fy" value="319.9348449707031"/>
     </include>
 
-    <!-- 当 use_mpc 为 true 时 -->
-    <group if="$(arg use_mpc)">
+    <!-- 发布时间对齐的前瞻参考时 -->
+    <group if="$(arg publish_horizon_reference)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="bspline"/>
             <param name="input_topic" value="/planning/bspline"/>
@@ -81,8 +81,8 @@
         </node>
     </group>
 
-    <!-- 当 use_mpc 为 false 时 -->
-    <group unless="$(arg use_mpc)">
+    <!-- 发布当前位置单点参考时 -->
+    <group unless="$(arg publish_horizon_reference)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="position_command"/>
             <param name="input_topic" value="/planning/pos_cmd"/>

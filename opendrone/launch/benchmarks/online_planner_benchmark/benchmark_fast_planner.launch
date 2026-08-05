@@ -1,5 +1,5 @@
 <launch>
-  <arg name="use_mpc" default="false" />
+  <arg name="publish_horizon_reference" default="false" />
   <arg name="use_preset_waypoints" default="false" />
   <arg name="waypoint_type" default="circle" />
   <arg name="auto_trigger_waypoints" default="false" />
@@ -13,7 +13,7 @@
   <arg name="depth_topic" default="/camera/depth/image_raw" />
   <arg name="debug_verbose" default="true" />
   <include file="$(find opendrone)/launch/sitl_fast_planner.launch">
-    <arg name="use_mpc" value="$(arg use_mpc)" />
+    <arg name="publish_horizon_reference" value="$(arg publish_horizon_reference)" />
     <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
     <arg name="waypoint_type" value="$(arg waypoint_type)" />
     <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />

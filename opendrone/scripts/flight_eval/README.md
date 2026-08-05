@@ -197,7 +197,8 @@ batch 启动前会校验 UDP `environment.json` 与 YAML 的 PX4 路径和端口
 `/gazebo/reset_world`、`/mavros/set_mode` 服务。Gazebo GUI 的默认值为 `true`。首条样本的 PX4
 启动后，batch 会等待 `/mavros/state.connected: true` 和 3 秒稳定心跳才启动 controller；
 后续样本在停止旧 PX4 后必须先观察到 `connected: false`，再按相同条件确认新 PX4 就绪。
-可通过 `timeouts.px4_ready` 调整稳定期。
+连接生命周期由 batch 进程内的单一 ROS subscriber 观察，切换时要求收到新的状态序列，
+不会通过反复启动 `rostopic echo` 子进程轮询。可通过 `timeouts.px4_ready` 调整稳定期。
 UDP 模式下，batch 为每个 case 复制其 PX4
 `etc` 到独立 rootfs，并仅将可识别的 `simulator_mavlink start -c ...` 改为
 `simulator_mavlink start -u <transport.port>`；原 PX4 文件不改。无法识别的 PX4 启动结构会拒绝运行，

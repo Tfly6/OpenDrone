@@ -100,7 +100,10 @@ PLANNER_REGISTRY = {
         'benchmarks/online_planner_benchmark/benchmark_ego_planner_v2.launch',
         _ONLINE_TASKS,
         {'use_preset_waypoints': 'true'},
-        ['/drone_0_planning/bspline', '/drone_0_planning/pos_cmd'],
+        # EGO v2 publishes PolyTraj, not Bspline.  Recording the native
+        # trajectory is required to verify adapter/native equivalence from a
+        # failed run's rosbag.
+        ['/drone_0_planning/trajectory', '/drone_0_planning/pos_cmd'],
     ),
     'super_planner_od': _planner(
         'SUPER planner OD',
