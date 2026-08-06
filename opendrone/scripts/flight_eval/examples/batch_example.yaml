@@ -1,0 +1,192 @@
+# 先执行 --dry-run 检查展开结果：
+# python3 -m flight_eval batch -f batch_example.yaml --dry-run
+version: 1
+# manifests:
+#   - external_algorithm_manifest.yaml
+name: online_mission_lidar
+
+# 不指定 output_dir 时，会创建 eval_runs/batches/<name>_<timestamp>/。
+# output_dir: ./results/controller_and_online_planner
+
+defaults:
+  simulation:
+    # 必填。不从 ROS_PACKAGE_PATH 或 rospack 推断，因为 source devel/setup.bash 后
+    # rospack find px4 不可靠。请改为本机 PX4-Autopilot 的绝对路径。
+    px4:
+      source_dir: /home/test/PX4-Autopilot
+      # build_dir: /path/to/PX4-Autopilot/build/px4_sitl_default
+      sim_model: gazebo-classic_iris
+    # Gazebo 与 PX4 使用可重连的 UDP 链路。先运行 prepare-environment，再 source
+    # 生成的 environment.env 并手动启动 environment.launch。
+    transport:
+      gazebo_px4: udp
+      port: 14560
+      environment_dir: /tmp/flight_eval_udp_environment
+    mavros:
+      fcu_url: udp://:14540@localhost:14557
+      # batch 每条样本都会重启 PX4，MAVROS 必须能自动恢复。
+      respawn_mavros: true
+    gazebo:
+      # 未指定 gui 时默认 true；批量实验默认显示 Gazebo GUI。
+      gui: false
+      # batch 每条样本都会重启 PX4，Gazebo 必须能自动恢复。
+      respawn_gazebo: true
+      x: 0
+      y: 0
+      z: 0
+  run:
+    takeoff_height: 2.0
+    duration: 120
+    auto_land: true
+    # 地面接触会被忽略；同一障碍物持续接触只记一次。
+    max_collision_episodes: 5
+    collision_episode_gap: 0.5
+
+experiments:
+  # - name: discrete_circle    # ← experiment 1
+  #   task: discrete_circle
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   planners:
+  #     - mav_trajectory
+  #   repeat: 2
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 80
+  # - name: discrete_circle    # ← experiment 1
+  #   task: discrete_circle
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   planners:
+  #     - rpg_trajectory   #duration: 50
+  #   repeat: 2
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 50
+  # - name: discrete_figure8   # ← experiment 2
+  #   task: discrete_figure8
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   planners:
+  #     - mav_trajectory
+  #     - rpg_trajectory   #duration: 50
+  #   repeat: 1
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 110
+  # - name: analytic_figure8
+  #   task: analytic_figure8
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   repeat: 2
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 45
+  # - name: analytic_circle
+  #   task: analytic_circle
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   repeat: 1
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 45
+  # - name: analytic_spiral
+  #   task: analytic_spiral
+  #   controllers:
+  #     - px4_position_baseline
+  #     - se3_hopf
+  #     - se3_lee
+  #     - mav_linear_mpc
+  #     - mav_nonlinear_mpc
+  #     - lqr_controller
+  #     - pid_controller
+  #   repeat: 1
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+  #   run:
+  #     duration: 40
+  # 两个控制器各做 3 次。planner 未设置时默认 none。
+  # - name: hover_repeatability
+  #   task: hover
+  #   controllers:
+  #     - se3_hopf
+  #     - pid_controller
+  #   repeat: 3
+  #   simulation:
+  #     world: empty
+  #     sensor: none
+
+  # 若要跑 Mid360，请复制为另一份 YAML，并先手动启动 Mid360 对应的
+  # Gazebo + MAVROS 环境；一个 batch 不能切换外部 world/sensor。
+  # controller × planner × repeat 为笛卡尔积；这个实验会产生 2 * 2 * 2 = 8 条样本。
+  - name: online_mission
+    task: plan_mission
+    controllers:
+      # - px4_position_baseline
+      # - se3_hopf
+      # - se3_lee
+      - mav_linear_mpc
+      - mav_nonlinear_mpc
+      - lqr_controller
+      # - pid_controller
+    planners:
+      # - name: ego_planner
+      - name: ego_planner_mid360
+      # - name: ego_planner_v2
+      # - name: fast_planner_kino
+      # - name: fast_planner_topo
+      # - name: airfar_planner
+      # - name: airfar_planner_mid360
+      - name: super_planner_od
+    repeat: 2
+    simulation:
+      world: cylinders_85_45
+      # sensor: depth_camera
+      sensor: Mid360
+    planner_args:
+      use_mpc: 'true'
+    # run:
+    #   duration: 30
+    # plan_mission 默认使用 finite manual path；如需自定义 launch 参数，
+    # planner_args 会对本 experiment 的所有 planner 生效。

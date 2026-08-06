@@ -1,0 +1,58 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://opendrone.local/schemas/flight_eval/algorithm-manifest-v1
+title: OpenDrone flight_eval algorithm manifest
+type: object
+additionalProperties: false
+required: [version, algorithms]
+properties:
+  version:
+    const: 1
+  algorithms:
+    type: object
+    minProperties: 1
+    propertyNames:
+      minLength: 1
+    additionalProperties:
+      $ref: "#/$defs/algorithm"
+
+$defs:
+  nonEmptyString:
+    type: string
+    minLength: 1
+  stringList:
+    type: array
+    uniqueItems: true
+    items:
+      $ref: "#/$defs/nonEmptyString"
+  launch:
+    type: object
+    additionalProperties: false
+    required: [package, file]
+    properties:
+      package:
+        $ref: "#/$defs/nonEmptyString"
+      file:
+        $ref: "#/$defs/nonEmptyString"
+  algorithm:
+    type: object
+    additionalProperties: false
+    required: [kind, launch]
+    properties:
+      kind:
+        enum: [controller, planner]
+      launch:
+        $ref: "#/$defs/launch"
+      args:
+        type: object
+        additionalProperties:
+          type: [string, number, boolean, "null"]
+        propertyNames:
+          minLength: 1
+      tasks:
+        $ref: "#/$defs/stringList"
+      record_topics:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          pattern: "^/"

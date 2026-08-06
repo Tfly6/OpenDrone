@@ -10,7 +10,7 @@ import math
 import numpy as np
 import rospy
 from geometry_msgs.msg import PointStamped
-from quadrotor_msgs.msg import Bspline, PolynomialTrajectory, PositionCommand
+from quadrotor_msgs.msg import Bspline, PolyTraj, PolynomialTrajectory, PositionCommand
 
 from opendrone.msg import PlannerOutput, PlannerOutputPoint
 
@@ -111,6 +111,24 @@ class PolynomialEvaluator:
         return value
 
 
+class EgoV2PolyTrajEvaluator(PolynomialEvaluator):
+    """Evaluate EGO-Planner v2 ``quadrotor_msgs/PolyTraj`` coefficients.
+
+    The message preserves ``poly_traj::Piece::coeffMat`` column order from
+    EGO v2: ``[c_order, ..., c_1, c_0]``.  For its quintic trajectory this is
+    ``[c5, c4, c3, c2, c1, c0]`` and the native evaluator computes
+    ``c5*t**5 + ... + c1*t + c0``.  This is already the descending-power
+    convention used by :class:`PolynomialEvaluator`; coefficients must not be
+    reversed when crossing this interface.
+
+    Keeping this as a named evaluator makes the wire-format contract explicit
+    instead of relying on an incidental generic-polynomial assumption.
+    """
+
+    def __init__(self, coeffs, durations):
+        super().__init__([np.asarray(coeff, dtype=float) for coeff in coeffs], durations)
+
+
 class PlannerAdapterNode:
     def __init__(self):
         rospy.init_node('planner_adapter')
@@ -162,6 +180,10 @@ class PlannerAdapterNode:
         elif self.adapter_type == 'polynomial':
             topic = self.input_topic or '/planning_cmd/poly_traj'
             rospy.Subscriber(topic, PolynomialTrajectory, self._polynomial_cb, tcp_nodelay=True)
+            self.input_topic = topic
+        elif self.adapter_type == 'poly_traj':
+            topic = self.input_topic or '/planning/trajectory'
+            rospy.Subscriber(topic, PolyTraj, self._poly_traj_cb, tcp_nodelay=True)
             self.input_topic = topic
         elif self.adapter_type == 'waypoint':
             topic = self.input_topic or '/way_point'
@@ -435,6 +457,100 @@ class PlannerAdapterNode:
             current_output = builder(rospy.Time.now())
             if current_output is not None:
                 self._publish_outputs(current_output)
+
+    def _poly_traj_cb(self, msg):
+        """Adapt EGO-Planner v2's PolyTraj message into a timed horizon.
+
+        EGO v2 publishes the native ``poly_traj::Piece::coeffMat`` order,
+        descending by power.  Sampling is intentionally equivalent to its
+        ``getPos/getVel/getAcc/getJer`` methods; yaw is handled separately
+        below because PolyTraj itself has no yaw trajectory fields.
+        """
+        order = int(msg.order)
+        coefficient_count = order + 1
+        durations = [float(duration) for duration in msg.duration]
+        segment_count = len(durations)
+        expected_count = segment_count * coefficient_count
+        # EGO v2's own traj_server rejects non-quintic PolyTraj messages.
+        # Do the same so this adapter cannot silently diverge from its native
+        # trajectory consumer.
+        if (order != 5 or not durations or any(duration <= 0.0 for duration in durations) or
+                len(msg.coef_x) != expected_count or
+                len(msg.coef_y) != expected_count or
+                len(msg.coef_z) != expected_count):
+            rospy.logwarn_throttle(
+                2.0, 'planner_adapter: invalid EGO v2 quintic PolyTraj layout on %s', self.input_topic
+            )
+            return
+
+        coefficients_x = np.asarray(msg.coef_x, dtype=float).reshape(segment_count, coefficient_count)
+        coefficients_y = np.asarray(msg.coef_y, dtype=float).reshape(segment_count, coefficient_count)
+        coefficients_z = np.asarray(msg.coef_z, dtype=float).reshape(segment_count, coefficient_count)
+        position_x = EgoV2PolyTrajEvaluator(coefficients_x, durations)
+        position_y = EgoV2PolyTrajEvaluator(coefficients_y, durations)
+        position_z = EgoV2PolyTrajEvaluator(coefficients_z, durations)
+
+        def builder(now):
+            elapsed = max(0.0, (now - msg.start_time).to_sec())
+            if elapsed > position_x.total_duration:
+                return None
+
+            output = self._new_output(now)
+            output.trajectory_id = int(msg.traj_id)
+            output.is_horizon = self.publish_horizon_on_timer or self.horizon_points > 1
+            output.trajectory_start_time = msg.start_time
+            sample_count = self.horizon_points if self.publish_horizon_on_timer else 1
+            for index in range(sample_count):
+                sample_t = min(elapsed + index * self.sample_dt, position_x.total_duration)
+                position = np.array([
+                    position_x.evaluate(sample_t, 0),
+                    position_y.evaluate(sample_t, 0),
+                    position_z.evaluate(sample_t, 0),
+                ])
+                velocity = np.array([
+                    position_x.evaluate(sample_t, 1),
+                    position_y.evaluate(sample_t, 1),
+                    position_z.evaluate(sample_t, 1),
+                ])
+                acceleration = np.array([
+                    position_x.evaluate(sample_t, 2),
+                    position_y.evaluate(sample_t, 2),
+                    position_z.evaluate(sample_t, 2),
+                ])
+                jerk = np.array([
+                    position_x.evaluate(sample_t, 3),
+                    position_y.evaluate(sample_t, 3),
+                    position_z.evaluate(sample_t, 3),
+                ])
+                yaw = None
+                yaw_rate = None
+                speed_xy_squared = float(np.dot(velocity[:2], velocity[:2]))
+                if speed_xy_squared > 1.0e-4:
+                    yaw = math.atan2(velocity[1], velocity[0])
+                    yaw_rate = (
+                        velocity[0] * acceleration[1] - velocity[1] * acceleration[0]
+                    ) / speed_xy_squared
+                    if index == 0:
+                        self._last_yaw = yaw
+                else:
+                    yaw = self._last_yaw
+                    yaw_rate = 0.0
+                output.points.append(self._make_point(
+                    time_from_start=sample_t,
+                    position=position,
+                    velocity=velocity,
+                    acceleration=acceleration,
+                    jerk=jerk,
+                    yaw=yaw,
+                    yaw_rate=yaw_rate,
+                ))
+            return output
+
+        self._cached_builder = builder
+        if not self.publish_horizon_on_timer:
+            planner_output = builder(rospy.Time.now())
+            if planner_output is not None:
+                self._publish_outputs(planner_output)
 
     def _waypoint_cb(self, msg):
         stamp = msg.header.stamp if msg.header.stamp != rospy.Time() else rospy.Time.now()

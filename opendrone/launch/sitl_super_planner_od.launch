@@ -1,5 +1,5 @@
 <launch>
-    <arg name="use_mpc" default="false" />
+    <arg name="publish_horizon_reference" default="false" />
     <arg name="use_preset_waypoints" default="false" />
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
@@ -41,7 +41,7 @@
         <arg name="use_rviz" value="false" />
     </include>
 
-    <group if="$(arg use_mpc)">
+    <group if="$(arg publish_horizon_reference)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="polynomial"/>
             <param name="input_topic" value="/planning_cmd/poly_traj"/>
@@ -53,7 +53,7 @@
         </node>
     </group>
 
-    <group unless="$(arg use_mpc)">
+    <group unless="$(arg publish_horizon_reference)">
         <node pkg="opendrone" name="planner_adapter" type="planner_adapter.py" output="screen">
             <param name="adapter_type" value="position_command"/>
             <param name="input_topic" value="/planning/pos_cmd"/>

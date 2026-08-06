@@ -1,0 +1,32 @@
+version: 1
+
+algorithms:
+  my_controller:
+    kind: controller
+    launch:
+      package: my_controller
+      file: flight_eval.launch
+    record_topics:
+      - /my_controller/command
+
+  my_planner_depth:
+    kind: planner
+    launch:
+      package: my_planner
+      file: flight_eval.launch
+    args:
+      sensor: depth_camera
+    tasks:
+      - plan_mission
+    record_topics:
+      - /my_planner/diagnostics
+
+  my_planner_mid360:
+    kind: planner
+    launch:
+      package: my_planner
+      file: flight_eval.launch
+    args:
+      sensor: mid360
+    tasks:
+      - plan_mission
