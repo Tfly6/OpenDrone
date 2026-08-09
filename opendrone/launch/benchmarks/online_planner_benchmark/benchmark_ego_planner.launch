@@ -4,11 +4,13 @@
   <arg name="waypoint_type" default="circle" />
   <arg name="auto_trigger_waypoints" default="false" />
   <arg name="start_from_current_position" default="true" />
+  <arg name="use_rviz" default="true" />
   <include file="$(find opendrone)/launch/sitl_ego_planner.launch">
     <arg name="publish_horizon_reference" value="$(arg publish_horizon_reference)" />
     <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
     <arg name="waypoint_type" value="$(arg waypoint_type)" />
     <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />
     <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    <arg name="use_rviz" value="$(arg use_rviz)" />
   </include>
 </launch>

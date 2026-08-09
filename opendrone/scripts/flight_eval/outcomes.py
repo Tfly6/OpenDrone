@@ -210,10 +210,27 @@ class PathGoalEvaluator:
         now: float,
         frame_id: str = '',
     ) -> None:
-        self._last_position = self._point(position)
-        self._position_frame = str(frame_id or '')
+        normalized = self._point(position)
+        normalized_frame = str(frame_id or '')
+        forward_budget = 0.0
+        if (
+            self._start_time is not None
+            and self._last_position is not None
+            and (
+                not self._position_frame
+                or not normalized_frame
+                or self._position_frame == normalized_frame
+            )
+        ):
+            forward_budget = self._distance(self._last_position, normalized)
+        self._last_position = normalized
+        self._position_frame = normalized_frame
         if not self.terminal:
-            self._evaluate(self._last_position, float(now))
+            self._evaluate(
+                self._last_position,
+                float(now),
+                forward_budget=forward_budget,
+            )
 
     def _frames_match(self) -> bool:
         return (
@@ -222,7 +239,11 @@ class PathGoalEvaluator:
             or self._path_frame == self._position_frame
         )
 
-    def _closest_progress(self, position: Sequence[float]) -> float:
+    def _closest_progress(
+        self,
+        position: Sequence[float],
+        max_forward_progress: Optional[float] = None,
+    ) -> float:
         if len(self._points) <= 1:
             return 0.0
 
@@ -250,6 +271,11 @@ class PathGoalEvaluator:
                 self._cumulative_lengths[index]
                 + math.sqrt(segment_norm_sq) * ratio
             )
+            if (
+                max_forward_progress is not None
+                and progress > max_forward_progress + 1e-9
+            ):
+                continue
             if distance_sq < best_distance_sq - 1e-9:
                 best_distance_sq = distance_sq
                 best_progress = progress
@@ -289,7 +315,12 @@ class PathGoalEvaluator:
             'position_frame': self._position_frame,
         }
 
-    def _evaluate(self, position: Sequence[float], now: float) -> None:
+    def _evaluate(
+        self,
+        position: Sequence[float],
+        now: float,
+        forward_budget: float = 0.0,
+    ) -> None:
         if not self._points:
             self._outcome = TaskOutcome(
                 TaskOutcomeStatus.UNKNOWN,
@@ -312,10 +343,15 @@ class PathGoalEvaluator:
             )
             return
 
-        self._max_progress = max(
-            self._max_progress,
-            self._closest_progress(position),
+        forward_window = max(
+            self.progress_tolerance,
+            2.0 * max(0.0, forward_budget) + self.progress_tolerance,
         )
+        closest_progress = self._closest_progress(
+            position,
+            max_forward_progress=self._max_progress + forward_window,
+        )
+        self._max_progress = max(self._max_progress, closest_progress)
         evidence = self._evidence(position)
         at_goal = evidence['final_goal_distance'] <= self.goal_tolerance
         near_path_end = evidence['remaining_path'] <= self.progress_tolerance

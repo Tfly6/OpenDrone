@@ -4,6 +4,7 @@
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
     <arg name="start_from_current_position" default="true" />
+    <arg name="use_rviz" default="true" />
     <arg name="odom_topic" default="/mavros/local_position/odom" />
     <arg name="lidar_topic" default="/livox/lidar" />
     <arg name="lidar_frame" default="livox_link" />
@@ -62,5 +63,5 @@
         </node>
     </group>
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find super_planner_od)/rviz/bench.rviz" required="true" />
+    <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find super_planner_od)/rviz/bench.rviz" required="true" />
 </launch>

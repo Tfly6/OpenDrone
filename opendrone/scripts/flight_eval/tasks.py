@@ -382,6 +382,28 @@ class PresetTrajectoryTask(TaskBase):
         return []
 
 
+class DiscreteTrajectoryTaskBase(PresetTrajectoryTask):
+    """有限时间内完成整条离散 waypoint Path 的轨迹生成任务。"""
+
+    @property
+    def description(self) -> str:
+        return (
+            f'{self.display_name}轨迹任务: 起飞到 {self.takeoff_height}m 后在 '
+            f'{self.duration}s 期限内完成整条路径'
+        )
+
+    @property
+    def has_terminal_outcome(self) -> bool:
+        return True
+
+    def create_outcome_evaluator(self):
+        return PathGoalEvaluator(
+            goal_tolerance=MISSION_GOAL_TOLERANCE,
+            progress_tolerance=0.5,
+            dwell_time=MISSION_GOAL_DWELL_TIME,
+        )
+
+
 class PlanMissionTask(TaskBase):
     """Integrated obstacle-environment mission."""
 
@@ -515,7 +537,7 @@ class AnalyticReferenceTaskBase(PresetTrajectoryTask):
         return metrics
 
 
-class DiscreteCircleTrajectoryTask(PresetTrajectoryTask):
+class DiscreteCircleTrajectoryTask(DiscreteTrajectoryTaskBase):
     """离散圆点重建任务"""
 
     task_name = 'discrete_circle'
@@ -617,7 +639,7 @@ class DiscreteCircleTrajectoryTask(PresetTrajectoryTask):
         return self._compute_waypoint_geometry_metrics(positions, waypoint_positions)
 
 
-class DiscreteFigure8TrajectoryTask(PresetTrajectoryTask):
+class DiscreteFigure8TrajectoryTask(DiscreteTrajectoryTaskBase):
     """离散 8 字点重建任务"""
 
     task_name = 'discrete_figure8'
