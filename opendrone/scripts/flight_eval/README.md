@@ -369,14 +369,15 @@ python3 -m flight_eval analyze \
 - `plan_mission` 主要用于实时规划 + 实时跟踪 + 任务执行能力评估
 
 `hover` 和 `analytic*` 是定时评价任务，`duration` 表示数据窗口。`discrete*` 和
-`plan_mission` 是有限终点任务，`duration` 表示完成任务的最长期限；成功后提前进入降落。
-一次收到的 `nav_msgs/Path` 被视为一个整体 mission，中间 waypoint 不逐个评分。通用
-evaluator 要求飞行器到达最终点，并且累计路径进度接近末端，随后只产生一个整体结果。
+`plan_mission` 是有限的有序航点任务，`duration` 表示完成任务的最长期限；成功后提前进入
+降落。一次收到的 `nav_msgs/Path` 按数组顺序定义 mission，evaluator 只有在当前航点进入
+容差并满足 dwell 后才切换到下一点；不能因为靠近终点、路径交叉或相邻点距离很小而跳过
+中间航点。`discrete*` 保持连续路径进度语义，因为它们评估的是整条预设轨迹而不是在线航段。
 
-SUPER 不直接消费整条 Path。`waypoint_generator/mission_manager` 仍是 SUPER 的接入
-适配器，负责把 Path 转换为连续局部 `PoseStamped` 目标；其内部完成标志只用于停止目标
-发布。flight_eval 的通用 evaluator 独立观察原始 Path 和 odom，因此不会使用 SUPER
-专有状态，也不会让不同 planner 采用不同的成功标准。
+SUPER 不直接消费整条 Path。`waypoint_generator/mission_manager` 是 SUPER 的接入适配器，
+按顺序只派发当前 `PoseStamped` 航点；同一航段重发时保持 `header.seq`，切换航段时更换它。
+SUPER 的该接入模式据此强制接受新航段，不依赖航点间的距离阈值。flight_eval 独立观察原始
+Path 和 odom，不依赖 SUPER 专有状态。
 
 任务名只接受表中的正式名称；不保留旧别名。
 

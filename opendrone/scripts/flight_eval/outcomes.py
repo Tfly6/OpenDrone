@@ -458,3 +458,225 @@ class PathGoalEvaluator:
                 evidence=evidence,
             )
         return self._outcome
+
+
+class WaypointSequenceEvaluator:
+    """Judge an ordered waypoint mission without treating it as a polyline.
+
+    A valid route may avoid the straight line between two waypoints, and a
+    route may intersect or return close to its endpoint.  Therefore progress
+    is advanced only after the active waypoint has been reached in order.
+    """
+
+    def __init__(
+        self,
+        goal_tolerance: float = MISSION_GOAL_TOLERANCE,
+        dwell_time: float = MISSION_GOAL_DWELL_TIME,
+    ):
+        if goal_tolerance <= 0.0:
+            raise ValueError('goal_tolerance 必须大于 0')
+        if dwell_time < 0.0:
+            raise ValueError('dwell_time 不能小于 0')
+        self.goal_tolerance = float(goal_tolerance)
+        self.dwell_time = float(dwell_time)
+        self._points: Tuple[Tuple[float, float, float], ...] = ()
+        self._start_time: Optional[float] = None
+        self._last_position: Optional[Tuple[float, float, float]] = None
+        self._path_frame = ''
+        self._position_frame = ''
+        self._active_index = 0
+        self._inside_since: Optional[float] = None
+        self._outcome = TaskOutcome(TaskOutcomeStatus.UNKNOWN, 'awaiting_evidence')
+
+    @property
+    def terminal(self) -> bool:
+        return self._outcome.status in {
+            TaskOutcomeStatus.SUCCEEDED,
+            TaskOutcomeStatus.NOT_SUCCEEDED,
+        }
+
+    @property
+    def outcome(self) -> TaskOutcome:
+        return self._outcome
+
+    @staticmethod
+    def _point(value: Sequence[float]) -> Tuple[float, float, float]:
+        if len(value) < 3:
+            raise ValueError('三维位置必须至少包含 x/y/z')
+        point = (float(value[0]), float(value[1]), float(value[2]))
+        if not all(math.isfinite(item) for item in point):
+            raise ValueError('路径和位置必须是有限数值')
+        return point
+
+    @staticmethod
+    def _distance(left: Sequence[float], right: Sequence[float]) -> float:
+        return math.sqrt(sum(
+            (float(left[index]) - float(right[index])) ** 2
+            for index in range(3)
+        ))
+
+    def start(self, now: float) -> None:
+        if self._start_time is None:
+            self._start_time = float(now)
+        if self._last_position is not None and not self.terminal:
+            self._evaluate(self._last_position, float(now))
+
+    def update_path(
+        self,
+        points: Iterable[Sequence[float]],
+        now: float,
+        frame_id: str = '',
+    ) -> None:
+        del now
+        normalized = tuple(self._point(point) for point in points)
+        normalized_frame = str(frame_id or '')
+        if normalized == self._points and normalized_frame == self._path_frame:
+            return
+        self._points = normalized
+        self._path_frame = normalized_frame
+        self._active_index = 0
+        self._inside_since = None
+        if not self.terminal:
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.UNKNOWN,
+                'awaiting_position' if normalized else 'missing_mission_path',
+                evidence={'waypoint_count': len(normalized)},
+            )
+
+    def update_position(
+        self,
+        position: Sequence[float],
+        now: float,
+        frame_id: str = '',
+    ) -> None:
+        self._last_position = self._point(position)
+        self._position_frame = str(frame_id or '')
+        if not self.terminal:
+            self._evaluate(self._last_position, float(now))
+
+    def _frames_match(self) -> bool:
+        return (
+            not self._path_frame
+            or not self._position_frame
+            or self._path_frame == self._position_frame
+        )
+
+    def _evidence(self, position: Optional[Sequence[float]]) -> Dict[str, object]:
+        active_goal = (
+            self._points[self._active_index]
+            if self._active_index < len(self._points)
+            else None
+        )
+        return {
+            'waypoint_count': len(self._points),
+            'completed_waypoints': self._active_index,
+            'active_waypoint_index': (
+                self._active_index if active_goal is not None else None
+            ),
+            'remaining_waypoints': max(0, len(self._points) - self._active_index),
+            'goal_tolerance': self.goal_tolerance,
+            'dwell_time': self.dwell_time,
+            'active_goal_distance': (
+                self._distance(position, active_goal)
+                if position is not None and active_goal is not None
+                else None
+            ),
+            'final_goal_distance': (
+                self._distance(position, self._points[-1])
+                if position is not None and self._points
+                else None
+            ),
+            'path_frame': self._path_frame,
+            'position_frame': self._position_frame,
+        }
+
+    def _evaluate(self, position: Sequence[float], now: float) -> None:
+        if not self._points:
+            self._outcome = TaskOutcome(TaskOutcomeStatus.UNKNOWN, 'missing_mission_path')
+            return
+        if self._start_time is None:
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.UNKNOWN, 'not_started', evidence=self._evidence(position),
+            )
+            return
+        if not self._frames_match():
+            self._inside_since = None
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.UNKNOWN, 'frame_mismatch', evidence=self._evidence(position),
+            )
+            return
+
+        active_goal = self._points[self._active_index]
+        if self._distance(position, active_goal) <= self.goal_tolerance:
+            if self._inside_since is None:
+                self._inside_since = now
+            if now - self._inside_since >= self.dwell_time:
+                self._active_index += 1
+                self._inside_since = None
+                evidence = self._evidence(position)
+                if self._active_index == len(self._points):
+                    self._outcome = TaskOutcome(
+                        TaskOutcomeStatus.SUCCEEDED,
+                        'goal_reached',
+                        completion_time=max(0.0, now - self._start_time),
+                        evidence=evidence,
+                    )
+                    return
+        else:
+            self._inside_since = None
+
+        self._outcome = TaskOutcome(
+            TaskOutcomeStatus.UNKNOWN, 'in_progress', evidence=self._evidence(position),
+        )
+
+    def timeout(self, now: float) -> TaskOutcome:
+        del now
+        if self.terminal:
+            return self._outcome
+        if not self._points or self._last_position is None or not self._frames_match():
+            reason = (
+                'missing_mission_path' if not self._points else
+                ('missing_position' if self._last_position is None else 'frame_mismatch')
+            )
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.UNKNOWN,
+                reason,
+                evidence=self._evidence(self._last_position),
+            )
+        else:
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.NOT_SUCCEEDED,
+                'timeout',
+                evidence=self._evidence(self._last_position),
+            )
+        return self._outcome
+
+    def emergency(self, now: float) -> TaskOutcome:
+        del now
+        if not self.terminal:
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.NOT_SUCCEEDED,
+                'emergency',
+                evidence=self._evidence(self._last_position),
+            )
+        return self._outcome
+
+    def collision_limit(self, now: float, count: int, limit: int) -> TaskOutcome:
+        del now
+        if not self.terminal:
+            evidence = self._evidence(self._last_position)
+            evidence.update({
+                'collision_episode_count': int(count),
+                'collision_episode_limit': int(limit),
+            })
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.NOT_SUCCEEDED, 'collision_limit', evidence=evidence,
+            )
+        return self._outcome
+
+    def mark_unknown(self, reason: str) -> TaskOutcome:
+        if not self.terminal:
+            self._outcome = TaskOutcome(
+                TaskOutcomeStatus.UNKNOWN, reason, evidence=self._evidence(self._last_position),
+            )
+        return self._outcome

@@ -11,12 +11,8 @@
   <arg name="goal_topic" default="/planning/mission_goal" />
   <arg name="mission_timer_dt" default="0.05" />
   <arg name="mission_republish_dt" default="0.5" />
-  <arg name="mission_lookahead_distance" default="2.0" />
   <arg name="mission_goal_reached_distance" default="0.4" />
   <arg name="mission_goal_dwell_time" default="0.5" />
-  <arg name="mission_goal_update_distance" default="0.35" />
-  <arg name="mission_goal_update_yaw" default="0.26" />
-  <arg name="use_final_waypoint_orientation" default="true" />
 
   <!-- waypoint_type: manual, circle, eight, point -->
   <arg name="waypoint_type" default="circle" />
@@ -72,11 +68,7 @@
     <param name="frame" value="$(arg frame)" />
     <param name="timer_dt" value="$(arg mission_timer_dt)" />
     <param name="republish_dt" value="$(arg mission_republish_dt)" />
-    <param name="lookahead_distance" value="$(arg mission_lookahead_distance)" />
     <param name="goal_reached_distance" value="$(arg mission_goal_reached_distance)" />
     <param name="goal_dwell_time" value="$(arg mission_goal_dwell_time)" />
-    <param name="goal_update_distance" value="$(arg mission_goal_update_distance)" />
-    <param name="goal_update_yaw" value="$(arg mission_goal_update_yaw)" />
-    <param name="use_final_waypoint_orientation" value="$(arg use_final_waypoint_orientation)" />
   </node>
 </launch>

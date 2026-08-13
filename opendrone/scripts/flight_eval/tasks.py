@@ -15,6 +15,7 @@ from .outcomes import (
     NoOutcomeEvaluator,
     PathGoalEvaluator,
     TRAJECTORY_TRIGGER_TOPIC,
+    WaypointSequenceEvaluator,
 )
 
 
@@ -415,7 +416,7 @@ class PlanMissionTask(TaskBase):
     def description(self) -> str:
         return (
             f'障碍环境整链路任务: 起飞到 {self.takeoff_height}m 后在 '
-            f'{self.duration}s 期限内到达整体终点'
+            f'{self.duration}s 期限内按顺序到达全部航点'
         )
 
     def get_hover_height(self) -> float:
@@ -454,9 +455,8 @@ class PlanMissionTask(TaskBase):
         return True
 
     def create_outcome_evaluator(self):
-        return PathGoalEvaluator(
+        return WaypointSequenceEvaluator(
             goal_tolerance=MISSION_GOAL_TOLERANCE,
-            progress_tolerance=0.5,
             dwell_time=MISSION_GOAL_DWELL_TIME,
         )
 

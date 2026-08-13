@@ -1,23 +1,14 @@
-#include <algorithm>
 #include <cmath>
-#include <limits>
 #include <string>
-#include <vector>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
-#include <tf/tf.h>
+
+#include "waypoint_generator/mission_sequence.h"
 
 namespace {
-
-struct SampledPoint {
-  geometry_msgs::Point position;
-  geometry_msgs::Quaternion orientation;
-  double progress = 0.0;
-  size_t segment_index = 0;
-};
 
 class MissionManager {
  public:
@@ -28,21 +19,16 @@ class MissionManager {
     private_nh_.param<std::string>("frame", default_frame_id_, "world");
     private_nh_.param<double>("timer_dt", timer_dt_, 0.05);
     private_nh_.param<double>("republish_dt", republish_dt_, 0.5);
-    private_nh_.param<double>("lookahead_distance", lookahead_distance_, 2.0);
     private_nh_.param<double>("goal_reached_distance", goal_reached_distance_, 0.4);
     private_nh_.param<double>("goal_dwell_time", goal_dwell_time_, 0.5);
-    private_nh_.param<double>("goal_update_distance", goal_update_distance_, 0.35);
-    private_nh_.param<double>("goal_update_yaw", goal_update_yaw_, 0.26);
-    private_nh_.param<bool>("use_final_waypoint_orientation", use_final_waypoint_orientation_, true);
 
     odom_sub_ = nh_.subscribe(odom_topic_, 10, &MissionManager::odomCallback, this);
     path_sub_ = nh_.subscribe(waypoint_topic_, 1, &MissionManager::pathCallback, this);
     goal_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(goal_topic_, 10);
     timer_ = nh_.createTimer(ros::Duration(timer_dt_), &MissionManager::timerCallback, this);
 
-    ROS_INFO("[mission_manager] Listening on %s, publishing goals to %s.",
-             waypoint_topic_.c_str(),
-             goal_topic_.c_str());
+    ROS_INFO("[mission_manager] Ordered waypoint adapter: %s -> %s.",
+             waypoint_topic_.c_str(), goal_topic_.c_str());
   }
 
  private:
@@ -55,62 +41,59 @@ class MissionManager {
 
   nav_msgs::Odometry odom_;
   nav_msgs::Path mission_path_;
-  std::vector<double> cumulative_lengths_;
+  waypoint_generator::MissionSequence sequence_;
   geometry_msgs::PoseStamped last_goal_;
 
   std::string odom_topic_;
   std::string waypoint_topic_;
   std::string goal_topic_;
   std::string default_frame_id_;
-
   double timer_dt_ = 0.05;
   double republish_dt_ = 0.5;
-  double lookahead_distance_ = 2.0;
   double goal_reached_distance_ = 0.4;
   double goal_dwell_time_ = 0.5;
-  double goal_update_distance_ = 0.35;
-  double goal_update_yaw_ = 0.26;
-  bool use_final_waypoint_orientation_ = true;
 
   bool has_odom_ = false;
   bool has_path_ = false;
-  bool mission_complete_ = false;
   bool has_last_goal_ = false;
   ros::Time last_publish_time_;
   ros::Time goal_inside_since_;
 
-  static bool isValidOrientation(const geometry_msgs::Quaternion& q) {
-    const bool finite =
-        std::isfinite(q.w) && std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z);
-    const double norm2 = q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z;
-    return finite && norm2 > 1e-6;
+  static bool isValidOrientation(const geometry_msgs::Quaternion& orientation) {
+    const bool finite = std::isfinite(orientation.w) && std::isfinite(orientation.x) &&
+                        std::isfinite(orientation.y) && std::isfinite(orientation.z);
+    const double norm_squared = orientation.w * orientation.w + orientation.x * orientation.x +
+                                orientation.y * orientation.y + orientation.z * orientation.z;
+    return finite && norm_squared > 1e-6;
   }
 
-  static double pointDistance(const geometry_msgs::Point& a, const geometry_msgs::Point& b) {
-    const double dx = a.x - b.x;
-    const double dy = a.y - b.y;
-    const double dz = a.z - b.z;
+  static double pointDistance(const geometry_msgs::Point& left, const geometry_msgs::Point& right) {
+    const double dx = left.x - right.x;
+    const double dy = left.y - right.y;
+    const double dz = left.z - right.z;
     return std::sqrt(dx * dx + dy * dy + dz * dz);
   }
 
-  static geometry_msgs::Point interpolatePoint(const geometry_msgs::Point& a,
-                                               const geometry_msgs::Point& b,
-                                               double ratio) {
-    geometry_msgs::Point out;
-    out.x = a.x + (b.x - a.x) * ratio;
-    out.y = a.y + (b.y - a.y) * ratio;
-    out.z = a.z + (b.z - a.z) * ratio;
-    return out;
+  static bool samePose(const geometry_msgs::Pose& left, const geometry_msgs::Pose& right) {
+    constexpr double kEpsilon = 1e-9;
+    return pointDistance(left.position, right.position) <= kEpsilon &&
+           std::abs(left.orientation.x - right.orientation.x) <= kEpsilon &&
+           std::abs(left.orientation.y - right.orientation.y) <= kEpsilon &&
+           std::abs(left.orientation.z - right.orientation.z) <= kEpsilon &&
+           std::abs(left.orientation.w - right.orientation.w) <= kEpsilon;
   }
 
-  static double normalizeAngle(double angle) {
-    while (angle > M_PI) {
-      angle -= 2.0 * M_PI;
+  bool sameMission(const nav_msgs::Path& candidate) const {
+    if (!has_path_ || candidate.header.frame_id != mission_path_.header.frame_id ||
+        candidate.poses.size() != mission_path_.poses.size()) {
+      return false;
     }
-    while (angle < -M_PI) {
-      angle += 2.0 * M_PI;
+    for (size_t index = 0; index < candidate.poses.size(); ++index) {
+      if (!samePose(candidate.poses[index].pose, mission_path_.poses[index].pose)) {
+        return false;
+      }
     }
-    return angle;
+    return true;
   }
 
   void odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -119,247 +102,89 @@ class MissionManager {
   }
 
   void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
-    mission_path_ = *msg;
-    cumulative_lengths_.clear();
-    has_last_goal_ = false;
-    mission_complete_ = false;
-    goal_inside_since_ = ros::Time();
+    if (sameMission(*msg)) {
+      return;
+    }
 
-    if (mission_path_.poses.empty()) {
-      has_path_ = false;
+    mission_path_ = *msg;
+    has_last_goal_ = false;
+    goal_inside_since_ = ros::Time();
+    sequence_.reset(mission_path_.poses.size());
+    has_path_ = !sequence_.complete();
+
+    if (!has_path_) {
       ROS_WARN("[mission_manager] Received empty path, mission cleared.");
       return;
     }
 
-    cumulative_lengths_.resize(mission_path_.poses.size(), 0.0);
-    for (size_t i = 1; i < mission_path_.poses.size(); ++i) {
-      cumulative_lengths_[i] =
-          cumulative_lengths_[i - 1] +
-          pointDistance(mission_path_.poses[i - 1].pose.position, mission_path_.poses[i].pose.position);
-    }
-
-    has_path_ = true;
-    ROS_INFO("[mission_manager] Loaded mission path with %zu poses, total length %.2f m.",
-             mission_path_.poses.size(),
-             cumulative_lengths_.back());
+    ROS_INFO("[mission_manager] Loaded ordered mission with %zu waypoints; dispatching waypoint 1.",
+             sequence_.waypointCount());
   }
 
-  double totalLength() const {
-    return cumulative_lengths_.empty() ? 0.0 : cumulative_lengths_.back();
+  geometry_msgs::PoseStamped currentGoal(const ros::Time& now) const {
+    geometry_msgs::PoseStamped goal;
+    const geometry_msgs::PoseStamped& waypoint = mission_path_.poses[sequence_.activeIndex()];
+    goal.header.seq = sequence_.commandSequence();
+    goal.header.stamp = now;
+    goal.header.frame_id = mission_path_.header.frame_id.empty()
+                               ? default_frame_id_
+                               : mission_path_.header.frame_id;
+    goal.pose = waypoint.pose;
+    if (!isValidOrientation(goal.pose.orientation)) {
+      goal.pose.orientation.w = 1.0;
+      goal.pose.orientation.x = 0.0;
+      goal.pose.orientation.y = 0.0;
+      goal.pose.orientation.z = 0.0;
+    }
+    return goal;
   }
 
-  SampledPoint sampleAtProgress(double progress) const {
-    SampledPoint sampled;
-    if (mission_path_.poses.empty()) {
-      return sampled;
-    }
-
-    if (mission_path_.poses.size() == 1) {
-      sampled.position = mission_path_.poses.front().pose.position;
-      sampled.orientation = mission_path_.poses.front().pose.orientation;
-      return sampled;
-    }
-
-    const double clamped_progress = std::max(0.0, std::min(progress, totalLength()));
-    sampled.progress = clamped_progress;
-
-    if (clamped_progress >= totalLength()) {
-      sampled.position = mission_path_.poses.back().pose.position;
-      sampled.orientation = mission_path_.poses.back().pose.orientation;
-      sampled.segment_index = mission_path_.poses.size() - 2;
-      return sampled;
-    }
-
-    auto upper = std::upper_bound(cumulative_lengths_.begin(), cumulative_lengths_.end(), clamped_progress);
-    size_t idx = 0;
-    if (upper != cumulative_lengths_.begin()) {
-      idx = static_cast<size_t>(std::distance(cumulative_lengths_.begin(), upper) - 1);
-      idx = std::min(idx, mission_path_.poses.size() - 2);
-    }
-
-    const double segment_start = cumulative_lengths_[idx];
-    const double segment_end = cumulative_lengths_[idx + 1];
-    const double segment_length = std::max(segment_end - segment_start, 1e-6);
-    const double ratio = (clamped_progress - segment_start) / segment_length;
-
-    sampled.position = interpolatePoint(mission_path_.poses[idx].pose.position,
-                                        mission_path_.poses[idx + 1].pose.position,
-                                        ratio);
-    sampled.orientation = ratio < 0.5 ? mission_path_.poses[idx].pose.orientation
-                                      : mission_path_.poses[idx + 1].pose.orientation;
-    sampled.segment_index = idx;
-    return sampled;
-  }
-
-  SampledPoint closestPointOnPath(const geometry_msgs::Point& current_position) const {
-    SampledPoint best_sample;
-    double best_distance_sq = std::numeric_limits<double>::infinity();
-
-    if (mission_path_.poses.empty()) {
-      return best_sample;
-    }
-
-    if (mission_path_.poses.size() == 1) {
-      best_sample.position = mission_path_.poses.front().pose.position;
-      best_sample.orientation = mission_path_.poses.front().pose.orientation;
-      return best_sample;
-    }
-
-    for (size_t i = 0; i + 1 < mission_path_.poses.size(); ++i) {
-      const auto& a = mission_path_.poses[i].pose.position;
-      const auto& b = mission_path_.poses[i + 1].pose.position;
-      const double ab_x = b.x - a.x;
-      const double ab_y = b.y - a.y;
-      const double ab_z = b.z - a.z;
-      const double ab_norm_sq = ab_x * ab_x + ab_y * ab_y + ab_z * ab_z;
-
-      double ratio = 0.0;
-      if (ab_norm_sq > 1e-9) {
-        const double ap_x = current_position.x - a.x;
-        const double ap_y = current_position.y - a.y;
-        const double ap_z = current_position.z - a.z;
-        ratio = (ap_x * ab_x + ap_y * ab_y + ap_z * ab_z) / ab_norm_sq;
-        ratio = std::max(0.0, std::min(1.0, ratio));
-      }
-
-      const geometry_msgs::Point projection = interpolatePoint(a, b, ratio);
-      const double dx = current_position.x - projection.x;
-      const double dy = current_position.y - projection.y;
-      const double dz = current_position.z - projection.z;
-      const double distance_sq = dx * dx + dy * dy + dz * dz;
-      const double progress = cumulative_lengths_[i] + std::sqrt(ab_norm_sq) * ratio;
-
-      if (distance_sq < best_distance_sq - 1e-9 ||
-          (std::abs(distance_sq - best_distance_sq) <= 1e-9 && progress > best_sample.progress)) {
-        best_distance_sq = distance_sq;
-        best_sample.position = projection;
-        best_sample.orientation = ratio < 0.5 ? mission_path_.poses[i].pose.orientation
-                                              : mission_path_.poses[i + 1].pose.orientation;
-        best_sample.progress = progress;
-        best_sample.segment_index = i;
-      }
-    }
-
-    return best_sample;
-  }
-
-  bool tangentYaw(size_t segment_index, double* yaw) const {
-    if (mission_path_.poses.size() < 2) {
-      return false;
-    }
-
-    const size_t max_segment = mission_path_.poses.size() - 2;
-    for (size_t offset = 0; offset <= max_segment; ++offset) {
-      if (segment_index + offset <= max_segment) {
-        const auto& a = mission_path_.poses[segment_index + offset].pose.position;
-        const auto& b = mission_path_.poses[segment_index + offset + 1].pose.position;
-        const double dx = b.x - a.x;
-        const double dy = b.y - a.y;
-        if (std::hypot(dx, dy) > 1e-6) {
-          *yaw = std::atan2(dy, dx);
-          return true;
-        }
-      }
-      if (segment_index >= offset) {
-        const auto& a = mission_path_.poses[segment_index - offset].pose.position;
-        const auto& b = mission_path_.poses[segment_index - offset + 1].pose.position;
-        const double dx = b.x - a.x;
-        const double dy = b.y - a.y;
-        if (std::hypot(dx, dy) > 1e-6) {
-          *yaw = std::atan2(dy, dx);
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  geometry_msgs::Quaternion orientationForTarget(const SampledPoint& target) const {
-    if (use_final_waypoint_orientation_ &&
-        target.progress >= totalLength() - 1e-3 &&
-        isValidOrientation(mission_path_.poses.back().pose.orientation)) {
-      return mission_path_.poses.back().pose.orientation;
-    }
-
-    double yaw = 0.0;
-    if (tangentYaw(target.segment_index, &yaw)) {
-      return tf::createQuaternionMsgFromYaw(yaw);
-    }
-
-    if (isValidOrientation(target.orientation)) {
-      return target.orientation;
-    }
-
-    return tf::createQuaternionMsgFromYaw(0.0);
-  }
-
-  bool shouldPublishGoal(const geometry_msgs::PoseStamped& goal_msg) const {
-    if (!has_last_goal_) {
+  bool shouldPublishGoal(const geometry_msgs::PoseStamped& goal) const {
+    if (!has_last_goal_ || goal.header.seq != last_goal_.header.seq) {
       return true;
     }
-
-    if (pointDistance(goal_msg.pose.position, last_goal_.pose.position) >= goal_update_distance_) {
-      return true;
-    }
-
-    const double current_yaw = tf::getYaw(goal_msg.pose.orientation);
-    const double last_yaw = tf::getYaw(last_goal_.pose.orientation);
-    if (std::abs(normalizeAngle(current_yaw - last_yaw)) >= goal_update_yaw_) {
-      return true;
-    }
-
-    return (goal_msg.header.stamp - last_publish_time_).toSec() >= republish_dt_;
+    return (goal.header.stamp - last_publish_time_).toSec() >= republish_dt_;
   }
 
   void timerCallback(const ros::TimerEvent&) {
-    if (!has_odom_ || !has_path_ || mission_complete_) {
+    if (!has_odom_ || !has_path_ || sequence_.complete()) {
       return;
     }
 
-    const geometry_msgs::Point current_position = odom_.pose.pose.position;
-    const SampledPoint closest = closestPointOnPath(current_position);
-    const geometry_msgs::Point& final_point = mission_path_.poses.back().pose.position;
-
-    const bool at_final_goal =
-        pointDistance(current_position, final_point) <= goal_reached_distance_ &&
-        closest.progress >= totalLength() - std::max(lookahead_distance_, 0.5);
-    if (at_final_goal) {
-      const ros::Time now = ros::Time::now();
+    const ros::Time now = ros::Time::now();
+    const geometry_msgs::Point& waypoint =
+        mission_path_.poses[sequence_.activeIndex()].pose.position;
+    if (pointDistance(odom_.pose.pose.position, waypoint) <= goal_reached_distance_) {
       if (goal_inside_since_.isZero()) {
         goal_inside_since_ = now;
       }
       if (goal_dwell_time_ <= 0.0 ||
           (now - goal_inside_since_).toSec() >= goal_dwell_time_) {
-        mission_complete_ = true;
-        ROS_INFO(
-            "[mission_manager] Mission complete after %.2f s inside %.2f m.",
-            goal_dwell_time_,
-            goal_reached_distance_);
-        return;
+        const size_t completed_index = sequence_.activeIndex();
+        goal_inside_since_ = ros::Time();
+        has_last_goal_ = false;
+        if (!sequence_.advance()) {
+          ROS_INFO("[mission_manager] Mission complete after waypoint %zu.", completed_index + 1);
+          return;
+        }
+        ROS_INFO("[mission_manager] Waypoint %zu reached; dispatching waypoint %zu.",
+                 completed_index + 1, sequence_.activeIndex() + 1);
       }
     } else {
       goal_inside_since_ = ros::Time();
     }
 
-    const double target_progress = std::min(closest.progress + lookahead_distance_, totalLength());
-    const SampledPoint target = sampleAtProgress(target_progress);
-
-    geometry_msgs::PoseStamped goal_msg;
-    goal_msg.header.stamp = ros::Time::now();
-    goal_msg.header.frame_id =
-        mission_path_.header.frame_id.empty() ? default_frame_id_ : mission_path_.header.frame_id;
-    goal_msg.pose.position = target.position;
-    goal_msg.pose.orientation = orientationForTarget(target);
-
-    if (!shouldPublishGoal(goal_msg)) {
+    if (sequence_.complete()) {
       return;
     }
-
-    goal_pub_.publish(goal_msg);
-    last_goal_ = goal_msg;
+    const geometry_msgs::PoseStamped goal = currentGoal(now);
+    if (!shouldPublishGoal(goal)) {
+      return;
+    }
+    goal_pub_.publish(goal);
+    last_goal_ = goal;
     has_last_goal_ = true;
-    last_publish_time_ = goal_msg.header.stamp;
+    last_publish_time_ = now;
   }
 };
 

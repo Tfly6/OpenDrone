@@ -7,6 +7,8 @@
     <arg name="odom_topic" default="/mavros/local_position/odom" />
     <arg name="click_goal_topic" default="/goal" />
     <arg name="mission_goal_topic" default="/planning/mission_goal" />
+    <!-- When true, header.seq is a stable mission-leg id, not a message counter. -->
+    <arg name="mission_goal_use_header_sequence" default="false" />
     <arg name="position_command_topic" default="/planning/pos_cmd" />
     <arg name="polynomial_trajectory_topic" default="/planning_cmd/poly_traj" />
     <arg name="use_rviz" default="true" />
@@ -19,6 +21,7 @@
         <param name="interface/odom_topic" value="$(arg odom_topic)" />
         <param name="interface/click_goal_topic" value="$(arg click_goal_topic)" />
         <param name="interface/mission_goal_topic" value="$(arg mission_goal_topic)" />
+        <param name="interface/mission_goal_use_header_sequence" value="$(arg mission_goal_use_header_sequence)" />
         <param name="interface/position_command_topic" value="$(arg position_command_topic)" />
         <param name="interface/polynomial_trajectory_topic" value="$(arg polynomial_trajectory_topic)" />
     </node>

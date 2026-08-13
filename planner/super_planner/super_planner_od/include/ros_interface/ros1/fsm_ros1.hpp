@@ -27,6 +27,8 @@
 #ifndef SRC_FSM_ROS1_HPP
 #define SRC_FSM_ROS1_HPP
 
+#include <cstdint>
+
 #include "fsm/fsm.h"
 
 #include "ros/ros.h"
@@ -48,6 +50,13 @@ namespace fsm {
         rog_map::ROGMapROS::Ptr map_ptr_;
         quadrotor_msgs::PositionCommand latest_cmd;
         nav_msgs::Path path;
+
+        // The ordered mission adapter keeps this id stable while re-publishing
+        // one leg, then changes it exactly once when advancing to the next
+        // waypoint.  It is opt-in because ordinary PoseStamped publishers use
+        // header.seq as a transport counter rather than a command identity.
+        bool has_mission_goal_sequence_{false};
+        std::uint32_t mission_goal_sequence_{0};
 
         vector<quadrotor_msgs::PositionCommand> cmd_logs_;
 
@@ -276,13 +285,20 @@ namespace fsm {
             const Quatf goal_q = Quatf{msg->pose.orientation.w, msg->pose.orientation.x,
                                        msg->pose.orientation.y, msg->pose.orientation.z};
 
-            bool mark_new_goal = !started_ || machine_state_ == INIT || machine_state_ == WAIT_GOAL || finish_plan;
+            const bool has_sequence =
+                    cfg_.mission_goal_use_header_sequence && msg->header.seq != 0;
+            const bool sequence_changed = has_sequence &&
+                    (!has_mission_goal_sequence_ || msg->header.seq != mission_goal_sequence_);
+            bool mark_new_goal = sequence_changed || !started_ || machine_state_ == INIT || machine_state_ == WAIT_GOAL || finish_plan;
             if (!mark_new_goal) {
                 const double goal_shift = (goal_p - gi_.goal_p).norm();
                 mark_new_goal = goal_shift > cfg_.mission_goal_force_new_threshold;
             }
 
-            setGoalPosiAndYaw(goal_p, goal_q, false, mark_new_goal, mark_new_goal);
+            if (setGoalPosiAndYaw(goal_p, goal_q, false, mark_new_goal, mark_new_goal) && has_sequence) {
+                has_mission_goal_sequence_ = true;
+                mission_goal_sequence_ = msg->header.seq;
+            }
         }
 
         void init(const ros::NodeHandle &nh, const std::string &cfg_path) {
@@ -292,6 +308,9 @@ namespace fsm {
             // deliberately contains only planner and map tuning.
             nh_.param("interface/click_goal_topic", cfg_.click_goal_topic, cfg_.click_goal_topic);
             nh_.param("interface/mission_goal_topic", cfg_.mission_goal_topic, cfg_.mission_goal_topic);
+            nh_.param("interface/mission_goal_use_header_sequence",
+                      cfg_.mission_goal_use_header_sequence,
+                      cfg_.mission_goal_use_header_sequence);
             nh_.param("interface/position_command_topic", cfg_.cmd_topic, cfg_.cmd_topic);
             nh_.param("interface/polynomial_trajectory_topic", cfg_.mpc_cmd_topic, cfg_.mpc_cmd_topic);
             map_ptr_ = std::make_shared<rog_map::ROGMapROS>(nh, cfg_path);
