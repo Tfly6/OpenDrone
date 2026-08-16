@@ -320,7 +320,34 @@ python3 -m flight_eval analyze \
 - `agent_summary.md`
 
 若 bag 同目录存在 `run_metadata.json`，会自动恢复运行时的任务时长和起飞高度；否则可用
-`--duration` 显式指定，尤其是 `plan_mission`。
+`--duration` 显式指定；对 `discrete*` 和 `plan_mission`，它表示任务最大允许时长。
+
+### 6. 修改判定逻辑后批量重分析
+
+不必重跑仿真。rosbag 保留了离线重建任务结果所需的原始话题；对一个 batch 的所有 case，使用：
+
+```bash
+python3 -m flight_eval analyze \
+  --batch-dir eval_runs/batches/my_batch \
+  --recompute-outcome
+```
+
+`--batch-dir` 会递归查找每个 case 的 `run_metadata.json`，从中恢复 controller、task、planner、
+起飞高度和任务时长，并将该 case 目录中的 `report.json`、`agent_summary.md` 和核心图直接覆盖。
+它会将重算出的 `task_outcome` 回写到 `run_metadata.json`，并标记
+`task_outcome_source=offline_recomputed` 和重算时间；该 case 的报告、摘要和核心图也会同步覆盖。
+
+默认 `analyze` 同样优先显示这一运行时判定。只有显式传入 `--recompute-outcome` 时，才忽略
+已存的 `task_outcome`，依据当前 evaluator 和 rosbag 重新推导任务结果。这个选项也可用于单个 bag：
+
+```bash
+python3 -m flight_eval analyze \
+  --bag eval_runs/example/flight_test.bag \
+  --controller se3_hopf \
+  --task discrete_circle \
+  --planner rpg_trajectory \
+  --recompute-outcome
+```
 
 ## 当前任务
 
@@ -341,15 +368,16 @@ python3 -m flight_eval analyze \
 - `discrete*` 主要用于轨迹生成 / 轨迹优化能力评估
 - `plan_mission` 主要用于实时规划 + 实时跟踪 + 任务执行能力评估
 
-`hover`、`analytic*` 和 `discrete*` 是定时评价任务，`duration` 表示数据窗口。
-`plan_mission` 是有限终点任务，`duration` 表示完成任务的最长期限；成功后可提前进入降落。
-一次收到的 `nav_msgs/Path` 被视为一个整体 mission，中间 waypoint 不逐个评分。通用
-evaluator 要求飞行器到达最终点，并且累计路径进度接近末端，随后只产生一个整体结果。
+`hover` 和 `analytic*` 是定时评价任务，`duration` 表示数据窗口。`discrete*` 和
+`plan_mission` 是有限的有序航点任务，`duration` 表示完成任务的最长期限；成功后提前进入
+降落。一次收到的 `nav_msgs/Path` 按数组顺序定义 mission，evaluator 只有在当前航点进入
+容差并满足 dwell 后才切换到下一点；不能因为靠近终点、路径交叉或相邻点距离很小而跳过
+中间航点。`discrete*` 保持连续路径进度语义，因为它们评估的是整条预设轨迹而不是在线航段。
 
-SUPER 不直接消费整条 Path。`waypoint_generator/mission_manager` 仍是 SUPER 的接入
-适配器，负责把 Path 转换为连续局部 `PoseStamped` 目标；其内部完成标志只用于停止目标
-发布。flight_eval 的通用 evaluator 独立观察原始 Path 和 odom，因此不会使用 SUPER
-专有状态，也不会让不同 planner 采用不同的成功标准。
+SUPER 不直接消费整条 Path。`waypoint_generator/mission_manager` 是 SUPER 的接入适配器，
+按顺序只派发当前 `PoseStamped` 航点；同一航段重发时保持 `header.seq`，切换航段时更换它。
+SUPER 的该接入模式据此强制接受新航段，不依赖航点间的距离阈值。flight_eval 独立观察原始
+Path 和 odom，不依赖 SUPER 专有状态。
 
 任务名只接受表中的正式名称；不保留旧别名。
 
@@ -391,8 +419,8 @@ python3 -m flight_eval run \
 `integrated` 中：
 
 - 高亮任务完成性、控制跟踪和系统执行结果
-- `plan_mission` 会报告独立的 `task_outcome`、完成时间和最终目标距离
-- `discrete*` 同时保留规划输出计数、几何质量和系统完成状态
+- `discrete*` 和 `plan_mission` 会报告独立的 `task_outcome`、完成时间和最终目标距离
+- `discrete*` 同时保留规划输出计数和几何质量
 
 ## 运行流程
 
@@ -439,17 +467,22 @@ task_outcome:
 ```
 
 `run_status=completed` 只表示启动、录包、清理和结果保存流程正常走完。定时型任务没有天然
-终点，`task_outcome=not_applicable`；`plan_mission` 把 `duration` 作为期限，在期限内到达
-整体终点为 `succeeded`，超时为 `not_succeeded`，缺少 Path/odom 等证据时为 `unknown`。
+终点，`task_outcome=not_applicable`；`discrete*` 和 `plan_mission` 把 `duration` 作为期限，
+在期限内完成整条 Path 为 `succeeded`，超时为 `not_succeeded`，缺少 Path/odom 等证据时为 `unknown`。
 EMERGENCY 不会被伪装成 Runner 故障：制品仍可正常保存时 `run_status=completed`，有限终点
 任务的 `task_outcome=not_succeeded`。
 
 controller 必须按统一状态码发布：`0=WAITING_FOR_CONNECTED`、`1=WAITING_FOR_OFFBOARD`、
 `2=TAKEOFF`、`3=MISSION_EXECUTION`、`4=LANDING`、`5=LANDED`、`6=EMERGENCY`。
 
-所有由 runner 启动的 `rosbag` 和 `roslaunch` 都在独立进程组中。一次 Ctrl-C 会由
-runner 统一向全部进程组发送 `SIGINT`，超时后升级到 `SIGTERM` 和 `SIGKILL`；不会只停
-`roslaunch` 父进程而遗留子节点。
+所有由 runner 启动的 `rosbag` 和 `roslaunch` 都在独立进程组中。batch 收到首个
+`SIGINT` 或 `SIGTERM` 后会取消整个批次，统一清理当前 case 的全部进程组并停止 PX4；
+清理期间的重复终止信号不会打断 `SIGINT → SIGTERM → SIGKILL` 升级。即使 `roslaunch`
+父进程已经退出，仍会按已登记的进程组清理其剩余子节点。
+`run_metadata.json.process_cleanup` 会记录已登记和仍残留的进程组；如果 `SIGKILL` 后仍有
+进程组存在，`run_status` 为 `failed / process_cleanup_incomplete`，不会伪报运行完成。
+`environment.launch` 启动的 Gazebo 和 MAVROS 是 batch 外部环境，并且配置为 respawn，
+所以 task timeout 和 case 切换都不会关闭它们；batch 每个 case 只重启自己拥有的 PX4。
 
 ## 分析逻辑
 
@@ -486,7 +519,7 @@ runner 统一向全部进程组发送 `SIGINT`，超时后升级到 `SIGTERM` �
 重叠采样；不会从控制参考或实际飞行轨迹回退补齐生成轨迹。Waypoint 距离是 waypoint
 到生成轨迹连续折线的最短欧氏距离，不使用硬编码“命中”容差。
 
-`plan_mission` 会额外包含：
+有限终点任务 `discrete*` 和 `plan_mission` 会额外包含：
 
 - `task_outcome`（独立于指标）
 - `completion_time`（成功时）

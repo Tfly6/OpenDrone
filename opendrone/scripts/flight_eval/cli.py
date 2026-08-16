@@ -157,6 +157,89 @@ def _postprocess_completed_run(result: dict, record_dir: str) -> dict:
         'core_artifacts': core_artifacts,
     }
 
+
+def _load_run_metadata(bag_file: str) -> dict:
+    """Load the metadata colocated with a recorded bag, if available."""
+    path = os.path.join(os.path.dirname(os.path.abspath(bag_file)), 'run_metadata.json')
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, 'r', encoding='utf-8') as metadata_file:
+            value = json.load(metadata_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[warn] 无法读取运行元数据 {path}: {exc}")
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _analyze_recording(
+    bag_file: str,
+    controller_name: str,
+    task_name: str,
+    planner_name: str,
+    output_dir: str,
+    hover_height=None,
+    duration=None,
+    recompute_outcome: bool = False,
+) -> str:
+    """Analyze one archived recording and overwrite its report artifacts."""
+    analyzer = BagAnalyzer(
+        bag_file=bag_file,
+        controller_name=controller_name,
+        task_name=task_name,
+        planner_name=planner_name,
+        hover_height=hover_height,
+        duration=duration,
+        recompute_outcome=recompute_outcome,
+    )
+    report = analyzer.analyze()
+    report_path = analyzer.save_report(report, output_dir)
+    if recompute_outcome:
+        metadata_path = os.path.join(
+            os.path.dirname(os.path.abspath(bag_file)), 'run_metadata.json'
+        )
+        if os.path.isfile(metadata_path):
+            metadata = _load_run_metadata(bag_file)
+            metadata['task_outcome'] = report.task_outcome
+            metadata['task_outcome_source'] = 'offline_recomputed'
+            metadata['task_outcome_recomputed_at'] = datetime.now().isoformat()
+            with open(metadata_path, 'w', encoding='utf-8') as metadata_file:
+                json.dump(metadata, metadata_file, indent=2, ensure_ascii=False)
+    analyzer.print_report(report)
+    core_artifacts = _generate_core_metric_plots(
+        analyzer=analyzer,
+        report=report,
+        task_name=task_name,
+        output_dir=os.path.dirname(report_path),
+        controller_name=controller_name,
+        planner_name=planner_name,
+        hover_height=hover_height,
+        duration=duration,
+    )
+    print(f"\n报告已保存: {report_path}")
+    print(f"Agent 摘要已保存: {os.path.join(os.path.dirname(report_path), 'agent_summary.md')}")
+    for name, path in core_artifacts.items():
+        prefix = '[warn]' if name == 'warning' else '自动生成'
+        print(f"{prefix} {name}: {path}")
+    return report_path
+
+
+def _batch_recordings(batch_dir: str):
+    """Yield archived cases beneath a batch root in stable order."""
+    for root, _dirs, files in os.walk(os.path.abspath(batch_dir)):
+        if 'run_metadata.json' not in files:
+            continue
+        metadata_path = os.path.join(root, 'run_metadata.json')
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as metadata_file:
+                metadata = json.load(metadata_file)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f'无法读取 {metadata_path}: {exc}') from exc
+        if not isinstance(metadata, dict):
+            raise ValueError(f'{metadata_path} 必须是 JSON object')
+        bag_file = metadata.get('bag_file') or os.path.join(root, 'flight_test.bag')
+        yield root, os.path.abspath(bag_file), metadata
+
 def main():
     parser = argparse.ArgumentParser(
         description='无人机控制器飞行评估框架',
@@ -243,26 +326,34 @@ def main():
     prepare_environment_parser.add_argument('--config', '-f', required=True,
                                             help='批次实验 YAML 配置文件')
 
-    analyze_parser = subparsers.add_parser('analyze', help='分析已录制的 bag 文件')
-    analyze_parser.add_argument('--bag', '-b', required=True,
-                                help='bag 文件路径')
-    analyze_parser.add_argument('--controller', '-c', required=True,
-                                help='控制器名称')
+    analyze_parser = subparsers.add_parser('analyze', help='分析已录制的 bag 文件或整批 case')
+    analyze_input = analyze_parser.add_mutually_exclusive_group(required=True)
+    analyze_input.add_argument('--bag', '-b', help='单个 bag 文件路径')
+    analyze_input.add_argument(
+        '--batch-dir',
+        help='批次输出目录；递归查找 case 的 run_metadata.json 并逐个重分析',
+    )
+    analyze_parser.add_argument('--controller', '-c',
+                                help='控制器名称；单 bag 必填，batch 从各 case 元数据恢复')
     analyze_parser.add_argument(
         '--manifest', action='append', default=[],
         help='加载外部算法 manifest YAML；可重复指定',
     )
-    analyze_parser.add_argument('--task', '-t', default='hover',
+    analyze_parser.add_argument('--task', '-t', default=None,
                                 choices=list(TASK_REGISTRY.keys()),
-                                help='评估任务名称, 默认 hover')
-    analyze_parser.add_argument('--planner', '-p', default='none',
-                                help='产生 planner 接口的规划器；非 controller-only bag 必须指定')
+                                help='评估任务名称；单 bag 默认 hover，batch 从各 case 元数据恢复')
+    analyze_parser.add_argument('--planner', '-p', default=None,
+                                help='产生 planner 接口的规划器；单 bag 默认 none，batch 从各 case 元数据恢复')
     analyze_parser.add_argument('--output', '-o', type=str, default=None,
                                 help='输出 JSON 报告路径, 默认保存为 bag 同目录下的 report.json')
     analyze_parser.add_argument('--hover-height', type=float, default=None,
                                 help='悬停目标高度 (m), 默认从 bag 中自动检测')
     analyze_parser.add_argument('--duration', type=float, default=None,
                                 help='任务评价窗口或期限；默认从 run_metadata.json 恢复')
+    analyze_parser.add_argument(
+        '--recompute-outcome', action='store_true',
+        help='忽略元数据中的运行时 task_outcome，用当前 evaluator 从 bag 重新推导',
+    )
     visualize_parser = subparsers.add_parser('visualize', help='生成 bag 轨迹、指标图和可选三维回放 GIF')
     visualize_parser.add_argument('--bag', '-b', required=True, help='bag 文件路径')
     visualize_parser.add_argument('--controller', '-c', required=True, help='控制器名称')
@@ -315,11 +406,19 @@ def main():
     except (ManifestError, RuntimeError) as exc:
         parser.error(f'算法 manifest 无效: {exc}')
 
-    if hasattr(args, 'controller') and args.controller not in CONTROLLER_REGISTRY:
+    if (
+        hasattr(args, 'controller')
+        and args.controller is not None
+        and args.controller not in CONTROLLER_REGISTRY
+    ):
         parser.error(
             f'未知控制器: {args.controller}. 可用: {sorted(CONTROLLER_REGISTRY)}'
         )
-    if hasattr(args, 'planner') and args.planner not in PLANNER_REGISTRY:
+    if (
+        hasattr(args, 'planner')
+        and args.planner is not None
+        and args.planner not in PLANNER_REGISTRY
+    ):
         parser.error(f'未知规划器: {args.planner}. 可用: {sorted(PLANNER_REGISTRY)}')
 
     print(f"OpenDrone 根目录: {_OpenDrone_ROOT}")
@@ -444,7 +543,11 @@ def main():
             max_collision_episodes=args.max_collision_episodes,
             collision_episode_gap=args.collision_episode_gap,
         )
-        result = runner.run()
+        try:
+            result = runner.run()
+        except KeyboardInterrupt:
+            print('\n[run] 收到 Ctrl-C，已停止当前运行拥有的子进程。')
+            return
 
         if result:
             print("\n" + "=" * 60)
@@ -476,51 +579,80 @@ def main():
                 print(f"{prefix} {name}: {path}")
 
     elif args.command == 'analyze':
-        run_metadata = {}
-        metadata_path = os.path.join(
-            os.path.dirname(os.path.abspath(args.bag)), 'run_metadata.json'
-        )
-        if os.path.isfile(metadata_path):
-            try:
-                with open(metadata_path, 'r', encoding='utf-8') as metadata_file:
-                    run_metadata = json.load(metadata_file)
-            except (OSError, json.JSONDecodeError) as exc:
-                print(f"[warn] 无法读取运行元数据: {exc}")
-        analysis_duration = (
-            args.duration if args.duration is not None
-            else run_metadata.get('task_duration', create_task(args.task).default_duration)
-        )
-        analysis_height = (
-            args.hover_height if args.hover_height is not None
-            else run_metadata.get('takeoff_height')
-        )
-        analyzer = BagAnalyzer(
-            bag_file=args.bag,
-            controller_name=args.controller,
-            task_name=args.task,
-            planner_name=args.planner,
-            hover_height=analysis_height,
-            duration=analysis_duration,
-        )
-        report = analyzer.analyze()
-        output_path = args.output or os.path.dirname(os.path.abspath(args.bag))
-        report_path = analyzer.save_report(report, output_path)
-        analyzer.print_report(report)
-        core_artifacts = _generate_core_metric_plots(
-            analyzer=analyzer,
-            report=report,
-            task_name=args.task,
-            output_dir=os.path.dirname(report_path),
-            controller_name=args.controller,
-            planner_name=args.planner,
-            hover_height=analysis_height,
-            duration=analysis_duration,
-        )
-        print(f"\n报告已保存: {report_path}")
-        print(f"Agent 摘要已保存: {os.path.join(os.path.dirname(report_path), 'agent_summary.md')}")
-        for name, path in core_artifacts.items():
-            prefix = '[warn]' if name == 'warning' else '自动生成'
-            print(f"{prefix} {name}: {path}")
+        if args.bag:
+            if not args.controller:
+                parser.error('analyze --bag 必须指定 --controller')
+            task_name = args.task or 'hover'
+            planner_name = args.planner or 'none'
+            run_metadata = _load_run_metadata(args.bag)
+            analysis_duration = (
+                args.duration if args.duration is not None
+                else run_metadata.get('task_duration', create_task(task_name).default_duration)
+            )
+            analysis_height = (
+                args.hover_height if args.hover_height is not None
+                else run_metadata.get('takeoff_height')
+            )
+            _analyze_recording(
+                bag_file=args.bag,
+                controller_name=args.controller,
+                task_name=task_name,
+                planner_name=planner_name,
+                output_dir=args.output or os.path.dirname(os.path.abspath(args.bag)),
+                hover_height=analysis_height,
+                duration=analysis_duration,
+                recompute_outcome=args.recompute_outcome,
+            )
+        else:
+            if not os.path.isdir(args.batch_dir):
+                parser.error(f'analyze --batch-dir 不是目录: {args.batch_dir}')
+            if args.output:
+                parser.error('analyze --batch-dir 不支持 --output；报告始终覆盖每个 case 目录')
+            if any(value is not None for value in (
+                args.controller, args.task, args.planner, args.hover_height, args.duration,
+            )):
+                parser.error(
+                    'analyze --batch-dir 从每个 case 的 run_metadata.json 恢复参数；'
+                    '不能同时指定 controller/task/planner/height/duration'
+                )
+            succeeded = 0
+            failed = []
+            recordings = sorted(_batch_recordings(args.batch_dir))
+            if not recordings:
+                parser.error(
+                    f'analyze --batch-dir 下未找到 run_metadata.json: {args.batch_dir}'
+                )
+            for case_dir, bag_file, metadata in recordings:
+                try:
+                    if not os.path.isfile(bag_file):
+                        raise ValueError(f'bag 不存在: {bag_file}')
+                    controller_name = metadata.get('controller')
+                    task_name = metadata.get('task')
+                    planner_name = metadata.get('planner')
+                    if not all(isinstance(value, str) and value for value in (
+                        controller_name, task_name, planner_name,
+                    )):
+                        raise ValueError('元数据缺少 controller、task 或 planner')
+                    print(f"\n{'=' * 60}\n重分析: {case_dir}")
+                    _analyze_recording(
+                        bag_file=bag_file,
+                        controller_name=controller_name,
+                        task_name=task_name,
+                        planner_name=planner_name,
+                        output_dir=case_dir,
+                        hover_height=metadata.get('takeoff_height'),
+                        duration=metadata.get('task_duration'),
+                        recompute_outcome=args.recompute_outcome,
+                    )
+                    succeeded += 1
+                except (ImportError, OSError, RuntimeError, ValueError) as exc:
+                    failed.append((case_dir, str(exc)))
+                    print(f"[error] 重分析失败: {exc}", file=sys.stderr)
+            print(f"\n批量重分析完成: 成功 {succeeded}，失败 {len(failed)}")
+            for case_dir, reason in failed:
+                print(f"  - {case_dir}: {reason}")
+            if failed:
+                return 1
 
     elif args.command == 'visualize':
         run_metadata = {}

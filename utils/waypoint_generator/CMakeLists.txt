@@ -39,3 +39,10 @@ target_link_libraries(waypoint_generator
 target_link_libraries(mission_manager
    ${catkin_LIBRARIES}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(mission_sequence_test src/mission_sequence_test.cpp)
+  if(TARGET mission_sequence_test)
+    target_link_libraries(mission_sequence_test ${catkin_LIBRARIES})
+  endif()
+endif()

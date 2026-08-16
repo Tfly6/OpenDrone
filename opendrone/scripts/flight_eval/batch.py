@@ -73,6 +73,35 @@ class BatchConfigError(ValueError):
     """YAML 的结构或值无法构成可运行的批次实验。"""
 
 
+class _BatchTerminationGuard:
+    """把 SIGINT/SIGTERM 变成一次可清理的批次取消。"""
+
+    def __init__(self):
+        self._original_handlers: Dict[int, Any] = {}
+        self._installed = False
+
+    def __enter__(self):
+        if threading.current_thread() is not threading.main_thread():
+            return self
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            self._original_handlers[signum] = signal.getsignal(signum)
+            signal.signal(signum, self._handle)
+        self._installed = True
+        return self
+
+    def _handle(self, signum, frame) -> None:
+        del signum, frame
+        for guarded_signal in self._original_handlers:
+            signal.signal(guarded_signal, signal.SIG_IGN)
+        raise KeyboardInterrupt
+
+    def __exit__(self, exc_type, exc_value, traceback_value):
+        del exc_type, exc_value, traceback_value
+        if self._installed:
+            for signum, handler in self._original_handlers.items():
+                signal.signal(signum, handler)
+
+
 def _as_mapping(value: Any, label: str) -> Dict[str, Any]:
     if value is None:
         return {}
@@ -569,29 +598,33 @@ class _ManagedProcess:
                 f'{self.name} 已提前退出 (exit={exit_code})，请查看日志: {self.log_path}'
             )
 
-    def stop(self) -> None:
-        if self.process.poll() is not None:
-            return
+    def stop(self) -> bool:
+        for sig, timeout in (
+            (signal.SIGINT, 10.0),
+            (signal.SIGTERM, 5.0),
+            (signal.SIGKILL, 3.0),
+        ):
+            try:
+                os.killpg(self.process.pid, sig)
+            except ProcessLookupError:
+                break
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                self.process.poll()
+                try:
+                    os.killpg(self.process.pid, 0)
+                except ProcessLookupError:
+                    return True
+                time.sleep(0.05)
         try:
-            os.killpg(self.process.pid, signal.SIGINT)
-        except ProcessLookupError:
-            return
-        try:
-            self.process.wait(timeout=10.0)
-            return
+            self.process.wait(timeout=0)
         except subprocess.TimeoutExpired:
             pass
         try:
-            os.killpg(self.process.pid, signal.SIGTERM)
-            self.process.wait(timeout=5.0)
-            return
-        except (ProcessLookupError, subprocess.TimeoutExpired):
-            pass
-        try:
-            os.killpg(self.process.pid, signal.SIGKILL)
-            self.process.wait(timeout=3.0)
+            os.killpg(self.process.pid, 0)
         except ProcessLookupError:
-            pass
+            return True
+        return False
 
 
 class _MavrosStateObserver:
@@ -1095,7 +1128,12 @@ class _SimulationSession:
         if self.px4_process is not None:
             if self._mavros_state is not None:
                 self._mavros_transition_sequence = self._mavros_state.sequence
-            self.px4_process.stop()
+            managed_process = self.px4_process
+            if not managed_process.stop():
+                raise RuntimeError(
+                    'PX4 进程组在 SIGKILL 后仍未退出；拒绝继续下一 case。'
+                    f'日志: {managed_process.log_path}'
+                )
             self.px4_process = None
             if wait_for_disconnect:
                 self._wait_until(
@@ -1254,6 +1292,10 @@ class FlightEvalBatchRunner:
         }
 
     def run(self) -> Dict[str, Any]:
+        with _BatchTerminationGuard():
+            return self._run()
+
+    def _run(self) -> Dict[str, Any]:
         self._prepare_output_dir()
         print(format_batch_plan(self.definition))
         try:
@@ -1300,11 +1342,20 @@ class FlightEvalBatchRunner:
                         entry['status'] = 'failed'
                         entry['error'] = 'FlightRunner 未产生结果；请查看 case 目录与环境日志。'
                     else:
-                        entry['status'] = 'completed'
                         entry['run_metadata_file'] = result.get('run_metadata_file', '')
                         entry['bag_file'] = result.get('bag_file', '')
                         entry['run_status'] = result.get('run_status', {})
                         entry['task_outcome'] = result.get('task_outcome', {})
+                        entry['status'] = (
+                            'completed'
+                            if entry['run_status'].get('status') == 'completed'
+                            else 'failed'
+                        )
+                        if entry['status'] == 'failed':
+                            entry['error'] = (
+                                'FlightRunner 未完整结束: '
+                                f"{entry['run_status'].get('reason', 'unknown')}"
+                            )
                         if self.definition.analysis_enabled and self.result_handler is not None:
                             try:
                                 artifacts = self.result_handler(result, record_dir)
@@ -1315,6 +1366,11 @@ class FlightEvalBatchRunner:
                                 entry['analysis_traceback'] = traceback.format_exc()
                     entry['finished_at'] = datetime.now().isoformat(timespec='seconds')
                 except KeyboardInterrupt:
+                    entry['status'] = 'interrupted'
+                    entry['error'] = 'batch interrupted by SIGINT/SIGTERM'
+                    entry['finished_at'] = datetime.now().isoformat(timespec='seconds')
+                    self._summary_entries.append(entry)
+                    self._write_summary(final=False)
                     raise
                 except Exception as exc:
                     entry['status'] = 'failed'

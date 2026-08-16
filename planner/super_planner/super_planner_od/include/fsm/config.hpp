@@ -49,6 +49,7 @@ namespace fsm {
         bool click_yaw_en{};
         string cmd_topic, mpc_cmd_topic, click_goal_topic, mission_goal_topic;
         double mission_goal_force_new_threshold{};
+        bool mission_goal_use_header_sequence{};
         double yaw_dot_max{};
 
         Config() = default;
@@ -68,6 +69,9 @@ namespace fsm {
             loader.LoadParam("fsm/mission_goal_force_new_threshold",
                              mission_goal_force_new_threshold,
                              1.5);
+            loader.LoadParam("fsm/mission_goal_use_header_sequence",
+                             mission_goal_use_header_sequence,
+                             false);
 
 
             loader.LoadParam("super_planner/yaw_dot_max", yaw_dot_max, 1.0, true);

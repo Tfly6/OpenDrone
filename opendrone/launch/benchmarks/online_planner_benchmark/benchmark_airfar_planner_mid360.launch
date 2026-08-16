@@ -7,6 +7,7 @@
   <arg name="waypoint_type" default="circle" />
   <arg name="auto_trigger_waypoints" default="false" />
   <arg name="start_from_current_position" default="true" />
+  <arg name="use_rviz" default="true" />
   <arg name="cruise_speed" default="1.0" />
   <arg name="goal_tolerance" default="0.4" />
   <arg name="collision_check_padding" default="1.0" />
@@ -19,6 +20,7 @@
     <arg name="waypoint_type" value="$(arg waypoint_type)" />
     <arg name="auto_trigger_waypoints" value="$(arg auto_trigger_waypoints)" />
     <arg name="start_from_current_position" value="$(arg start_from_current_position)" />
+    <arg name="use_rviz" value="$(arg use_rviz)" />
     <arg name="cruise_speed" value="$(arg cruise_speed)" />
     <arg name="goal_tolerance" value="$(arg goal_tolerance)" />
     <arg name="collision_check_padding" value="$(arg collision_check_padding)" />

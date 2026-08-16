@@ -102,6 +102,11 @@ class FlightRunner:
         self._controller_process = None
         self._planner_process = None
         self._cleaned_up = False
+        self._cleanup_report = {
+            'completed': None,
+            'registered_process_groups': [],
+            'remaining_process_groups': [],
+        }
         self._archived_manifest_files = []
         self._started_launches = []
 
@@ -436,6 +441,9 @@ class FlightRunner:
             RunnerState.COMPLETED: 'completed',
             RunnerState.INTERRUPTED: 'interrupted',
         }.get(final_state, 'failed')
+        if self._cleanup_report.get('completed') is False:
+            status = 'failed'
+            reason = 'process_cleanup_incomplete'
         return {
             'status': status,
             'reason': reason or final_state.value,
@@ -739,7 +747,7 @@ class FlightRunner:
     @staticmethod
     def _signal_process_group(process, sig: int) -> bool:
         """向一个由 runner 创建的独立进程组发送信号。"""
-        if not process or process.poll() is not None:
+        if not process:
             return False
         try:
             os.killpg(process.pid, sig)
@@ -748,19 +756,32 @@ class FlightRunner:
             return False
 
     @staticmethod
-    def _wait_processes(processes, timeout: float) -> List:
-        """等待一批进程退出；返回超时的进程。"""
+    def _process_group_exists(process) -> bool:
+        if not process:
+            return False
+        process.poll()
+        try:
+            os.killpg(process.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    @classmethod
+    def _wait_processes(cls, processes, timeout: float) -> List:
+        """等待一批进程组退出；返回超时的进程组。"""
         deadline = time.monotonic() + timeout
-        remaining = []
-        for process, _ in processes:
-            if not process or process.poll() is not None:
-                continue
-            wait_time = max(0.0, deadline - time.monotonic())
-            try:
-                process.wait(timeout=wait_time)
-            except subprocess.TimeoutExpired:
-                remaining.append((process, _))
-        return remaining
+        remaining = list(processes)
+        while remaining and time.monotonic() < deadline:
+            remaining = [
+                item for item in remaining
+                if cls._process_group_exists(item[0])
+            ]
+            if remaining:
+                time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        return [
+            item for item in remaining
+            if cls._process_group_exists(item[0])
+        ]
 
     def _write_run_metadata(self, result: Dict) -> str:
         """保存与 bag 绑定的运行元数据，供独立 analyze 复现任务配置。"""
@@ -798,6 +819,7 @@ class FlightRunner:
             'run_status': self._run_status_metadata(),
             'task_outcome': self._task_outcome_metadata(),
             'collision_summary': self._collision_metadata(),
+            'process_cleanup': dict(self._cleanup_report),
             'lifecycle': self._lifecycle_metadata(),
             'topic_contract': {
                 'controller': dict(self.controller_topics),
@@ -1017,7 +1039,7 @@ class FlightRunner:
             self._task_evaluator.mark_unknown('run_interrupted')
             self._transition(RunnerState.INTERRUPTED, 'KeyboardInterrupt')
             print("[info] 收到 Ctrl-C，停止所有 flight_eval 子进程...")
-            return None
+            raise
         except Exception:
             self._task_evaluator.mark_unknown('run_failed')
             self._transition(RunnerState.FAILED, 'unhandled runner exception')
@@ -1074,14 +1096,25 @@ class FlightRunner:
         """一次性停止所有由 runner 创建的进程组。"""
         if self._cleaned_up:
             return
-        self._cleaned_up = True
         processes = [
             (self._rosbag_process, 'rosbag'),
             (self._planner_process, 'planner'),
             (self._controller_process, 'controller'),
         ]
-        active = [(process, name) for process, name in processes if process and process.poll() is None]
+        self._cleanup_report = {
+            'completed': False,
+            'registered_process_groups': [
+                name for process, name in processes if process is not None
+            ],
+            'remaining_process_groups': [],
+        }
+        active = [
+            (process, name) for process, name in processes
+            if self._process_group_exists(process)
+        ]
         if not active:
+            self._cleaned_up = True
+            self._cleanup_report['completed'] = True
             return
 
         for process, name in active:
@@ -1095,8 +1128,17 @@ class FlightRunner:
 
         for process, _ in active:
             self._signal_process_group(process, signal.SIGKILL)
-        self._wait_processes(active, timeout=2.0)
-        print('[cleanup] 所有 flight_eval 子进程已退出')
+        active = self._wait_processes(active, timeout=2.0)
+        self._cleaned_up = not active
+        self._cleanup_report['completed'] = self._cleaned_up
+        self._cleanup_report['remaining_process_groups'] = [
+            name for _, name in active
+        ]
+        if active:
+            names = ', '.join(name for _, name in active)
+            print(f'[cleanup] 以下进程组在 SIGKILL 后仍可见: {names}')
+        else:
+            print('[cleanup] 所有 flight_eval 子进程已退出')
 
     def __del__(self):
         self._cleanup()

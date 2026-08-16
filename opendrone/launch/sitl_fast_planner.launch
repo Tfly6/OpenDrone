@@ -4,6 +4,7 @@
     <arg name="waypoint_type" default="circle" />
     <arg name="auto_trigger_waypoints" default="false" />
     <arg name="start_from_current_position" default="true" />
+    <arg name="use_rviz" default="true" />
     <!-- Planner configs -->
     <arg name="use_kino_planner" default="true" />
     <arg name="debug_verbose" default="false" />
@@ -92,6 +93,6 @@
     </group>
  
     <!-- Rviz -->
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find opendrone)/rviz/fast-planner.rviz" />
+    <node if="$(arg use_rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find opendrone)/rviz/fast-planner.rviz" />
 
 </launch>

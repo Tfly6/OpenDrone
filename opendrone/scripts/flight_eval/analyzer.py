@@ -72,7 +72,8 @@ class BagAnalyzer:
                  task_name: str = 'hover',
                  planner_name: str = 'none',
                  hover_height: Optional[float] = None,
-                 duration: Optional[float] = None):
+                 duration: Optional[float] = None,
+                 recompute_outcome: bool = False):
         self.bag_file = bag_file
         self.controller_name = controller_name
         if controller_name not in CONTROLLER_REGISTRY:
@@ -93,6 +94,9 @@ class BagAnalyzer:
         self.hover_height = hover_height
         self.calculator = MetricsCalculator(hover_height=hover_height or 2.0)
         self.run_metadata = self._load_run_metadata()
+        # The recorded Runner result remains the default because it documents
+        # what happened at runtime.  Offline evaluator changes must opt in.
+        self.recompute_outcome = recompute_outcome
         self._last_full_data = None
         self._last_phase_data = None
 
@@ -632,7 +636,12 @@ class BagAnalyzer:
     def _derive_task_outcome(self, data: Dict, phase_data: Dict) -> TaskOutcome:
         stored = self.run_metadata.get('task_outcome')
         metadata_matches_task = self.run_metadata.get('task', self.task.name) == self.task.name
-        if metadata_matches_task and isinstance(stored, dict) and stored.get('status'):
+        if (
+            not self.recompute_outcome
+            and metadata_matches_task
+            and isinstance(stored, dict)
+            and stored.get('status')
+        ):
             try:
                 return TaskOutcome.from_dict(stored)
             except (TypeError, ValueError):
