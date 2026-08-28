@@ -30,19 +30,7 @@ include_directories(
 )
 
 add_executable(waypoint_generator src/waypoint_generator.cpp)
-add_executable(mission_manager src/mission_manager.cpp)
 
 target_link_libraries(waypoint_generator
    ${catkin_LIBRARIES}
 )
-
-target_link_libraries(mission_manager
-   ${catkin_LIBRARIES}
-)
-
-if(CATKIN_ENABLE_TESTING)
-  catkin_add_gtest(mission_sequence_test src/mission_sequence_test.cpp)
-  if(TARGET mission_sequence_test)
-    target_link_libraries(mission_sequence_test ${catkin_LIBRARIES})
-  endif()
-endif()

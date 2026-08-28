@@ -3,6 +3,7 @@
 
 import os
 import json
+import math
 import shutil
 import signal
 import subprocess
@@ -174,6 +175,7 @@ class FlightRunner:
         self._last_flight_state = None
         self._emergency_occurred = False
         self._planner_output_received = False
+        self._latest_mission_state = None
         self._task_evaluator = self.task.create_outcome_evaluator()
         self._execution_end_reason = ''
         self._collision_episode_count = 0
@@ -281,15 +283,43 @@ class FlightRunner:
             self._state_condition.notify_all()
 
     def _on_odometry(self, msg):
-        """向通用任务 evaluator 提交实际位置，不依赖 planner 内部状态。"""
+        """Submit odometry as diagnostic evidence only."""
         position = msg.pose.pose.position
+        velocity = msg.twist.twist.linear
+        speed = math.sqrt(
+            velocity.x * velocity.x
+            + velocity.y * velocity.y
+            + velocity.z * velocity.z
+        )
         with self._state_condition:
             self._task_evaluator.update_position(
                 (position.x, position.y, position.z),
                 self._task_now(),
                 frame_id=getattr(msg.header, 'frame_id', ''),
+                speed=speed,
             )
             self._state_condition.notify_all()
+
+    def _on_mission_state(self, msg):
+        """Consume planner-owned mission state without interpreting geometry."""
+        with self._state_condition:
+            state = {
+                'mission_type': int(msg.mission_type),
+                'status': int(msg.status),
+                'completed_items': int(msg.completed_items),
+                'total_items': int(msg.total_items),
+                'detail': str(msg.detail or ''),
+            }
+            self._latest_mission_state = state
+            if (
+                self._runner_state == RunnerState.EXECUTING
+                and hasattr(self._task_evaluator, 'notify_mission_state')
+            ):
+                self._task_evaluator.notify_mission_state(
+                    self._task_now(),
+                    **state,
+                )
+                self._state_condition.notify_all()
 
     def _on_contact_pulse(self, msg, now: Optional[float] = None):
         """累计碰撞事件；连续 contact 心跳不重复计数。"""
@@ -859,6 +889,7 @@ class FlightRunner:
         parameter_snapshot = {}
         state_sub = None
         planner_sub = None
+        mission_state_sub = None
         mission_path_sub = None
         odom_sub = None
         contact_sub = None
@@ -872,7 +903,7 @@ class FlightRunner:
 
             import rospy
             from nav_msgs.msg import Odometry, Path
-            from opendrone.msg import PlannerOutput
+            from opendrone.msg import MissionState, PlannerOutput
             from opendrone_gazebo_plugins.msg import ContactPulse
             from std_msgs.msg import Int8
 
@@ -897,6 +928,13 @@ class FlightRunner:
                     lambda msg: self._on_planner_output(msg, rospy),
                     queue_size=1,
                 )
+                if 'mission_state' in self.planner_topics:
+                    mission_state_sub = rospy.Subscriber(
+                        self.planner_topics['mission_state'],
+                        MissionState,
+                        self._on_mission_state,
+                        queue_size=10,
+                    )
             if self.task.has_terminal_outcome:
                 mission_path_sub = rospy.Subscriber(
                     MISSION_PATH_TOPIC,
@@ -971,6 +1009,13 @@ class FlightRunner:
                 task_start = self._task_now()
                 with self._state_condition:
                     self._task_evaluator.start(task_start)
+                    if (
+                        self._latest_mission_state is not None
+                        and hasattr(self._task_evaluator, 'notify_mission_state')
+                    ):
+                        self._task_evaluator.notify_mission_state(
+                            task_start, **self._latest_mission_state
+                        )
                 self._execution_end_reason = self._wait_for_task_end(rospy)
                 if self._execution_end_reason == 'goal_reached':
                     print(
@@ -1046,7 +1091,8 @@ class FlightRunner:
             raise
         finally:
             for sub in (
-                contact_sub, odom_sub, mission_path_sub, planner_sub, state_sub
+                contact_sub, odom_sub, mission_path_sub, mission_state_sub,
+                planner_sub, state_sub
             ):
                 if sub is not None:
                     try:

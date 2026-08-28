@@ -29,6 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
         nav_msgs
         message_generation
         quadrotor_msgs
+        opendrone
         visualization_msgs
         message_filters
         rog_map
@@ -41,7 +42,7 @@ find_package(PCL REQUIRED)
 catkin_package(
         INCLUDE_DIRS
         LIBRARIES super_planner_od
-        CATKIN_DEPENDS roscpp rospy std_msgs
+        CATKIN_DEPENDS roscpp rospy std_msgs opendrone
         #  DEPENDS system_lib
 )
 
@@ -75,6 +76,7 @@ target_link_libraries(super PUBLIC
 add_executable(fsm_node
         Apps/fsm_node_ros1.cpp
 )
+add_dependencies(fsm_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(fsm_node
         super
         ${THIRD_PARTY}

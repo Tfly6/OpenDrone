@@ -7,6 +7,7 @@ limits:
 
 fsm:
   thresh_replan_time: 1.0
+  thresh_no_replan_meter: 1.0
   planning_horizon: 7.5
   emergency_time: 1.0
   realworld_experiment: false

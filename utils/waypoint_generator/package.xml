@@ -22,7 +22,4 @@
   <run_depend>nav_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
 
-  <test_depend>gtest</test_depend>
-
 </package>
-

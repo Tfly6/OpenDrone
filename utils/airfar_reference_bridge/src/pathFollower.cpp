@@ -479,6 +479,7 @@ void stateEstimationHandler(const nav_msgs::Odometry::ConstPtr& odom)
   plannerOutput.trajectory_id = ++plannerOutputID;
   plannerOutput.is_horizon = false;
   plannerOutput.trajectory_start_time = odom->header.stamp;
+  plannerOutput.trajectory_status = opendrone::PlannerOutput::TRAJECTORY_STATUS_READY;
   plannerOutput.points.resize(1);
   airfar_reference_bridge::PlannerReferenceInput referenceInput;
   if (manualMode) {

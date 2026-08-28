@@ -9,6 +9,7 @@
     <arg name="is_simulation" default="true"/>
     <arg name="enable_trajectory_edges" default="false"/>
     <arg name="goal_tolerance" default="0.4"/>
+    <arg name="waypoint_topic" default="/waypoint_generator/waypoints"/>
 
     <!-- Algorithm and vehicle tuning profile: default or outdoor. -->
     <arg name="config_file" default="default"/>
@@ -26,5 +27,6 @@
         <remap from="/terrain_cloud" to="$(arg terrain_cloud_topic)"/>
         <remap from="/scan_cloud" to="$(arg scan_cloud_topic)"/>
         <remap from="/terrain_local_cloud" to="$(arg terrain_local_topic)"/>
+        <remap from="/waypoint_generator/waypoints" to="$(arg waypoint_topic)"/>
     </node>
 </launch>

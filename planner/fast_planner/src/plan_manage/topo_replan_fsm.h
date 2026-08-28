@@ -34,6 +34,7 @@
 #include <std_msgs/Empty.h>
 #include <vector>
 #include <visualization_msgs/Marker.h>
+#include <opendrone/mission_state_utils.h>
 
 #include "bspline_opt/bspline_optimizer.h"
 #include "path_searching/kinodynamic_astar.h"
@@ -75,12 +76,13 @@ private:
   Eigen::Vector3d start_pt_, start_vel_, start_acc_, start_yaw_;  // start state
   Eigen::Vector3d target_point_, end_vel_;                        // target state
   int current_wp_;
+  std::string mission_frame_;
 
   /* ROS utils */
   ros::NodeHandle node_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, frontier_timer_;
   ros::Subscriber goal_sub_, odom_sub_;
-  ros::Publisher replan_pub_, new_pub_, bspline_pub_;
+  ros::Publisher replan_pub_, new_pub_, bspline_pub_, mission_state_pub_;
 
   /* helper functions */
   bool callSearchAndOptimization();    // front-end and back-end method

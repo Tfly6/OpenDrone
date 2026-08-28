@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   quadrotor_msgs
+  opendrone
   message_generation
   cv_bridge
   visualization_msgs
@@ -26,7 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES fast_planner
- CATKIN_DEPENDS message_runtime visualization_msgs
+ CATKIN_DEPENDS message_runtime visualization_msgs opendrone
 #  DEPENDS system_lib
 )
 
@@ -115,6 +116,7 @@ set(SOURCES
 )
 
 add_executable(${PROJECT_NAME}_node ${SOURCES})
+add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}_node 
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -127,5 +129,3 @@ add_executable(${PROJECT_NAME}_traj_server
 )
 target_link_libraries(${PROJECT_NAME}_traj_server ${catkin_LIBRARIES})
 # add_dependencies(${PROJECT_NAME}_traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
-
-

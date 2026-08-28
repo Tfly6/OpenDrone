@@ -23,7 +23,10 @@ _ALGORITHM_KEYS = {'kind', 'launch', 'args', 'tasks', 'record_topics'}
 _LAUNCH_KEYS = {'package', 'file'}
 _STANDARD_INTERFACES = {
     'controller': {'flight_state': '/flight_state'},
-    'planner': {'planner_output': '/planner/output'},
+    'planner': {
+        'planner_output': '/planner/output',
+        'mission_state': '/planner/mission_state',
+    },
 }
 
 

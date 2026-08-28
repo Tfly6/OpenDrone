@@ -99,6 +99,7 @@ class AnalyticReferencePublisher:
         msg.trajectory_id = self.trajectory_id
         msg.is_horizon = True
         msg.trajectory_start_time = self.start_time
+        msg.trajectory_status = PlannerOutput.TRAJECTORY_STATUS_READY
 
         sample_count = max(2, int(math.floor(self.horizon_duration / self.sample_dt)) + 1)
         elapsed = max(0.0, (now - self.start_time).to_sec())

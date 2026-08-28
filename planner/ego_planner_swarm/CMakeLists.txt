@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   quadrotor_msgs
+  opendrone
   # plan_env
   # path_searching
   # bspline_opt
@@ -29,7 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES ego_planner
- CATKIN_DEPENDS roscpp std_msgs geometry_msgs quadrotor_msgs message_runtime cv_bridge
+ CATKIN_DEPENDS roscpp std_msgs geometry_msgs quadrotor_msgs opendrone message_runtime cv_bridge
  DEPENDS OpenCV
 )
 
@@ -99,6 +100,7 @@ set(SOURCES
   src/traj_utils/polynomial_traj.cpp
 )
 add_executable(ego_planner_node ${SOURCES})
+add_dependencies(ego_planner_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ego_planner_node 
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -116,4 +118,3 @@ add_executable(bridge_node
 target_link_libraries(bridge_node 
   ${catkin_LIBRARIES}
   )
-

@@ -168,7 +168,6 @@ class BagVisualizer:
             if planner_segments else np.empty((0, 3))
         )
         waypoints, _ = self._series(data, 'waypoint_positions', 'waypoint_times', start_time, end_time)
-        goals, _ = self._series(data, 'mission_goal_positions', 'mission_goal_times', start_time, end_time)
 
         reference, reference_t = self._sort_by_time(reference, reference_t)
         reference_yaws, reference_yaw_t = self._sort_by_time(reference_yaws, reference_yaw_t)
@@ -179,7 +178,7 @@ class BagVisualizer:
             'reference': reference, 'reference_t': reference_t,
             'reference_yaws': reference_yaws, 'reference_yaw_t': reference_yaw_t,
             'planner': planner, 'planner_segments': planner_segments,
-            'waypoints': waypoints, 'goals': goals,
+            'waypoints': waypoints,
             'start_time': start_time, 'end_time': end_time,
         }
 
@@ -304,7 +303,6 @@ class BagVisualizer:
         reference = plot_data['reference']
         planner_segments = plot_data['planner_segments']
         waypoints = plot_data['waypoints']
-        goals = plot_data['goals']
         if len(reference):
             if is_3d:
                 ax.plot(reference[:, 0], reference[:, 1], reference[:, 2], color='#1677ff', lw=1.6,
@@ -330,13 +328,6 @@ class BagVisualizer:
             else:
                 ax.scatter(waypoints[:, 0], waypoints[:, 1], marker='o', s=26,
                            color='#1b9e77', label='Waypoints')
-        if len(goals):
-            if is_3d:
-                ax.scatter(goals[:, 0], goals[:, 1], goals[:, 2], marker='*', s=100,
-                           color='#d81b60', label='Mission goal')
-            else:
-                ax.scatter(goals[:, 0], goals[:, 1], marker='*', s=100,
-                           color='#d81b60', label='Mission goal')
         if len(actual):
             marker_kwargs = {'color': '#2ca02c', 's': 48, 'zorder': 8, 'label': 'Start'}
             end_kwargs = {'color': '#d62728', 's': 62, 'zorder': 9, 'label': 'End'}
@@ -352,7 +343,7 @@ class BagVisualizer:
         if len(actual) == 0:
             return {}
         all_points = [actual]
-        for key in ('reference', 'planner', 'waypoints', 'goals'):
+        for key in ('reference', 'planner', 'waypoints'):
             if len(plot_data[key]):
                 all_points.append(plot_data[key])
         all_points = np.vstack(all_points)
@@ -723,7 +714,7 @@ class BagVisualizer:
             frame_attitudes = np.zeros((frame_count, 3))
 
         all_points = [actual]
-        for key in ('reference', 'planner', 'waypoints', 'goals'):
+        for key in ('reference', 'planner', 'waypoints'):
             if len(plot_data[key]):
                 all_points.append(plot_data[key])
         all_points = np.vstack(all_points)

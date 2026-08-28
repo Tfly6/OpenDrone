@@ -107,6 +107,9 @@ void PublishWaypointsVis() {
 
 void PublishPresetWaypoints(const nav_msgs::Path& path) {
   waypoints = path;
+  for (std::size_t index = 0; index < waypoints.poses.size(); ++index) {
+    waypoints.poses[index].header.seq = static_cast<uint32_t>(index);
+  }
   PublishWaypointsVis();
   PublishWaypoints();
 }

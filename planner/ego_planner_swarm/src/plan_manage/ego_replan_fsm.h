@@ -10,6 +10,7 @@
 #include <std_msgs/Empty.h>
 #include <vector>
 #include <visualization_msgs/Marker.h>
+#include <opendrone/mission_state_utils.h>
 
 #include <bspline_opt/bspline_optimizer.h>
 #include <plan_env/grid_map.h>
@@ -86,6 +87,7 @@ namespace ego_planner
     Eigen::Vector3d local_target_pt_, local_target_vel_;                     // local target state
     std::vector<Eigen::Vector3d> wps_;
     int current_wp_;
+    std::string mission_frame_;
 
     bool flag_escape_emergency_{false};
 
@@ -101,7 +103,7 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber goal_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
-    ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
+    ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_, mission_state_pub_;
 
     bool debug_fsm_{false};
     double debug_fsm_interval_{1.0};

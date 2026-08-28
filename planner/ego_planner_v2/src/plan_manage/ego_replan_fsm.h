@@ -11,6 +11,7 @@
 #include <std_msgs/Float64.h>
 #include <vector>
 #include <visualization_msgs/Marker.h>
+#include <opendrone/mission_state_utils.h>
 
 #include "traj_opt/poly_traj_optimizer.h"
 #include "plan_env/grid_map.h"
@@ -73,6 +74,8 @@ namespace ego_planner
     bool enable_ground_height_measurement_;
     bool flag_escape_emergency_;
 
+    std::string mission_frame_;
+
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_, touch_goal_, mandatory_stop_;
     FSM_EXEC_STATE exec_state_;
     int continously_called_times_{0};
@@ -88,7 +91,7 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber goal_sub_, odom_sub_, trigger_sub_, broadcast_ploytraj_sub_, mandatory_stop_sub_;
-    ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_;
+    ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_, mission_state_pub_;
 
     /* state machine functions */
     void execFSMCallback(const ros::TimerEvent &e);

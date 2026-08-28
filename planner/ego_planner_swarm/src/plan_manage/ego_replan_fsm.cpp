@@ -93,6 +93,8 @@ namespace ego_planner
 
     bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("planning/bspline", 10);
     data_disp_pub_ = nh.advertise<quadrotor_msgs::DataDisp>("planning/data_display", 100);
+    mission_state_pub_ = nh.advertise<opendrone::MissionState>(
+        "/planner/mission_state", 1, true);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
@@ -277,6 +279,10 @@ namespace ego_planner
 
     waypoint_num_ = static_cast<int>(wps_.size());
     wp_id_ = 0;
+    mission_frame_ = msg->header.frame_id;
+    mission_state_pub_.publish(opendrone::MakeMissionState(
+        mission_frame_, opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+        opendrone::MissionState::STATUS_ACTIVE, 0, waypoint_num_));
 
     for (size_t i = 0; i < wps_.size(); i++)
     {
@@ -733,6 +739,10 @@ namespace ego_planner
           (end_pt_ - pos).norm() < no_replan_thresh_)
       {
         wp_id_++;
+        mission_state_pub_.publish(opendrone::MakeMissionState(
+            mission_frame_,
+            opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+            opendrone::MissionState::STATUS_ACTIVE, wp_id_, waypoint_num_));
         planNextWaypoint(wps_[wp_id_]);
       }
       else if ((local_target_pt_ - end_pt_).norm() < 1e-3) // close to the global target
@@ -744,6 +754,13 @@ namespace ego_planner
 
           if (target_type_ == TARGET_TYPE::PRESET_TARGET)
           {
+            mission_state_pub_.publish(opendrone::MakeMissionState(
+                mission_frame_,
+                opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                opendrone::MissionState::STATUS_SUCCEEDED,
+                waypoint_num_, waypoint_num_));
+            // Preserve EGO's native cyclic preset-path behavior. MissionState
+            // observes completion of one pass; it does not control the FSM.
             wp_id_ = 0;
             planNextWaypoint(wps_[wp_id_]);
           }

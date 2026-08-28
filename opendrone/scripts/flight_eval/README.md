@@ -14,7 +14,7 @@
 
 ```text
 FlightRunner / BagAnalyzer
-  ├── task: hover / analytic_* / discrete_* / plan_mission
+  ├── task: hover / analytic_* / discrete_* / sequential_goal_mission / reference_path_mission
   ├── algorithm: controller / planner manifest entry
   ├── metric_profile: hover_regulation / trajectory_tracking / trajectory_generation / online_mission
   ├── controller: se3_hopf / pid_controller / ...
@@ -37,7 +37,7 @@ FlightRunner / BagAnalyzer
 | `hover_regulation` | `hover` |
 | `trajectory_tracking` | `analytic_*` |
 | `trajectory_generation` | `discrete_*` |
-| `online_mission` | `plan_mission` |
+| `online_mission` | `sequential_goal_mission`, `reference_path_mission` |
 
 ## 快速开始
 
@@ -152,7 +152,7 @@ defaults:
     collision_episode_gap: 0.5
 experiments:
   - name: repeat_and_matrix
-    task: plan_mission
+    task: sequential_goal_mission
     controllers: [se3_hopf, mav_linear_mpc]
     planners: [ego_planner_mid360, airfar_planner_mid360]
     repeat: 3
@@ -217,14 +217,14 @@ UDP 模式下，batch 为每个 case 复制其 PX4
 python3 -m flight_eval visualize \
   --bag eval_runs/example/flight_test.bag \
   --controller se3_hopf \
-  --task plan_mission \
+  --task sequential_goal_mission \
   --planner fast_planner_kino
 
 # 同时生成 plots/flight_replay.gif；将整段记录压缩成 12 秒、15 FPS 的动画
 python3 -m flight_eval visualize \
   --bag eval_runs/example/flight_test.bag \
   --controller se3_hopf \
-  --task plan_mission \
+  --task sequential_goal_mission \
   --planner fast_planner_kino \
   --scope full --gif --gif-fps 15 --gif-duration 12
 ```
@@ -299,7 +299,7 @@ python3 -m flight_eval run \
 ```bash
 python3 -m flight_eval run \
   --controller mav_linear_mpc \
-  --task plan_mission \
+  --task sequential_goal_mission \
   --planner fast_planner_kino \
   --max-collision-episodes 3
 ```
@@ -310,7 +310,7 @@ python3 -m flight_eval run \
 python3 -m flight_eval analyze \
   --bag /path/to/flight_test.bag \
   --controller se3_hopf \
-  --task plan_mission \
+  --task sequential_goal_mission \
   --planner fast_planner_kino
 ```
 
@@ -320,7 +320,7 @@ python3 -m flight_eval analyze \
 - `agent_summary.md`
 
 若 bag 同目录存在 `run_metadata.json`，会自动恢复运行时的任务时长和起飞高度；否则可用
-`--duration` 显式指定；对 `discrete*` 和 `plan_mission`，它表示任务最大允许时长。
+`--duration` 显式指定；对 `discrete*` 和两类 mission，它表示任务最大允许时长。
 
 ### 6. 修改判定逻辑后批量重分析
 
@@ -359,25 +359,36 @@ python3 -m flight_eval analyze \
 | `analytic_spiral` | 控制器对连续解析螺旋参考的跟踪能力 | 无 | `controller_only` |
 | `discrete_circle` | 离散 waypoint 集到可执行轨迹的生成/优化能力 | `circle` | `planner_only`, `integrated` |
 | `discrete_figure8` | 离散 waypoint 集到可执行轨迹的生成/优化能力 | `eight` | `planner_only`, `integrated` |
-| `plan_mission` | 障碍环境中的整链路任务执行能力 | `manual`（可显式覆盖） | `integrated` |
+| `sequential_goal_mission` | 障碍环境中的整链路任务执行能力 | `manual`（可显式覆盖） | `integrated` |
+| `reference_path_mission` | 保留全路径前瞻的连续路线执行能力 | `manual`（可显式覆盖） | `integrated` |
 
 任务语义建议：
 
 - `hover` 主要用于控制器悬停能力评估
 - `analytic*` 主要用于控制器连续参考跟踪能力评估
 - `discrete*` 主要用于轨迹生成 / 轨迹优化能力评估
-- `plan_mission` 主要用于实时规划 + 实时跟踪 + 任务执行能力评估
+- `sequential_goal_mission` 主要用于实时规划 + 实时跟踪 + 任务执行能力评估
+- `reference_path_mission` 用于完整 Path 前瞻、允许连续通过中间参考点的规划器
 
 `hover` 和 `analytic*` 是定时评价任务，`duration` 表示数据窗口。`discrete*` 和
-`plan_mission` 是有限的有序航点任务，`duration` 表示完成任务的最长期限；成功后提前进入
-降落。一次收到的 `nav_msgs/Path` 按数组顺序定义 mission，evaluator 只有在当前航点进入
-容差并满足 dwell 后才切换到下一点；不能因为靠近终点、路径交叉或相邻点距离很小而跳过
-中间航点。`discrete*` 保持连续路径进度语义，因为它们评估的是整条预设轨迹而不是在线航段。
+两类 mission 都以 `duration` 为最长期限。`sequential_goal_mission` 表示规划器把 Path
+按有序 active goal 序列消费；航点何时推进完全服从规划器原生任务消费逻辑，评测器不附加
+停稳、距离或驻留条件。持有队列的规划器组件只在自身原生切点条件发生后上报进度。
+`reference_path_mission` 把中间点定义为可连续通过的全局参考，只接受整条 mission 的完成语义，
+不会把中间 Path pose 转换成完成单元。Fast Topo 只注册到后者；其他内建在线规划器注册到前者。
 
-SUPER 不直接消费整条 Path。`waypoint_generator/mission_manager` 是 SUPER 的接入适配器，
-按顺序只派发当前 `PoseStamped` 航点；同一航段重发时保持 `header.seq`，切换航段时更换它。
-SUPER 的该接入模式据此强制接受新航段，不依赖航点间的距离阈值。flight_eval 独立观察原始
-Path 和 odom，不依赖 SUPER 专有状态。
+在线规划器直接接收一次完整、latched 的 `nav_msgs/Path`。Fast-Planner 和 EGO 系列使用各自
+已有的 preset/reference-path 语义推进航点；SUPER 和 Air-FAR 在自己的 ROS 输入边界保存
+完整 Path，再依据各自原生的航点切换条件推进单目标核心。flight_eval 只观察原始 Path 和
+`/planner/mission_state`；odom 只作为结果证据，不派发或推进 active goal。两种任务的区别
+来自规划器如何消费同一条 Path，不来自 flight_eval 改写或逐点重发输入。
+SUPER 的多航点权威语义来自其原始 `mission_planner`，不是核心 FSM 的轨迹终态：odom
+进入当前航点的 switch sphere 后立即发布下一目标，从而保留新旧轨迹的连续重规划。原始
+benchmark 数据为每个航点配置 `1.0 m`；由于 `nav_msgs/Path` 不携带逐点半径，当前接口使用
+统一的 `mission_waypoint_switch_distance`（默认 `1.0 m`）。核心 FSM 仍保留原生
+`traj_finish && closeToGoal(0.1)` 状态转换；队列不把这个内部轨迹终态误作 mission 切点。
+无效目标或紧急停止仍由 FSM 显式上报为 mission 失败。该 switch 参数属于 SUPER 的任务消费
+协议，不是 flight_eval evaluator 的位置推进阈值。
 
 任务名只接受表中的正式名称；不保留旧别名。
 
@@ -419,7 +430,7 @@ python3 -m flight_eval run \
 `integrated` 中：
 
 - 高亮任务完成性、控制跟踪和系统执行结果
-- `discrete*` 和 `plan_mission` 会报告独立的 `task_outcome`、完成时间和最终目标距离
+- `discrete*` 和两类 mission 会报告独立的 `task_outcome`、完成时间和最终目标距离
 - `discrete*` 同时保留规划输出计数和几何质量
 
 ## 运行流程
@@ -467,7 +478,7 @@ task_outcome:
 ```
 
 `run_status=completed` 只表示启动、录包、清理和结果保存流程正常走完。定时型任务没有天然
-终点，`task_outcome=not_applicable`；`discrete*` 和 `plan_mission` 把 `duration` 作为期限，
+终点，`task_outcome=not_applicable`；`discrete*` 和两类 mission 把 `duration` 作为期限，
 在期限内完成整条 Path 为 `succeeded`，超时为 `not_succeeded`，缺少 Path/odom 等证据时为 `unknown`。
 EMERGENCY 不会被伪装成 Runner 故障：制品仍可正常保存时 `run_status=completed`，有限终点
 任务的 `task_outcome=not_succeeded`。
@@ -493,7 +504,7 @@ controller 必须按统一状态码发布：`0=WAITING_FOR_CONNECTED`、`1=WAITI
 - `hover`：直接以 mission 状态起点为准
 - `analytic*`：以第一条参考/规划输出为起点
 - `discrete*`：优先使用 trigger / waypoint / planner output 这些任务信号
-- `plan_mission`：优先使用 trigger / waypoint / planner output 这些任务信号
+- 两类 mission：优先使用 trigger / waypoint / planner output 这些任务信号
 
 如果一直没有任务信号，则判定 `execution_started = false`。若发生 `EMERGENCY`，阶段会在触发时截断。
 
@@ -519,7 +530,7 @@ controller 必须按统一状态码发布：`0=WAITING_FOR_CONNECTED`、`1=WAITI
 重叠采样；不会从控制参考或实际飞行轨迹回退补齐生成轨迹。Waypoint 距离是 waypoint
 到生成轨迹连续折线的最短欧氏距离，不使用硬编码“命中”容差。
 
-有限终点任务 `discrete*` 和 `plan_mission` 会额外包含：
+有限终点任务 `discrete*` 和两类 mission 会额外包含：
 
 - `task_outcome`（独立于指标）
 - `completion_time`（成功时）
@@ -561,18 +572,21 @@ controller 必须按统一状态码发布：`0=WAITING_FOR_CONNECTED`、`1=WAITI
 /mavros/state
 ```
 
-框架按 `kind` 自动录制 controller 的 `/flight_state` 或 planner 的 `/planner/output`，
+框架按 `kind` 自动录制 controller 的 `/flight_state`，或 planner 的 `/planner/output` 与
+`/planner/mission_state`，
 再叠加 Task 自己的输入 topic、manifest 的 `record_topics` 和命令行 `--extra-topics`
 （runner 会去重）：
 
 - controller benchmark launch 必须发布 `/flight_state` (`std_msgs/Int8`)
 - planner benchmark launch 必须发布 `/planner/output` (`opendrone/PlannerOutput`)
+- mission 类 planner benchmark launch 必须由任务队列/FSM 的所有者直接发布
+  `/planner/mission_state` (`opendrone/MissionState`)
 - 路径类 Task 使用 `/waypoint_generator/waypoints` (`nav_msgs/Path`) 作为原始任务定义
 
 Path 的 `header.frame_id` 必须与 `/mavros/local_position/odom.header.frame_id` 使用同一局部
 ENU 坐标系。当前 SITL 两者均为 `map`；部分 planner 内部使用 `world`，由现有零偏移静态 TF
-完成接入，但通用 evaluator 不猜测或隐式变换 frame。两者显式不一致时任务结果为
-`unknown / frame_mismatch`。
+完成接入。flight_eval evaluator 不使用几何阈值推进任务；规划器内部可按自身原生切点条件
+产生 MissionState，评测端的坐标数据只用于诊断和轨迹指标。
 - `--extra-topics`
 
 `tasks.py` 定义任务语义、阶段、任务协议话题和固定指标组合；指标的具体数据来源会写入报告，
@@ -603,7 +617,7 @@ algorithms:
     args:
       sensor: depth_camera
     tasks:
-      - plan_mission
+      - sequential_goal_mission
     record_topics:
       - /my_planner/diagnostics
 ```
@@ -620,7 +634,7 @@ manifest。
 python3 -m flight_eval run \
   --manifest /path/to/my_package/flight_eval.yaml \
   --controller my_controller \
-  --planner my_planner_depth --task plan_mission
+  --planner my_planner_depth --task sequential_goal_mission
 ```
 
 批次 YAML 在根对象的 `manifests` 列表中加载；相对路径以批次 YAML 所在目录为基准。
@@ -632,8 +646,12 @@ python3 -m flight_eval run \
 absolute_desired_time = trajectory_start_time + point.time_from_start
 ```
 
-公共消息只包含 `header`、`trajectory_id`、`is_horizon`、`trajectory_start_time` 和
-`points`。`is_horizon=true` 表示新消息替代旧滚动窗口；否则多点表示同一轨迹的时间序列，
+`PlannerOutput` 只描述局部轨迹，`trajectory_status` 不能代替 waypoint 或 mission 完成。
+任务生命周期使用独立的 `MissionState`：`mission_type` 区分逐目标与参考路径语义，
+`completed_items/total_items` 必须单调一致，只有匹配当前任务的 `STATUS_SUCCEEDED` 才能结束
+评测。每个评测 case 只接受一个 active mission；adapter 不得从轨迹 ID、位置或控制命令推断
+任务进度。
+`is_horizon=true` 表示新消息替代旧滚动窗口；否则多点表示同一轨迹的时间序列，
 单点在下一条消息到来前保持有效。原始 B-spline、多项式、算法 id、算法分类和 debug 数据
 属于算法诊断 topic，不进入公共控制协议。原算法输出格式不同时，在 benchmark launch 中
 加入 adapter，把它采样为 `PlannerOutputPoint[]`。
@@ -702,10 +720,10 @@ python3 -m flight_eval run \
   --task discrete_figure8 \
   --planner fast_planner_topo
 
-# 4) plan_mission
+# 4) sequential_goal_mission
 python3 -m flight_eval run \
   --controller mav_nonlinear_mpc \
-  --task plan_mission \
+  --task sequential_goal_mission \
   --planner super_planner_od \
   --no-land
 
@@ -713,7 +731,7 @@ python3 -m flight_eval run \
 python3 -m flight_eval analyze \
   --bag eval_runs/example/flight_test.bag \
   --controller se3_hopf \
-  --task plan_mission
+  --task sequential_goal_mission
 
 ```
 
@@ -721,6 +739,6 @@ python3 -m flight_eval analyze \
 
 - `flight_eval` 当前已经默认站在“全面转 `/planner/output`”的协议上，不再围绕 `/command/trajectory` 做兼容设计。
 - 如果你要新增 controller-only 的解析参考任务，推荐复用 `analytic_reference_publisher.py`，而不是让 planner 重建解析轨迹。
-- `plan_mission` 由任务 profile 默认注入 `use_preset_waypoints:=true`、`auto_trigger_waypoints:=true`
+- 两类 mission 都由任务 profile 默认注入 `use_preset_waypoints:=true`、`auto_trigger_waypoints:=true`
   和有限任务所需的 `waypoint_type:=manual`；`--planner-arg` 可显式覆盖同名值。
 - 当前预设航点和解析参考都默认以无人机当前位置为起点。

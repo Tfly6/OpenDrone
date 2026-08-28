@@ -15,6 +15,7 @@ namespace ego_planner
     /*  fsm param  */
     nh.param("fsm/flight_type", target_type_, -1);
     nh.param("fsm/thresh_replan_time", replan_thresh_, -1.0);
+    nh.param("fsm/thresh_no_replan_meter", no_replan_thresh_, -1.0);
     nh.param("fsm/planning_horizon", planning_horizen_, -1.0);
     nh.param("fsm/emergency_time", emergency_time_, 1.0);
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
@@ -57,6 +58,8 @@ namespace ego_planner
     data_disp_pub_ = nh.advertise<quadrotor_msgs::DataDisp>("planning/data_display", 100);
     heartbeat_pub_ = nh.advertise<std_msgs::Empty>("planning/heartbeat", 10);
     ground_height_pub_ = nh.advertise<std_msgs::Float64>("/ground_height_measurement", 10);
+    mission_state_pub_ = nh.advertise<opendrone::MissionState>(
+        "/planner/mission_state", 1, true);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
@@ -189,6 +192,10 @@ namespace ego_planner
                (final_goal_ - pos).norm() < no_replan_thresh_) // case 2: assign the next waypoint
       {
         wpt_id_++;
+        mission_state_pub_.publish(opendrone::MakeMissionState(
+            mission_frame_,
+            opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+            opendrone::MissionState::STATUS_ACTIVE, wpt_id_, waypoint_num_));
         planNextWaypoint(wps_[wpt_id_]);
       }
       else if ((t_cur > info->duration - 1e-2) && touch_the_goal) // case 3: the final waypoint reached
@@ -198,7 +205,13 @@ namespace ego_planner
 
         if (target_type_ == TARGET_TYPE::PRESET_TARGET)
         {
-          // prepare for next round
+          mission_state_pub_.publish(opendrone::MakeMissionState(
+              mission_frame_,
+              opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+              opendrone::MissionState::STATUS_SUCCEEDED,
+              waypoint_num_, waypoint_num_));
+          // Preserve EGOv2's native cyclic preset-path behavior. The event
+          // reports one completed pass without changing the planner policy.
           wpt_id_ = 0;
           planNextWaypoint(wps_[wpt_id_]);
         }
@@ -615,6 +628,10 @@ namespace ego_planner
 
     waypoint_num_ = static_cast<int>(wps_.size());
     wpt_id_ = 0;
+    mission_frame_ = msg->header.frame_id;
+    mission_state_pub_.publish(opendrone::MakeMissionState(
+        mission_frame_, opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+        opendrone::MissionState::STATUS_ACTIVE, 0, waypoint_num_));
 
     for (size_t i = 0; i < wps_.size(); i++)
     {

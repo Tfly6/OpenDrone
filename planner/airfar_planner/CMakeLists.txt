@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   pcl_ros
   message_generation
+  opendrone
 )
 
 find_package(PCL REQUIRED)
@@ -43,7 +44,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_runtime
+  CATKIN_DEPENDS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_runtime opendrone
 )
 
 ###########

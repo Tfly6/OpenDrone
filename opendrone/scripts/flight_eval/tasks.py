@@ -12,10 +12,12 @@ from .outcomes import (
     MISSION_GOAL_DWELL_TIME,
     MISSION_GOAL_TOLERANCE,
     MISSION_PATH_TOPIC,
+    MISSION_TYPE_REFERENCE_PATH,
+    MISSION_TYPE_SEQUENTIAL_GOAL,
+    MissionStateEvaluator,
     NoOutcomeEvaluator,
     PathGoalEvaluator,
     TRAJECTORY_TRIGGER_TOPIC,
-    WaypointSequenceEvaluator,
 )
 
 
@@ -405,19 +407,8 @@ class DiscreteTrajectoryTaskBase(PresetTrajectoryTask):
         )
 
 
-class PlanMissionTask(TaskBase):
-    """Integrated obstacle-environment mission."""
-
-    @property
-    def name(self) -> str:
-        return 'plan_mission'
-
-    @property
-    def description(self) -> str:
-        return (
-            f'障碍环境整链路任务: 起飞到 {self.takeoff_height}m 后在 '
-            f'{self.duration}s 期限内按顺序到达全部航点'
-        )
+class IntegratedMissionTaskBase(TaskBase):
+    """Shared orchestration and metrics for obstacle-environment missions."""
 
     def get_hover_height(self) -> float:
         return self.takeoff_height
@@ -454,12 +445,6 @@ class PlanMissionTask(TaskBase):
     def has_terminal_outcome(self) -> bool:
         return True
 
-    def create_outcome_evaluator(self):
-        return WaypointSequenceEvaluator(
-            goal_tolerance=MISSION_GOAL_TOLERANCE,
-            dwell_time=MISSION_GOAL_DWELL_TIME,
-        )
-
     def compute_metrics(self, calculator, phase_data: Dict, full_data: Dict) -> List:
         """计算 mission 型整链路任务指标。"""
         metrics = []
@@ -483,6 +468,42 @@ class PlanMissionTask(TaskBase):
         metrics.extend(self.compute_explicit_tracking_metrics(calculator, phase_data))
 
         return metrics
+
+
+class SequentialGoalMissionTask(IntegratedMissionTaskBase):
+    """A Path consumed by the planner as an ordered active-goal sequence."""
+
+    @property
+    def name(self) -> str:
+        return 'sequential_goal_mission'
+
+    @property
+    def description(self) -> str:
+        return (
+            f'顺序目标任务: 起飞到 {self.takeoff_height}m 后在 '
+            f'{self.duration}s 期限内按规划器原生语义依次消费全部目标'
+        )
+
+    def create_outcome_evaluator(self):
+        return MissionStateEvaluator(MISSION_TYPE_SEQUENTIAL_GOAL)
+
+
+class ReferencePathMissionTask(IntegratedMissionTaskBase):
+    """A continuous global Path whose intermediate poses are pass-through references."""
+
+    @property
+    def name(self) -> str:
+        return 'reference_path_mission'
+
+    @property
+    def description(self) -> str:
+        return (
+            f'连续参考路径任务: 起飞到 {self.takeoff_height}m 后在 '
+            f'{self.duration}s 期限内连续执行整条 Path'
+        )
+
+    def create_outcome_evaluator(self):
+        return MissionStateEvaluator(MISSION_TYPE_REFERENCE_PATH)
 
 
 class AnalyticReferenceTaskBase(PresetTrajectoryTask):
@@ -725,7 +746,8 @@ class AnalyticSpiralTrajectoryTask(AnalyticReferenceTaskBase):
 
 TASK_REGISTRY = {
     'hover': HoverTask,
-    'plan_mission': PlanMissionTask,
+    'sequential_goal_mission': SequentialGoalMissionTask,
+    'reference_path_mission': ReferencePathMissionTask,
     'discrete_circle': DiscreteCircleTrajectoryTask,
     'discrete_figure8': DiscreteFigure8TrajectoryTask,
     'analytic_circle': AnalyticCircleTrajectoryTask,
