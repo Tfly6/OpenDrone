@@ -68,6 +68,8 @@ void TopoReplanFSM::init(ros::NodeHandle& nh) {
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 20);
   new_pub_     = nh.advertise<std_msgs::Empty>("/planning/new", 20);
   bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("/planning/bspline", 20);
+  mission_state_pub_ =
+      nh.advertise<opendrone::MissionState>("/planner/mission_state", 1, true);
 }
 
 void TopoReplanFSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr& msg) {
@@ -123,6 +125,7 @@ void TopoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
   cout << "Triggered!" << endl;
 
   vector<Eigen::Vector3d> global_wp;
+  mission_frame_ = msg->header.frame_id;
   for (int i = 0; i < msg->poses.size(); ++i) {
     Eigen::Vector3d pt;
     pt(0) = msg->poses[i].pose.position.x;
@@ -135,6 +138,9 @@ void TopoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
   end_vel_.setZero();
   have_target_ = true;
   trigger_     = true;
+  mission_state_pub_.publish(opendrone::MakeMissionState(
+      mission_frame_, opendrone::MissionState::TYPE_REFERENCE_PATH,
+      opendrone::MissionState::STATUS_ACTIVE, 0, 1));
 
   if (exec_state_ == WAIT_TARGET) {
     changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
@@ -244,6 +250,10 @@ void TopoReplanFSM::execFSMCallback(const ros::TimerEvent& e) {
 
       if (t_cur > global_data->global_duration_ - 1e-2) {
         have_target_ = false;
+        mission_state_pub_.publish(opendrone::MakeMissionState(
+            mission_frame_,
+            opendrone::MissionState::TYPE_REFERENCE_PATH,
+            opendrone::MissionState::STATUS_SUCCEEDED, 1, 1));
         changeFSMExecState(WAIT_TARGET, "FSM");
         return;
 
@@ -425,7 +435,7 @@ bool TopoReplanFSM::callTopologicalTraj(int step) {
     quadrotor_msgs::Bspline bspline;
     bspline.order      = 3;
     bspline.start_time = locdat->start_time_;
-    bspline.traj_id    = locdat->traj_id_;
+    bspline.traj_id = locdat->traj_id_;
 
     Eigen::MatrixXd pos_pts = locdat->position_traj_.getControlPoint();
 

@@ -12,6 +12,7 @@
 #include "graph_msger.h"
 #include <deque>
 #include <stdexcept>
+#include <opendrone/mission_state_utils.h>
 
 
 struct DPMasterParams {
@@ -52,7 +53,7 @@ private:
     ros::NodeHandle pnh;
     ros::Subscriber reset_graph_sub_;
     ros::Subscriber odom_sub_, terrain_sub_, terrian_local_sub_, scan_sub_, target_sub_, reach_goal_sub_;
-    ros::Publisher  goal_pub_;
+    ros::Publisher  goal_pub_, mission_state_pub_;
     ros::Publisher  vertices_PCL_pub_, obs_world_pub_, new_PCL_pub_;
     ros::Publisher  dynamic_obs_pub_, surround_free_debug_, surround_obs_debug_, scan_grid_debug_, ground_pc_debug_;
 
@@ -61,7 +62,13 @@ private:
     Point3D robot_pos_, robot_heading_, nav_heading_, nav_goal_;
     int target_type_{TARGET_TYPE::RVIZ_TARGET};
     std::deque<geometry_msgs::PointStamped> queued_waypoints_;
-    bool is_waypoint_queue_active_{false};
+    nav_msgs::Path last_mission_path_;
+    std::size_t mission_waypoint_count_{0};
+    std::string mission_frame_;
+    bool has_last_mission_path_{false};
+    bool is_waypoint_mission_active_{false};
+    bool has_active_queued_waypoint_{false};
+    bool reach_status_latched_{false};
     geometry_msgs::PointStamped pending_goal_;
     bool is_pending_goal_{false};
     bool pending_goal_is_free_nav_{false};
@@ -142,6 +149,7 @@ private:
     bool DispatchPendingGoal();
     void ClearWaypointQueue();
     bool DispatchNextQueuedWaypoint();
+    bool IsSameMissionPath(const nav_msgs::Path& candidate) const;
 
     void ExtractDynamicObsFromScan(const PointCloudPtr& scanCloudIn, 
                                    const PointCloudPtr& obsCloudIn, 

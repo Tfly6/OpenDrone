@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
   mavros_msgs
+  nav_msgs
   roscpp
   rospy
   sensor_msgs
@@ -19,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
+  MissionState.msg
   PlannerOutput.msg
   PlannerOutputPoint.msg
 )
@@ -34,7 +36,7 @@ catkin_package(
 #  LIBRARIES opendrone
 #  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp rospy std_msgs trajectory_msgs message_runtime
 #  DEPENDS system_lib
-  CATKIN_DEPENDS geometry_msgs mavros_msgs message_runtime roscpp rospy sensor_msgs std_msgs std_srvs trajectory_msgs tf2_ros tf2_sensor_msgs pcl_ros
+  CATKIN_DEPENDS geometry_msgs mavros_msgs message_runtime nav_msgs roscpp rospy sensor_msgs std_msgs std_srvs trajectory_msgs tf2_ros tf2_sensor_msgs pcl_ros
 )
 
 include_directories(

@@ -2,9 +2,12 @@ fsm:
   click_goal_en: true
   click_height: 1.5
   click_yaw_en: true
-  mission_goal_force_new_threshold: 1.5
   replan_rate: 15.0
   timer_en: true
+  # The original SUPER mission_planner advances a waypoint when odometry enters
+  # its switch sphere. Path messages do not carry per-waypoint radii, so this
+  # integration uses the original benchmark data's 1.0 m value uniformly.
+  mission_waypoint_switch_distance: 1.0
 
 super_planner:
   backup_traj_en: true

@@ -133,6 +133,7 @@ class BagAnalyzer:
         thrusts = []
         thrust_times = []
         planner_reference_windows = []
+        planner_mission_states = []
         planner_output_positions = []
         planner_output_message_times = []
         planner_output_times = []
@@ -140,8 +141,6 @@ class BagAnalyzer:
         waypoint_positions = []
         waypoint_times = []
         mission_paths = []
-        mission_goal_positions = []
-        mission_goal_times = []
         trigger_times = []
         flight_states = []
         flight_state_times = []
@@ -225,8 +224,21 @@ class BagAnalyzer:
                         'trajectory_start_time': traj_start_time,
                         'is_horizon': bool(getattr(msg, 'is_horizon', False)),
                         'is_single': len(window_points) == 1,
+                        'trajectory_status': int(
+                            getattr(msg, 'trajectory_status', 1) or 0
+                        ),
                         'points': window_points,
                     })
+
+            elif topic == self.planner_topics.get('mission_state'):
+                planner_mission_states.append({
+                    'message_time': stamp,
+                    'mission_type': int(msg.mission_type),
+                    'status': int(msg.status),
+                    'completed_items': int(msg.completed_items),
+                    'total_items': int(msg.total_items),
+                    'detail': str(msg.detail or ''),
+                })
 
             elif topic == MISSION_PATH_TOPIC:
                 path_positions = []
@@ -244,11 +256,6 @@ class BagAnalyzer:
 
             elif topic == TRAJECTORY_TRIGGER_TOPIC:
                 trigger_times.append(stamp)
-
-            elif topic == self.planner_topics.get('mission_goal'):
-                p = msg.pose.position
-                mission_goal_positions.append([p.x, p.y, p.z])
-                mission_goal_times.append(stamp)
 
             elif topic == self.controller_topics['flight_state']:
                 flight_states.append(msg.data)
@@ -280,6 +287,7 @@ class BagAnalyzer:
             'reference_yaws': reference['yaws'],
             'reference_valid_masks': reference['valid_masks'],
             'planner_output_windows': planner_reference_windows,
+            'planner_mission_states': planner_mission_states,
             'planner_trajectories': self._deduplicate_planner_trajectories(planner_reference_windows),
             'planner_output_positions': np.array(planner_output_positions) if planner_output_positions else np.empty((0, 3)),
             'planner_output_times': np.array(planner_output_times) if planner_output_times else np.empty(0),
@@ -288,8 +296,6 @@ class BagAnalyzer:
             'waypoint_positions': np.array(waypoint_positions) if waypoint_positions else np.empty((0, 3)),
             'waypoint_times': np.array(waypoint_times) if waypoint_times else np.empty(0),
             'mission_paths': mission_paths,
-            'mission_goal_positions': np.array(mission_goal_positions) if mission_goal_positions else np.empty((0, 3)),
-            'mission_goal_times': np.array(mission_goal_times) if mission_goal_times else np.empty(0),
             'trigger_times': np.array(trigger_times) if trigger_times else np.empty(0),
             'flight_states': np.array(flight_states) if flight_states else np.empty(0),
             'flight_state_times': np.array(flight_state_times) if flight_state_times else np.empty(0),
@@ -606,7 +612,6 @@ class BagAnalyzer:
             candidates = [
                 self._first_time_after(data.get('trigger_times', np.empty(0)), mission_start),
                 self._first_time_after(data.get('waypoint_times', np.empty(0)), mission_start),
-                self._first_time_after(data.get('mission_goal_times', np.empty(0)), mission_start),
                 self._first_time_after(data.get('planner_output_message_times', np.empty(0)), mission_start),
             ]
         else:
@@ -662,6 +667,7 @@ class BagAnalyzer:
         positions = phase_data.get('positions', np.empty((0, 3)))
         position_times = phase_data.get('position_times', np.empty(0))
         position_frames = phase_data.get('position_frames', np.empty(0, dtype=object))
+        velocities = phase_data.get('velocities', np.empty((0, 3)))
         if len(position_frames) != len(position_times):
             position_frames = np.array([''] * len(position_times), dtype=object)
 
@@ -676,31 +682,89 @@ class BagAnalyzer:
                 frame_id=str(latest.get('frame_id', '') or ''),
             )
         evaluator.start(start_time)
+        earlier_states = [
+            state for state in data.get('planner_mission_states', [])
+            if float(state.get('message_time', 0.0)) <= start_time
+        ]
+        if earlier_states and hasattr(evaluator, 'notify_mission_state'):
+            latest_state = max(
+                earlier_states,
+                key=lambda state: float(state.get('message_time', 0.0)),
+            )
+            evaluator.notify_mission_state(
+                start_time,
+                mission_type=int(latest_state.get('mission_type', 0) or 0),
+                status=int(latest_state.get('status', 0) or 0),
+                completed_items=int(latest_state.get('completed_items', 0) or 0),
+                total_items=int(latest_state.get('total_items', 0) or 0),
+                detail=str(latest_state.get('detail', '') or ''),
+            )
 
         events = [
             (
                 float(path.get('time', 0.0)),
                 0,
-                (path.get('positions', []), str(path.get('frame_id', '') or '')),
+                (
+                    path.get('positions', []),
+                    str(path.get('frame_id', '') or ''),
+                ),
             )
             for path in paths
             if float(path.get('time', 0.0)) > start_time
         ]
         events.extend(
-            (float(stamp), 1, (position, str(frame_id or '')))
-            for stamp, position, frame_id in zip(
+            (
+                float(stamp), 1,
+                (
+                    position,
+                    str(frame_id or ''),
+                    float(np.linalg.norm(velocity)),
+                ),
+            )
+            for stamp, position, frame_id, velocity in zip(
                 position_times,
                 positions,
                 position_frames,
+                velocities,
             )
         )
-        for stamp, kind, payload in sorted(events, key=lambda item: (item[0], item[1])):
+        if hasattr(evaluator, 'notify_mission_state'):
+            for state in data.get('planner_mission_states', []):
+                stamp = float(state.get('message_time', 0.0))
+                if stamp <= start_time or stamp > end_time:
+                    continue
+                events.append((stamp, 2, (
+                    int(state.get('mission_type', 0) or 0),
+                    int(state.get('status', 0) or 0),
+                    int(state.get('completed_items', 0) or 0),
+                    int(state.get('total_items', 0) or 0),
+                    str(state.get('detail', '') or ''),
+                )))
+        events.sort(key=lambda item: (item[0], item[1]))
+
+        completion_count = 0
+        for stamp, kind, payload in events:
             if kind == 0:
-                evaluator.update_path(payload[0], stamp, frame_id=payload[1])
+                evaluator.update_path(
+                    payload[0], stamp, frame_id=payload[1],
+                )
+            elif kind == 2:
+                evaluator.notify_mission_state(
+                    stamp,
+                    mission_type=payload[0],
+                    status=payload[1],
+                    completed_items=payload[2],
+                    total_items=payload[3],
+                    detail=payload[4],
+                )
+                completion_count += 1
             else:
-                evaluator.update_position(payload[0], stamp, frame_id=payload[1])
+                evaluator.update_position(
+                    payload[0], stamp, frame_id=payload[1], speed=payload[2],
+                )
             if evaluator.terminal:
-                return evaluator.outcome
+                break
+        self._last_completion_count = completion_count
 
         if phase_data.get('emergency_occurred', False):
             return evaluator.emergency(end_time)
@@ -818,6 +882,19 @@ class BagAnalyzer:
             ),
         ]
         evidence = task_outcome.evidence
+        completion_events = int(evidence.get('planner_state_updates', 0) or 0)
+        metrics.append(MetricResult(
+            name='planner_mission_state_count',
+            description='规划器上报任务状态次数',
+            value=float(completion_events),
+            unit='count',
+            group='outcome',
+            source='/planner/mission_state',
+            detail={
+                'rejected_state_count': evidence.get('rejected_planner_state_updates'),
+                'last_state_time': evidence.get('last_planner_state_time'),
+            },
+        ))
         collision_summary = self.run_metadata.get('collision_summary', {})
         if isinstance(collision_summary, dict):
             collision_count = collision_summary.get('episode_count')
@@ -849,6 +926,11 @@ class BagAnalyzer:
             ))
         final_distance = evidence.get('final_goal_distance')
         if final_distance is not None:
+            mission_detection = (
+                'planner_mission_state'
+                if completion_events > 0
+                else 'none'
+            )
             metrics.append(MetricResult(
                 name='final_goal_distance',
                 description='任务结束时距最终目标距离',
@@ -859,6 +941,7 @@ class BagAnalyzer:
                 detail={
                     'goal_tolerance': evidence.get('goal_tolerance'),
                     'remaining_path': evidence.get('remaining_path'),
+                    'mission_detection': mission_detection,
                 },
             ))
         return metrics

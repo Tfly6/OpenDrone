@@ -42,6 +42,7 @@
             <param name="adapter_type" value="bspline"/>
             <param name="input_topic" value="/drone_0_planning/bspline"/>
             <param name="planner_output_topic" value="/planner/output"/>
+            <param name="position_command_topic" value="/drone_0_planning/pos_cmd"/>
             <param name="publish_horizon_on_timer" value="true"/>
             <param name="horizon_points" value="60"/>
             <param name="sample_dt" value="0.02"/>

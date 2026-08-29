@@ -9,6 +9,7 @@
   <arg name="lidar_topic" default="/livox/lidar" />
   <arg name="lidar_frame" default="livox_link" />
   <arg name="super_cfg" default="$(find super_planner_od)/config/click_smooth_px4.yaml" />
+  <arg name="mission_waypoint_switch_distance" default="0.4" />
   <include file="$(find opendrone)/launch/sitl_super_planner_od.launch">
     <arg name="publish_horizon_reference" value="$(arg publish_horizon_reference)" />
     <arg name="use_preset_waypoints" value="$(arg use_preset_waypoints)" />
@@ -20,5 +21,6 @@
     <arg name="lidar_topic" value="$(arg lidar_topic)" />
     <arg name="lidar_frame" value="$(arg lidar_frame)" />
     <arg name="super_cfg" value="$(arg super_cfg)" />
+    <arg name="mission_waypoint_switch_distance" value="$(arg mission_waypoint_switch_distance)" />
   </include>
 </launch>

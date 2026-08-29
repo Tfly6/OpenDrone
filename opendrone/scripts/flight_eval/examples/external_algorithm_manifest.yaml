@@ -17,7 +17,7 @@ algorithms:
     args:
       sensor: depth_camera
     tasks:
-      - plan_mission
+      - sequential_goal_mission
     record_topics:
       - /my_planner/diagnostics
 
@@ -29,4 +29,4 @@ algorithms:
     args:
       sensor: mid360
     tasks:
-      - plan_mission
+      - reference_path_mission

@@ -134,12 +134,20 @@ namespace fsm {
                     ChangeState("MainFsmCallback", WAIT_GOAL);
                     gi_.new_goal = false;
                     finish_plan = true;
+                    reportGoalTerminal(
+                            GOAL_TERMINAL_STATE::REACHED,
+                            "goal_reached_before_trajectory_generation");
                     return;
                 }
                 int retcode = planner_ptr_->PlanFromRest(gi_.goal_p, gi_.goal_yaw, gi_.new_goal);
                 if (!planner_ptr_->goalValid()) {
                     cout << YELLOW << " -- [Fsm] Goal is invalid, skip this goal." << RESET << endl;
                     ChangeState("MainFsmCallback", WAIT_GOAL);
+                    gi_.new_goal = false;
+                    finish_plan = true;
+                    reportGoalTerminal(
+                            GOAL_TERMINAL_STATE::INVALID,
+                            "planner_reported_invalid_goal");
                     return;
                 }
                 if (retcode == SUCCESS || retcode == FINISH) {
@@ -166,6 +174,10 @@ namespace fsm {
             }
             case EMER_STOP: {
                 ChangeState("MainFsmCallback", WAIT_GOAL);
+                gi_.new_goal = false;
+                finish_plan = true;
+                reportGoalTerminal(GOAL_TERMINAL_STATE::FAILED,
+                                   "planner_entered_emergency_stop");
                 break;
             }
             default:
@@ -181,11 +193,35 @@ namespace fsm {
         return dis < thresh_dis;
     }
 
-    bool Fsm::setGoalPosiAndYaw(const Vec3f &p,
-                                const Quatf &q,
-                                bool apply_click_height,
-                                bool mark_new_goal,
-                                bool log_goal) {
+    void Fsm::handleTrajectoryFinished(const string &call_func) {
+        if (machine_state_ != FOLLOW_TRAJ) {
+            return;
+        }
+        if (closeToGoal(0.1)) {
+            ChangeState(call_func, WAIT_GOAL);
+            gi_.new_goal = false;
+            finish_plan = true;
+            reportGoalTerminal(GOAL_TERMINAL_STATE::REACHED,
+                               "trajectory_finished_at_goal");
+        } else {
+            ChangeState(call_func, GENERATE_TRAJ);
+        }
+    }
+
+    void Fsm::reportGoalTerminal(const GOAL_TERMINAL_STATE state,
+                                 const string &detail) {
+        if (goal_terminal_reported_.exchange(true)) {
+            return;
+        }
+        onGoalTerminal(state, detail);
+    }
+
+    Fsm::GOAL_SUBMISSION_RESULT Fsm::setGoalPosiAndYaw(
+            const Vec3f &p,
+            const Quatf &q,
+            bool apply_click_height,
+            bool mark_new_goal,
+            bool log_goal) {
 
         auto click_point = p;
         if (apply_click_height && cfg_.click_height > -5) {
@@ -196,13 +232,13 @@ namespace fsm {
             cout << GREEN << " -- [Fsm] Get goal at " << RESET << gi_.goal_p.transpose() << endl;
         } else {
             fmt::print(fg(fmt::color::indian_red), "Goal is deeply occupied, skip this goal.\n");
-            return false;
+            return GOAL_SUBMISSION_RESULT::INVALID;
         }
 
         if ((robot_state_.p - gi_.goal_p).norm() <
             0.1) {
             //                print(fg(color::gray), " -- [Rviz] Too close to goal, skip this target.\n");
-            return false;
+            return GOAL_SUBMISSION_RESULT::ALREADY_REACHED;
         }
 
         if (cfg_.click_yaw_en) {
@@ -231,7 +267,8 @@ namespace fsm {
         started_ = true;
         gi_.new_goal = mark_new_goal;
         finish_plan = false;
-        return true;
+        goal_terminal_reported_.store(false);
+        return GOAL_SUBMISSION_RESULT::ACCEPTED;
     }
 
     void Fsm::ChangeState(const string &call_func, const MACHINE_STATE &new_state) {

@@ -36,6 +36,10 @@ inline double SelectYawRate(const PlannerOutputPoint& point) {
   return HasField(point, PlannerOutputPoint::VALID_YAW_RATE) ? point.yaw_rate : 0.0;
 }
 
+inline uint8_t SelectTrajectoryStatus(const PlannerOutput& output) {
+  return output.trajectory_status;
+}
+
 inline Eigen::Vector3d SelectPosition(const PlannerOutputPoint& point,
                                       const Eigen::Vector3d& fallback = Eigen::Vector3d::Zero()) {
   return HasField(point, PlannerOutputPoint::VALID_POSITION) ? ToEigen(point.position) : fallback;

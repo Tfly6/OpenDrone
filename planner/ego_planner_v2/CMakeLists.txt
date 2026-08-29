@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   quadrotor_msgs
+  opendrone
   # plan_env
   # path_searching
   # traj_opt
@@ -30,7 +31,7 @@ find_package(catkin REQUIRED COMPONENTS
 # catkin_package(CATKIN_DEPENDS message_runtime)
 catkin_package(
  LIBRARIES ego_planner_v2
- CATKIN_DEPENDS  message_runtime
+ CATKIN_DEPENDS  message_runtime opendrone
 #  DEPENDS system_lib
 )
 
@@ -83,6 +84,7 @@ set(SOURCES
   src/traj_utils/planning_visualization.cpp
 )
 add_executable(ego_planner_node_v2 ${SOURCES})
+add_dependencies(ego_planner_node_v2 ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ego_planner_node_v2
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -120,4 +122,3 @@ add_executable(traj2odom_node
 target_link_libraries(traj2odom_node 
   ${catkin_LIBRARIES}
   )
-

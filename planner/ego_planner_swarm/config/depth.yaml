@@ -57,7 +57,7 @@ grid_map:
   p_occ: 0.80
   min_ray_length: 0.1
   max_ray_length: 4.5
-  virtual_ceil_height: 5.0
+  virtual_ceil_height: 6.5
   visualization_truncate_height: 1.8
   show_occ_time: false
 

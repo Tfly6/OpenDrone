@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <queue>
 #include <memory>
 #include <fstream>
@@ -91,6 +92,21 @@ namespace fsm {
 
         MACHINE_STATE machine_state_{INIT};
 
+        // Goal lifecycle is owned by the native FSM. Integration layers may
+        // observe these results, but must not reconstruct them from odometry
+        // or trajectory timing.
+        enum class GOAL_TERMINAL_STATE {
+            REACHED,
+            INVALID,
+            FAILED,
+        };
+
+        enum class GOAL_SUBMISSION_RESULT {
+            ACCEPTED,
+            ALREADY_REACHED,
+            INVALID,
+        };
+
 
     public:
         Fsm() = default;
@@ -148,6 +164,7 @@ namespace fsm {
         double system_start_time_;
 
         bool traj_finish_{false};
+        std::atomic<bool> goal_terminal_reported_{false};
 
         void WriteTimeToLog();
 
@@ -157,11 +174,23 @@ namespace fsm {
 
         bool closeToGoal(const double &thresh_dis);
 
-        bool setGoalPosiAndYaw(const Vec3f &p,
-                               const Quatf &q,
-                               bool apply_click_height = true,
-                               bool mark_new_goal = true,
-                               bool log_goal = true);
+        GOAL_SUBMISSION_RESULT setGoalPosiAndYaw(
+                const Vec3f &p,
+                const Quatf &q,
+                bool apply_click_height = true,
+                bool mark_new_goal = true,
+                bool log_goal = true);
+
+        void handleTrajectoryFinished(const string &call_func);
+
+        void reportGoalTerminal(const GOAL_TERMINAL_STATE state,
+                                const string &detail);
+
+        virtual void onGoalTerminal(const GOAL_TERMINAL_STATE state,
+                                    const string &detail) {
+            (void) state;
+            (void) detail;
+        }
 
         void ChangeState(const string &call_func, const MACHINE_STATE &new_state);
 

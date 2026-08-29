@@ -8,6 +8,8 @@
 
 #include "airfar_planner/airfar_planner.h"
 
+#include <cmath>
+
 /***************************************************************************************/
 
 void DPMaster::Init() {
@@ -40,6 +42,8 @@ void DPMaster::Init() {
   reach_goal_sub_    = nh.subscribe("/far_reach_goal_status", 5, &DPMaster::ReachGoalStatusCallBack, this);
   terrian_local_sub_ = nh.subscribe("/terrain_local_cloud", 1, &DPMaster::TerrainLocalCallBack, this);
   goal_pub_ = nh.advertise<geometry_msgs::PointStamped>("/way_point",5);
+  mission_state_pub_ = nh.advertise<opendrone::MissionState>(
+      "/planner/mission_state", 1, true);
 
   vertices_PCL_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/vertics",5);
   obs_world_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/dynamic_obs_world",1);
@@ -141,6 +145,10 @@ void DPMaster::Loop() {
       this->ResetEnvironmentAndGraph(); 
       is_reset_env_ = false;
       ROS_WARN("**************************** Graph and Env Reset **********************************");
+    }
+    if (is_waypoint_mission_active_ && !has_active_queued_waypoint_ &&
+        !queued_waypoints_.empty()) {
+      this->DispatchNextQueuedWaypoint();
     }
     /* add main process after this line */
     map_handler_.UpdateRobotPosition(robot_pos_, cur_layer_idxs_);
@@ -516,7 +524,7 @@ void DPMaster::OdomCallBack(const nav_msgs::OdometryConstPtr& msg) {
   // callback creates the map grid.  Apply retained goals once layers exist.
   if (is_first_odom) {
     this->DispatchPendingGoal();
-    if (is_waypoint_queue_active_) {
+    if (is_waypoint_mission_active_ && !has_active_queued_waypoint_) {
       this->DispatchNextQueuedWaypoint();
     }
   }
@@ -656,9 +664,42 @@ void DPMaster::ExtractDynamicObsFromScan(const PointCloudPtr& scanCloudIn,
 
 void DPMaster::ClearWaypointQueue() {
   queued_waypoints_.clear();
-  is_waypoint_queue_active_ = false;
+  mission_waypoint_count_ = 0;
+  mission_frame_.clear();
+  has_last_mission_path_ = false;
+  is_waypoint_mission_active_ = false;
+  has_active_queued_waypoint_ = false;
+  reach_status_latched_ = false;
   is_pending_goal_ = false;
   pending_goal_is_free_nav_ = false;
+}
+
+bool DPMaster::IsSameMissionPath(const nav_msgs::Path& candidate) const {
+  if (!has_last_mission_path_ ||
+      candidate.header.stamp != last_mission_path_.header.stamp ||
+      candidate.header.frame_id != last_mission_path_.header.frame_id ||
+      candidate.poses.size() != last_mission_path_.poses.size()) {
+    return false;
+  }
+
+  constexpr double kEpsilon = 1e-6;
+  for (std::size_t i = 0; i < candidate.poses.size(); ++i) {
+    const auto& left = candidate.poses[i];
+    const auto& right = last_mission_path_.poses[i];
+    const std::string left_frame = left.header.frame_id.empty()
+                                       ? candidate.header.frame_id
+                                       : left.header.frame_id;
+    const std::string right_frame = right.header.frame_id.empty()
+                                        ? last_mission_path_.header.frame_id
+                                        : right.header.frame_id;
+    if (left_frame != right_frame ||
+        std::abs(left.pose.position.x - right.pose.position.x) > kEpsilon ||
+        std::abs(left.pose.position.y - right.pose.position.y) > kEpsilon ||
+        std::abs(left.pose.position.z - right.pose.position.z) > kEpsilon) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool DPMaster::UpdateGoalFromPoint(Point3D goal_p, const std::string& goal_frame,
@@ -727,35 +768,51 @@ bool DPMaster::DispatchNextQueuedWaypoint() {
     const geometry_msgs::PointStamped waypoint_msg = queued_waypoints_.front();
     queued_waypoints_.pop_front();
     Point3D goal_p(waypoint_msg.point.x, waypoint_msg.point.y, waypoint_msg.point.z);
-    if (this->UpdateGoalFromPoint(goal_p, waypoint_msg.header.frame_id, false)) {
-      is_waypoint_queue_active_ = !queued_waypoints_.empty();
-      ROS_INFO("DPMaster: dispatched queued waypoint, %zu remaining.", queued_waypoints_.size());
-      return true;
+    if (!this->UpdateGoalFromPoint(goal_p, waypoint_msg.header.frame_id, false)) {
+      continue;
     }
+
+    has_active_queued_waypoint_ = true;
+    const std::size_t active_index = mission_waypoint_count_ - queued_waypoints_.size();
+    ROS_INFO("DPMaster: dispatched preset waypoint %zu/%zu, %zu remaining.",
+             active_index, mission_waypoint_count_, queued_waypoints_.size());
+    return true;
   }
 
-  is_waypoint_queue_active_ = false;
+  has_active_queued_waypoint_ = false;
   return false;
 }
 
 void DPMaster::TargetCallBack(const nav_msgs::PathConstPtr& msg) {
-  this->ClearWaypointQueue();
-
   if (msg->poses.empty()) {
     ROS_WARN("DPMaster: received empty waypoint list on /waypoint_generator/waypoints.");
     return;
   }
+  if (this->IsSameMissionPath(*msg)) {
+    ROS_INFO("DPMaster: ignoring repeated delivery of the current preset Path.");
+    return;
+  }
+  this->ClearWaypointQueue();
+  last_mission_path_ = *msg;
+  has_last_mission_path_ = true;
 
   const ros::Time queue_stamp = ros::Time::now();
   for (const auto& pose_stamped : msg->poses) {
     geometry_msgs::PointStamped waypoint_msg;
-    waypoint_msg.header.frame_id = master_params_.world_frame;
+    waypoint_msg.header.frame_id = pose_stamped.header.frame_id.empty()
+                                         ? msg->header.frame_id
+                                         : pose_stamped.header.frame_id;
     waypoint_msg.header.stamp = queue_stamp;
     waypoint_msg.point = pose_stamped.pose.position;
     queued_waypoints_.push_back(waypoint_msg);
   }
 
-  is_waypoint_queue_active_ = true;
+  mission_waypoint_count_ = queued_waypoints_.size();
+  mission_frame_ = msg->header.frame_id;
+  is_waypoint_mission_active_ = true;
+  mission_state_pub_.publish(opendrone::MakeMissionState(
+      mission_frame_, opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+      opendrone::MissionState::STATUS_ACTIVE, 0, mission_waypoint_count_));
   ROS_INFO("DPMaster: loaded %zu queued waypoints from /waypoint_generator/waypoints.", queued_waypoints_.size());
   this->DispatchNextQueuedWaypoint();
 }
@@ -767,13 +824,37 @@ void DPMaster::TargetCallBack(const geometry_msgs::PoseStampedConstPtr & msg) {
 }
 
 void DPMaster::ReachGoalStatusCallBack(const std_msgs::BoolConstPtr& msg) {
-  if (!msg->data || !is_waypoint_queue_active_) {
+  if (!msg->data) {
+    reach_status_latched_ = false;
+    return;
+  }
+  if (reach_status_latched_) {
+    return;
+  }
+  reach_status_latched_ = true;
+
+  if (!is_waypoint_mission_active_ || !has_active_queued_waypoint_) {
     return;
   }
 
-  if (!this->DispatchNextQueuedWaypoint()) {
+  has_active_queued_waypoint_ = false;
+  const std::size_t completed_items =
+      mission_waypoint_count_ - queued_waypoints_.size();
+  if (queued_waypoints_.empty()) {
+    is_waypoint_mission_active_ = false;
+    mission_state_pub_.publish(opendrone::MakeMissionState(
+        mission_frame_,
+        opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+        opendrone::MissionState::STATUS_SUCCEEDED,
+        mission_waypoint_count_, mission_waypoint_count_));
     ROS_INFO("DPMaster: waypoint queue completed.");
+    return;
   }
+  mission_state_pub_.publish(opendrone::MakeMissionState(
+      mission_frame_, opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+      opendrone::MissionState::STATUS_ACTIVE,
+      completed_items, mission_waypoint_count_));
+  this->DispatchNextQueuedWaypoint();
 }
 
 /* allocate static utility PointCloud pointer memory */

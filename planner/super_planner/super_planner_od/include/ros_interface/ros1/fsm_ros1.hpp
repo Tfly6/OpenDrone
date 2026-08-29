@@ -27,7 +27,9 @@
 #ifndef SRC_FSM_ROS1_HPP
 #define SRC_FSM_ROS1_HPP
 
+#include <cmath>
 #include <cstdint>
+#include <mutex>
 
 #include "fsm/fsm.h"
 
@@ -37,28 +39,48 @@
 #include "nav_msgs/Odometry.h"
 #include "quadrotor_msgs/PositionCommand.h"
 #include "quadrotor_msgs/PolynomialTrajectory.h"
+#include <opendrone/mission_state_utils.h>
 
 
 namespace fsm {
     class FsmRos1 : public Fsm {
         ros::NodeHandle nh_;
         ros::Subscriber goal_sub_;
-        ros::Subscriber mission_goal_sub_;
-        ros::Publisher cmd_pub, mpc_cmd_pub_, path_pub_;
+        ros::Subscriber waypoint_sub_;
+        ros::Publisher cmd_pub, mpc_cmd_pub_, path_pub_, mission_state_pub_;
         ros::Timer execution_timer_, replan_timer_, cmd_timer_;
         quadrotor_msgs::PositionCommand pid_cmd_;
         rog_map::ROGMapROS::Ptr map_ptr_;
         quadrotor_msgs::PositionCommand latest_cmd;
         nav_msgs::Path path;
 
-        // The ordered mission adapter keeps this id stable while re-publishing
-        // one leg, then changes it exactly once when advancing to the next
-        // waypoint.  It is opt-in because ordinary PoseStamped publishers use
-        // header.seq as a transport counter rather than a command identity.
-        bool has_mission_goal_sequence_{false};
-        std::uint32_t mission_goal_sequence_{0};
+        // SUPER's planning core accepts one goal. This embedded queue preserves
+        // the original SUPER mission_planner contract: odometry entering the
+        // active waypoint's switch sphere publishes the next goal immediately,
+        // independently of the core FSM's 0.1 m trajectory-terminal check.
+        std::mutex mission_mutex_;
+        vector<geometry_msgs::PoseStamped> mission_waypoints_;
+        std::size_t mission_waypoint_index_{0};
+        ros::Time mission_stamp_;
+        string mission_frame_;
+        bool mission_in_progress_{false};
+        bool current_waypoint_dispatched_{false};
+        bool mission_failure_pending_{false};
+        string mission_failure_detail_;
 
         vector<quadrotor_msgs::PositionCommand> cmd_logs_;
+
+        void onGoalTerminal(const GOAL_TERMINAL_STATE state,
+                            const string &detail) override {
+            std::lock_guard<std::mutex> lock(mission_mutex_);
+            if (!mission_in_progress_ ||
+                state == GOAL_TERMINAL_STATE::REACHED ||
+                mission_failure_pending_) {
+                return;
+            }
+            mission_failure_pending_ = true;
+            mission_failure_detail_ = detail;
+        }
 
         void resetVisualizedPath() override {
             path.poses.clear();
@@ -249,11 +271,7 @@ namespace fsm {
             getOnePositionCommand(pid_cmd_, traj_finish_);
             if (traj_finish_) {
                 cout << GREEN << " -- [Fsm] Traj finish." << RESET << endl;
-                if (closeToGoal(0.1)) {
-                    ChangeState("getPoseFromTraj", WAIT_GOAL);
-                } else {
-                    ChangeState("getPoseFromTraj", GENERATE_TRAJ);
-                }
+                handleTrajectoryFinished("getPoseFromTraj");
             }
             pose.first = Vec3f{pid_cmd_.position.x, pid_cmd_.position.y, pid_cmd_.position.z};
             pose.second = eulerToQuaternion(pid_cmd_.attitude.x, pid_cmd_.attitude.y, pid_cmd_.attitude.z);
@@ -274,30 +292,179 @@ namespace fsm {
         }
 
         void goalCallback(const geometry_msgs::PoseStampedConstPtr &msg) {
+            {
+                std::lock_guard<std::mutex> lock(mission_mutex_);
+                mission_waypoints_.clear();
+                mission_in_progress_ = false;
+                current_waypoint_dispatched_ = false;
+                mission_failure_pending_ = false;
+                mission_failure_detail_.clear();
+            }
             super_utils::Vec3f goal_p = Vec3f{msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
             super_utils::Quatf goal_q = super_utils::Quatf{msg->pose.orientation.w, msg->pose.orientation.x,
                                                            msg->pose.orientation.y, msg->pose.orientation.z};
             setGoalPosiAndYaw(goal_p, goal_q);
         }
 
-        void missionGoalCallback(const geometry_msgs::PoseStampedConstPtr &msg) {
-            const Vec3f goal_p = Vec3f{msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
-            const Quatf goal_q = Quatf{msg->pose.orientation.w, msg->pose.orientation.x,
-                                       msg->pose.orientation.y, msg->pose.orientation.z};
+        static bool samePose(const geometry_msgs::PoseStamped &left,
+                             const geometry_msgs::PoseStamped &right) {
+            constexpr double kEpsilon = 1e-6;
+            return left.header.frame_id == right.header.frame_id &&
+                   std::abs(left.pose.position.x - right.pose.position.x) <= kEpsilon &&
+                   std::abs(left.pose.position.y - right.pose.position.y) <= kEpsilon &&
+                   std::abs(left.pose.position.z - right.pose.position.z) <= kEpsilon &&
+                   std::abs(left.pose.orientation.w - right.pose.orientation.w) <= kEpsilon &&
+                   std::abs(left.pose.orientation.x - right.pose.orientation.x) <= kEpsilon &&
+                   std::abs(left.pose.orientation.y - right.pose.orientation.y) <= kEpsilon &&
+                   std::abs(left.pose.orientation.z - right.pose.orientation.z) <= kEpsilon;
+        }
 
-            const bool has_sequence =
-                    cfg_.mission_goal_use_header_sequence && msg->header.seq != 0;
-            const bool sequence_changed = has_sequence &&
-                    (!has_mission_goal_sequence_ || msg->header.seq != mission_goal_sequence_);
-            bool mark_new_goal = sequence_changed || !started_ || machine_state_ == INIT || machine_state_ == WAIT_GOAL || finish_plan;
-            if (!mark_new_goal) {
-                const double goal_shift = (goal_p - gi_.goal_p).norm();
-                mark_new_goal = goal_shift > cfg_.mission_goal_force_new_threshold;
+        bool sameMission(const nav_msgs::Path &msg) const {
+            if (msg.header.stamp != mission_stamp_ ||
+                msg.header.frame_id != mission_frame_ ||
+                msg.poses.size() != mission_waypoints_.size()) {
+                return false;
+            }
+            for (std::size_t i = 0; i < msg.poses.size(); ++i) {
+                geometry_msgs::PoseStamped normalized = msg.poses[i];
+                if (normalized.header.frame_id.empty()) {
+                    normalized.header.frame_id = msg.header.frame_id;
+                }
+                if (!samePose(normalized, mission_waypoints_[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void waypointListCallback(const nav_msgs::PathConstPtr &msg) {
+            std::lock_guard<std::mutex> lock(mission_mutex_);
+            if (msg->poses.empty()) {
+                ROS_WARN("[SUPER] Ignoring empty preset waypoint Path.");
+                return;
+            }
+            if (sameMission(*msg)) {
+                ROS_INFO("[SUPER] Ignoring repeated delivery of the current preset Path.");
+                return;
+            }
+            mission_waypoints_.clear();
+            mission_waypoints_.reserve(msg->poses.size());
+            for (const auto &pose : msg->poses) {
+                geometry_msgs::PoseStamped normalized = pose;
+                if (normalized.header.frame_id.empty()) {
+                    normalized.header.frame_id = msg->header.frame_id;
+                }
+                mission_waypoints_.push_back(normalized);
+            }
+            mission_stamp_ = msg->header.stamp;
+            mission_frame_ = msg->header.frame_id;
+            mission_waypoint_index_ = 0;
+            mission_in_progress_ = true;
+            current_waypoint_dispatched_ = false;
+            mission_failure_pending_ = false;
+            mission_failure_detail_.clear();
+            ROS_INFO("[SUPER] Loaded complete preset Path with %zu waypoints.",
+                     mission_waypoints_.size());
+            mission_state_pub_.publish(opendrone::MakeMissionState(
+                    mission_frame_,
+                    opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                    opendrone::MissionState::STATUS_ACTIVE, 0,
+                    mission_waypoints_.size()));
+        }
+
+        void advancePresetMission() {
+            std::lock_guard<std::mutex> lock(mission_mutex_);
+            if (!mission_in_progress_ || mission_waypoints_.empty()) {
+                return;
             }
 
-            if (setGoalPosiAndYaw(goal_p, goal_q, false, mark_new_goal, mark_new_goal) && has_sequence) {
-                has_mission_goal_sequence_ = true;
-                mission_goal_sequence_ = msg->header.seq;
+            if (mission_failure_pending_) {
+                mission_in_progress_ = false;
+                const string detail = mission_failure_detail_.empty()
+                                          ? "planner_goal_failed"
+                                          : mission_failure_detail_;
+                mission_state_pub_.publish(opendrone::MakeMissionState(
+                        mission_frame_,
+                        opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                        opendrone::MissionState::STATUS_FAILED,
+                        mission_waypoint_index_, mission_waypoints_.size(),
+                        detail));
+                ROS_ERROR("[SUPER] Preset waypoint %zu/%zu failed: %s.",
+                          mission_waypoint_index_ + 1,
+                          mission_waypoints_.size(), detail.c_str());
+                return;
+            }
+
+            if (!robot_state_.rcv) {
+                return;
+            }
+
+            const auto &active_waypoint =
+                    mission_waypoints_[mission_waypoint_index_];
+            const Vec3f active_position{
+                    active_waypoint.pose.position.x,
+                    active_waypoint.pose.position.y,
+                    active_waypoint.pose.position.z};
+            if ((active_position - robot_state_.p).norm() <
+                cfg_.mission_waypoint_switch_distance) {
+                ++mission_waypoint_index_;
+                current_waypoint_dispatched_ = false;
+                if (mission_waypoint_index_ >= mission_waypoints_.size()) {
+                    mission_in_progress_ = false;
+                    mission_state_pub_.publish(opendrone::MakeMissionState(
+                            mission_frame_,
+                            opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                            opendrone::MissionState::STATUS_SUCCEEDED,
+                            mission_waypoints_.size(), mission_waypoints_.size()));
+                    ROS_INFO("[SUPER] Preset waypoint mission complete.");
+                    return;
+                }
+                ROS_INFO("[SUPER] Waypoint switch sphere reached; dispatching waypoint %zu/%zu.",
+                         mission_waypoint_index_ + 1,
+                         mission_waypoints_.size());
+                mission_state_pub_.publish(opendrone::MakeMissionState(
+                        mission_frame_,
+                        opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                        opendrone::MissionState::STATUS_ACTIVE,
+                        mission_waypoint_index_, mission_waypoints_.size()));
+            }
+
+            if (current_waypoint_dispatched_) {
+                return;
+            }
+
+            if (mission_waypoint_index_ >= mission_waypoints_.size()) {
+                mission_in_progress_ = false;
+                mission_state_pub_.publish(opendrone::MakeMissionState(
+                        mission_frame_,
+                        opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+                        opendrone::MissionState::STATUS_SUCCEEDED,
+                        mission_waypoints_.size(), mission_waypoints_.size()));
+                ROS_INFO("[SUPER] Preset waypoint mission complete.");
+                return;
+            }
+
+            const auto &waypoint = mission_waypoints_[mission_waypoint_index_];
+            const Vec3f goal_p{waypoint.pose.position.x,
+                               waypoint.pose.position.y,
+                               waypoint.pose.position.z};
+            const Quatf goal_q{waypoint.pose.orientation.w,
+                               waypoint.pose.orientation.x,
+                               waypoint.pose.orientation.y,
+                               waypoint.pose.orientation.z};
+            const GOAL_SUBMISSION_RESULT result =
+                    setGoalPosiAndYaw(goal_p, goal_q, false, true, true);
+            if (result == GOAL_SUBMISSION_RESULT::ACCEPTED) {
+                current_waypoint_dispatched_ = true;
+                ROS_INFO("[SUPER] Dispatched preset waypoint %zu/%zu.",
+                         mission_waypoint_index_ + 1,
+                         mission_waypoints_.size());
+            } else if (result == GOAL_SUBMISSION_RESULT::ALREADY_REACHED) {
+                // The next timer tick consumes the same native switch sphere.
+                current_waypoint_dispatched_ = true;
+            } else {
+                mission_failure_pending_ = true;
+                mission_failure_detail_ = "goal_invalid_at_submission";
             }
         }
 
@@ -307,12 +474,18 @@ namespace fsm {
             // Interface names are launch-time behaviour.  The YAML profile
             // deliberately contains only planner and map tuning.
             nh_.param("interface/click_goal_topic", cfg_.click_goal_topic, cfg_.click_goal_topic);
-            nh_.param("interface/mission_goal_topic", cfg_.mission_goal_topic, cfg_.mission_goal_topic);
-            nh_.param("interface/mission_goal_use_header_sequence",
-                      cfg_.mission_goal_use_header_sequence,
-                      cfg_.mission_goal_use_header_sequence);
+            nh_.param("interface/waypoint_topic", cfg_.waypoint_topic, cfg_.waypoint_topic);
             nh_.param("interface/position_command_topic", cfg_.cmd_topic, cfg_.cmd_topic);
             nh_.param("interface/polynomial_trajectory_topic", cfg_.mpc_cmd_topic, cfg_.mpc_cmd_topic);
+            nh_.param("mission/waypoint_switch_distance",
+                      cfg_.mission_waypoint_switch_distance,
+                      cfg_.mission_waypoint_switch_distance);
+            if (!std::isfinite(cfg_.mission_waypoint_switch_distance) ||
+                cfg_.mission_waypoint_switch_distance <= 0.0) {
+                ROS_WARN("[SUPER] Invalid mission waypoint switch distance %.3f; using 1.0 m.",
+                         cfg_.mission_waypoint_switch_distance);
+                cfg_.mission_waypoint_switch_distance = 1.0;
+            }
             map_ptr_ = std::make_shared<rog_map::ROGMapROS>(nh, cfg_path);
             // 初始化Planner
             ros_ptr_ = std::make_shared<ros_interface::Ros1Interface>(nh_);
@@ -320,6 +493,8 @@ namespace fsm {
             cmd_pub = nh_.advertise<quadrotor_msgs::PositionCommand>(cfg_.cmd_topic, 10);
             mpc_cmd_pub_ = nh_.advertise<quadrotor_msgs::PolynomialTrajectory>(cfg_.mpc_cmd_topic, 10);
             path_pub_ = nh_.advertise<nav_msgs::Path>("fsm/path", 100);
+            mission_state_pub_ = nh_.advertise<opendrone::MissionState>(
+                    "/planner/mission_state", 1, true);
 
             int cmd_cnt = 0;
 
@@ -329,9 +504,10 @@ namespace fsm {
                 cmd_cnt++;
             }
 
-            if (!cfg_.mission_goal_topic.empty()) {
-                mission_goal_sub_ = nh_.subscribe(cfg_.mission_goal_topic, 1, &FsmRos1::missionGoalCallback, this);
-                cout << YELLOW << " -- [Fsm] MISSION GOAL ENABLE: " << cfg_.mission_goal_topic << RESET << endl;
+            if (!cfg_.waypoint_topic.empty()) {
+                waypoint_sub_ = nh_.subscribe(cfg_.waypoint_topic, 1,
+                                              &FsmRos1::waypointListCallback, this);
+                cout << YELLOW << " -- [Fsm] PRESET PATH ENABLE: " << cfg_.waypoint_topic << RESET << endl;
                 cmd_cnt++;
             }
 
@@ -375,8 +551,6 @@ namespace fsm {
             if (machine_state_ != FOLLOW_TRAJ && machine_state_ != EMER_STOP) {
                 return;
             }
-
-
             quadrotor_msgs::PolynomialTrajectory heartbeat;
             getOneHeartBeatMsg(heartbeat, traj_finish_);
             getOnePositionCommand(pid_cmd_, traj_finish_);
@@ -384,11 +558,7 @@ namespace fsm {
             cmd_pub.publish(pid_cmd_);
             if (traj_finish_) {
                 cout << GREEN << " -- [Fsm] Traj finish." << RESET << endl;
-                if (closeToGoal(0.1)) {
-                    ChangeState("PubCmdCallback", WAIT_GOAL);
-                } else {
-                    ChangeState("PubCmdCallback", GENERATE_TRAJ);
-                }
+                handleTrajectoryFinished("PubCmdCallback");
             }
         }
 
@@ -398,6 +568,7 @@ namespace fsm {
 
         void mainFsmTimerCallback(const ros::TimerEvent &event) {
             callMainFsmOnce();
+            advancePresetMission();
         }
 
     };

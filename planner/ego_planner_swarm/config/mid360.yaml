@@ -63,7 +63,7 @@ grid_map:
   max_ray_length: 12.0
   # The benchmark goal is z=3.5 m.  Keep the virtual ceiling above the goal
   # plus the vehicle footprint instead of making the terminal state invalid.
-  virtual_ceil_height: 5.0
+  virtual_ceil_height: 6.5
   visualization_truncate_height: 1.8
   show_occ_time: false
 

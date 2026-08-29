@@ -68,6 +68,8 @@ void KinoReplanFSM::init(ros::NodeHandle& nh) {
   replan_pub_  = nh.advertise<std_msgs::Empty>("/planning/replan", 10);
   new_pub_     = nh.advertise<std_msgs::Empty>("/planning/new", 10);
   bspline_pub_ = nh.advertise<quadrotor_msgs::Bspline>("/planning/bspline", 10);
+  mission_state_pub_ =
+      nh.advertise<opendrone::MissionState>("/planner/mission_state", 1, true);
 
 }
 
@@ -108,6 +110,7 @@ void KinoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
   current_wp_ = 0;
   waypointList_.clear();
   waypoint_num_ = msg->poses.size();
+  mission_frame_ = msg->header.frame_id;
   for (int i = 0; i < msg->poses.size(); ++i) {
     Eigen::Vector3d pt;
     pt(0) = msg->poses[i].pose.position.x;
@@ -123,6 +126,9 @@ void KinoReplanFSM::waypointListCallback(const nav_msgs::PathConstPtr& msg) {
   visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
   end_vel_.setZero();
   have_target_ = true;
+  mission_state_pub_.publish(opendrone::MakeMissionState(
+      mission_frame_, opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+      opendrone::MissionState::STATUS_ACTIVE, 0, waypoint_num_));
 
   if (exec_state_ == WAIT_TARGET)
     changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
@@ -230,10 +236,19 @@ void KinoReplanFSM::execFSMCallback(const ros::TimerEvent& e) {
           visualization_->drawGoal(end_pt_, 0.3, Eigen::Vector4d(1, 0, 0, 1.0));
           end_vel_.setZero();
           have_target_ = true;
+          mission_state_pub_.publish(opendrone::MakeMissionState(
+              mission_frame_,
+              opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+              opendrone::MissionState::STATUS_ACTIVE, current_wp_, waypoint_num_));
           changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
         }
         else {
           have_target_ = false;
+          mission_state_pub_.publish(opendrone::MakeMissionState(
+              mission_frame_,
+              opendrone::MissionState::TYPE_SEQUENTIAL_GOAL,
+              opendrone::MissionState::STATUS_SUCCEEDED,
+              waypoint_num_, waypoint_num_));
           changeFSMExecState(WAIT_TARGET, "FSM");
         }
         return;
@@ -370,7 +385,7 @@ bool KinoReplanFSM::callKinodynamicReplan() {
     quadrotor_msgs::Bspline bspline;
     bspline.order      = 3;
     bspline.start_time = info->start_time_;
-    bspline.traj_id    = info->traj_id_;
+    bspline.traj_id = info->traj_id_;
 
     Eigen::MatrixXd pos_pts = info->position_traj_.getControlPoint();
 

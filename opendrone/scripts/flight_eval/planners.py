@@ -4,12 +4,12 @@
 import copy
 import math
 
-from .outcomes import MISSION_GOAL_TOLERANCE
-
-
 _PLANNER_OUTPUT_TOPIC = '/planner/output'
+_MISSION_STATE_TOPIC = '/planner/mission_state'
+_AIRFAR_NATIVE_GOAL_TOLERANCE = 0.4
 _DISCRETE_TASKS = ['discrete_circle', 'discrete_figure8']
-_ONLINE_TASKS = _DISCRETE_TASKS + ['plan_mission']
+_SEQUENTIAL_TASKS = _DISCRETE_TASKS + ['sequential_goal_mission']
+_REFERENCE_PATH_TASKS = _DISCRETE_TASKS + ['reference_path_mission']
 
 
 def _planner(
@@ -21,6 +21,8 @@ def _planner(
     runtime_parameter_expectations=None,
 ):
     evaluation_topics = {'planner_output': _PLANNER_OUTPUT_TOPIC}
+    if any(task in tasks for task in {'sequential_goal_mission', 'reference_path_mission'}):
+        evaluation_topics['mission_state'] = _MISSION_STATE_TOPIC
     return {
         'description': description,
         'launch_pkg': 'opendrone',
@@ -70,35 +72,35 @@ PLANNER_REGISTRY = {
     'fast_planner_kino': _planner(
         'Fast-Planner kino',
         'benchmarks/online_planner_benchmark/benchmark_fast_planner.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {'use_preset_waypoints': 'true', 'use_kino_planner': 'true', 'use_rviz': 'false'},
         ['/planning/bspline', '/planning/pos_cmd'],
     ),
     'fast_planner_topo': _planner(
         'Fast-Planner topo',
         'benchmarks/online_planner_benchmark/benchmark_fast_planner.launch',
-        _ONLINE_TASKS,
+        _REFERENCE_PATH_TASKS,
         {'use_preset_waypoints': 'true', 'use_kino_planner': 'false', 'use_rviz': 'false'},
         ['/planning/bspline', '/planning/pos_cmd'],
     ),
     'ego_planner': _planner(
         'EGO-Planner depth camera',
         'benchmarks/online_planner_benchmark/benchmark_ego_planner.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {'use_preset_waypoints': 'true', 'use_rviz': 'false'},
         ['/drone_0_planning/bspline', '/drone_0_planning/pos_cmd'],
     ),
     'ego_planner_mid360': _planner(
         'EGO-Planner Mid360',
         'benchmarks/online_planner_benchmark/benchmark_ego_planner_mid360.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {'use_preset_waypoints': 'true', 'use_rviz': 'false'},
         ['/drone_0_planning/bspline', '/drone_0_planning/pos_cmd'],
     ),
     'ego_planner_v2': _planner(
         'EGO-Planner v2',
         'benchmarks/online_planner_benchmark/benchmark_ego_planner_v2.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {'use_preset_waypoints': 'true', 'use_rviz': 'false'},
         # EGO v2 publishes PolyTraj, not Bspline.  Recording the native
         # trajectory is required to verify adapter/native equivalence from a
@@ -108,29 +110,30 @@ PLANNER_REGISTRY = {
     'super_planner_od': _planner(
         'SUPER planner OD',
         'benchmarks/online_planner_benchmark/benchmark_super_planner_od.launch',
-        _ONLINE_TASKS,
-        {'use_preset_waypoints': 'true', 'use_rviz': 'false'},
-        ['/planning_cmd/poly_traj', '/planning/pos_cmd', '/planning/mission_goal'],
+        _SEQUENTIAL_TASKS,
+        {
+            'use_preset_waypoints': 'true',
+            'use_rviz': 'false',
+            'mission_waypoint_switch_distance': '1.0',
+        },
+        ['/planning_cmd/poly_traj', '/planning/pos_cmd'],
+        runtime_parameter_expectations={
+            '/super_planner_od_fsm/mission/waypoint_switch_distance': 1.0,
+        },
     ),
     'airfar_planner': _planner(
         'Air-FAR depth camera',
         'benchmarks/online_planner_benchmark/benchmark_airfar_planner.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {
             'use_preset_waypoints': 'true',
             'use_rviz': 'false',
             'config_file': 'default',
             'cruise_speed': '0.5',
-            'goal_tolerance': str(MISSION_GOAL_TOLERANCE),
+            'goal_tolerance': str(_AIRFAR_NATIVE_GOAL_TOLERANCE),
             'collision_check_padding': '1.0',
         },
-        [
-            '/way_point', '/path', '/track_path', '/planner/output',
-            '/terrain_map', '/terrain_map_ext', '/DP_free_debug',
-            '/planner_nav_graph', '/viz_graph_topic',
-            '/viz_contour_topic', '/DP_obs_debug',
-            '/dynamic_obs_world', '/far_mapping_time', '/registered_scan',
-        ],
+        ['/way_point', '/path', '/track_path'],
         {
             '/terrainAnalysis/decayTime': 2.0,
             '/terrainAnalysisExt/decayTime': 10.0,
@@ -146,22 +149,16 @@ PLANNER_REGISTRY = {
     'airfar_planner_mid360': _planner(
         'Air-FAR Mid360',
         'benchmarks/online_planner_benchmark/benchmark_airfar_planner_mid360.launch',
-        _ONLINE_TASKS,
+        _SEQUENTIAL_TASKS,
         {
             'use_preset_waypoints': 'true',
             'use_rviz': 'false',
             'config_file': 'default',
             'cruise_speed': '1.0',
-            'goal_tolerance': str(MISSION_GOAL_TOLERANCE),
+            'goal_tolerance': str(_AIRFAR_NATIVE_GOAL_TOLERANCE),
             'collision_check_padding': '1.0',
         },
-        [
-            '/way_point', '/path', '/track_path', '/planner/output',
-            '/terrain_map', '/terrain_map_ext', '/DP_free_debug',
-            '/planner_nav_graph', '/viz_graph_topic',
-            '/viz_contour_topic', '/DP_obs_debug',
-            '/dynamic_obs_world', '/far_mapping_time', '/registered_scan',
-        ],
+        ['/way_point', '/path', '/track_path'],
         {
             '/terrainAnalysis/decayTime': 2.0,
             '/terrainAnalysisExt/decayTime': 10.0,
@@ -210,14 +207,21 @@ def get_planner_launch(planner_name: str, extra_args=None) -> dict:
                 raise ValueError(
                     f"{planner_name}.{arg_name} 必须是有限正数"
                 )
-            if (
-                arg_name == 'goal_tolerance'
-                and not math.isclose(value, MISSION_GOAL_TOLERANCE)
-            ):
-                raise ValueError(
-                    f"{planner_name}.goal_tolerance={value} 与任务到达容差 "
-                    f"{MISSION_GOAL_TOLERANCE} 不一致"
-                )
             for parameter_name in parameter_names:
                 info['runtime_parameter_expectations'][parameter_name] = value
+    if planner_name == 'super_planner_od':
+        arg_name = 'mission_waypoint_switch_distance'
+        try:
+            value = float(info['args'][arg_name])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f'{planner_name}.{arg_name} 必须是数值'
+            ) from exc
+        if not math.isfinite(value) or value <= 0.0:
+            raise ValueError(
+                f'{planner_name}.{arg_name} 必须是有限正数'
+            )
+        info['runtime_parameter_expectations'][
+            '/super_planner_od_fsm/mission/waypoint_switch_distance'
+        ] = value
     return info
