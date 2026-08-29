@@ -53,8 +53,9 @@ python3 -m flight_eval list-planners
 ## YAML 批次实验
 
 `batch` 用 YAML 把 controller、planner、task 组合成可复现实验矩阵。Gazebo Classic 与 MAVROS
-必须由使用者在同一个 launch 中先启动；`batch` 不创建、终止或重建它们。每条样本只启动独立的
-PX4 SITL，因此 PX4 状态不会跨样本泄漏，也不会反复加载 world。
+必须由使用者在同一个 launch 中先启动；`batch` 不创建或重建它们。每条样本只启动独立的
+PX4 SITL，因此 PX4 状态不会跨样本泄漏，也不会反复加载 world。批次收尾时默认会尝试关闭当前
+ROS master 下的 Gazebo 仿真环境；需要保留环境继续调试时加 `--keep-gazebo`。
 `batch_summary.json` 只记录样本清单和运行状态计数，不聚合指标、不评分，也不生成算法排名。
 
 当 `transport.gazebo_px4: udp` 时，先生成与 YAML 指定 PX4 版本匹配的 UDP Iris 覆盖模型。
@@ -445,7 +446,9 @@ python3 -m flight_eval run \
 7. 定时任务等待评价窗口结束；终点任务等待到达整体终点或超过期限
 8. 到达终点或期限后自动降落（除非 --no-land）
 9. 停止 rosbag / controller / planner 的整个进程组
-10. 保存 `run_metadata.json`，自动分析并生成 report.json + agent_summary.md
+10. 保存 `run_metadata.json`
+11. 单次 run 或整批 batch 收尾时关闭当前 ROS master 下的 Gazebo 仿真环境，除非设置 `--keep-gazebo`
+12. 自动分析并生成 report.json + agent_summary.md
 ```
 
 Runner 自己维护一套与 controller `flight_state` 分离的生命周期状态机：
@@ -493,7 +496,9 @@ controller 必须按统一状态码发布：`0=WAITING_FOR_CONNECTED`、`1=WAITI
 `run_metadata.json.process_cleanup` 会记录已登记和仍残留的进程组；如果 `SIGKILL` 后仍有
 进程组存在，`run_status` 为 `failed / process_cleanup_incomplete`，不会伪报运行完成。
 `environment.launch` 启动的 Gazebo 和 MAVROS 是 batch 外部环境，并且配置为 respawn，
-所以 task timeout 和 case 切换都不会关闭它们；batch 每个 case 只重启自己拥有的 PX4。
+所以 task timeout 和 case 切换都不会关闭它们；batch 每个 case 只重启自己拥有的 PX4。整个
+batch 结束时，CLI 会尽力关闭 `/gazebo`、`/gazebo_gui` 以及由
+`flight_eval/environment.launch` 启动的 roslaunch；加 `--keep-gazebo` 可跳过这一步。
 
 ## 分析逻辑
 

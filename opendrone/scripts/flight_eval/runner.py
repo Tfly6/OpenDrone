@@ -252,7 +252,18 @@ class FlightRunner:
             if state_code == 6:  # EMERGENCY
                 self._emergency_occurred = True
                 self._task_evaluator.emergency(self._task_now())
-                self._transition(RunnerState.ABORTING, 'controller reported EMERGENCY')
+                # A collision limit can move the main thread from ABORTING to
+                # CAPTURING_ARTIFACTS before the controller publishes its
+                # delayed EMERGENCY state.  Record that event, but never let a
+                # late controller callback move artifact capture backwards.
+                if self._runner_state not in {
+                    RunnerState.ABORTING,
+                    RunnerState.CAPTURING_ARTIFACTS,
+                }:
+                    self._transition(
+                        RunnerState.ABORTING,
+                        'controller reported EMERGENCY',
+                    )
             elif (
                 self._runner_state == RunnerState.WAITING_FOR_CONTROLLER
                 and state_code == self._target_flight_state

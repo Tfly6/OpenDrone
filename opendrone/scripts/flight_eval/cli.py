@@ -19,6 +19,7 @@ from .batch import (
     load_batch_definition,
 )
 from .environment import prepare_environment
+from .gazebo_cleanup import shutdown_gazebo_simulation
 from .analyzer import BagAnalyzer
 from .visualizer import BagVisualizer
 
@@ -240,6 +241,19 @@ def _batch_recordings(batch_dir: str):
         bag_file = metadata.get('bag_file') or os.path.join(root, 'flight_test.bag')
         yield root, os.path.abspath(bag_file), metadata
 
+
+def _shutdown_gazebo_after_eval() -> None:
+    print('\n[gazebo] 正在关闭 Gazebo 仿真环境...')
+    report = shutdown_gazebo_simulation()
+    if not report.get('node_pids') and not report.get('environment_roslaunch_pids'):
+        print('[gazebo] 未发现当前 ROS master 下的 Gazebo 节点或 flight_eval environment roslaunch。')
+        return
+    if report.get('completed'):
+        print('[gazebo] Gazebo 仿真环境已关闭。')
+        return
+    print(f"[gazebo] Gazebo 清理不完整: {report.get('errors', [])}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='无人机控制器飞行评估框架',
@@ -303,6 +317,11 @@ def main():
         default=0.5,
         help='同一障碍物重新计为一次碰撞所需的无消息间隔 (s)，默认 0.5',
     )
+    run_parser.add_argument(
+        '--keep-gazebo',
+        action='store_true',
+        help='运行结束后保留外部 Gazebo 仿真环境；默认会尝试关闭当前 ROS master 下的 Gazebo',
+    )
 
     batch_parser = subparsers.add_parser(
         'batch',
@@ -318,6 +337,11 @@ def main():
                               help='单条样本失败后继续后续样本；默认在首个失败处停止')
     batch_parser.add_argument('--no-analyze', action='store_true',
                               help='仅运行和录包，不自动生成报告与图')
+    batch_parser.add_argument(
+        '--keep-gazebo',
+        action='store_true',
+        help='批次结束后保留外部 Gazebo 仿真环境；默认会尝试关闭当前 ROS master 下的 Gazebo',
+    )
 
     prepare_environment_parser = subparsers.add_parser(
         'prepare-environment',
@@ -481,6 +505,9 @@ def main():
         except KeyboardInterrupt:
             print('\n[batch] 收到 Ctrl-C，已停止当前批次拥有的 PX4 进程。')
             return
+        finally:
+            if not args.keep_gazebo:
+                _shutdown_gazebo_after_eval()
         failed = [case for case in summary['cases'] if case['status'] == 'failed']
         print(f"\n批次汇总: {summary['summary_file']}")
         print(
@@ -543,11 +570,15 @@ def main():
             max_collision_episodes=args.max_collision_episodes,
             collision_episode_gap=args.collision_episode_gap,
         )
+        result = None
         try:
             result = runner.run()
         except KeyboardInterrupt:
             print('\n[run] 收到 Ctrl-C，已停止当前运行拥有的子进程。')
             return
+        finally:
+            if not args.keep_gazebo:
+                _shutdown_gazebo_after_eval()
 
         if result:
             print("\n" + "=" * 60)
