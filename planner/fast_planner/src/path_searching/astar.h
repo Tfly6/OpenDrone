@@ -33,14 +33,10 @@
 #include <ros/ros.h>
 #include <string>
 #include <unordered_map>
-// #include "grad_spline/sdf_map.h"
 #include "plan_env/edt_environment.h"
 #include <boost/functional/hash.hpp>
 #include <queue>
 namespace fast_planner {
-// #define REACH_HORIZON 1
-// #define REACH_END 2
-// #define NO_PATH 3
 #define IN_CLOSE_SET 'a'
 #define IN_OPEN_SET 'b'
 #define NOT_EXPAND 'c'

@@ -82,7 +82,6 @@ class LQR_Controller {
     ros::Time lastModeRequest_;
     ros::Time lastArmRequest_;
 
-    // Parameters
     double takeoffHeight_;
     double mass_;
     double gravity_{9.81};

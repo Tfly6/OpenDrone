@@ -75,8 +75,6 @@ namespace traj_opt {
                 cur_yaw = atan2(dir.y(), dir.x());
                 normalizeNextYaw(last_yaw, cur_yaw);
             } else {
-//                    print(fg(color::indian_red),
-//                          " -- [SUPER] Yaw planning failed, the goal yaw is too close to the current yaw.\n");
                 cur_yaw = last_yaw;
             }
             way_pts(i) = cur_yaw;
@@ -87,13 +85,6 @@ namespace traj_opt {
         } else {
             geometry_utils::normalizeNextYaw(way_pts(way_pts.size() - 1), goal_state[0]);
         }
-//            print("Remain dis = {}.\n", (cur_drone_state_.position - gi_.mission_waypoints.back()).norm());
-//            print("Yaw way_pts init = {}\n", init_state(0));
-//            for (long unsigned int i = 0; i < way_pts.size(); i++) {
-//                print("Yaw way_pts[{}] = {}\n", i, way_pts[i]);
-//            }
-//            print("Yaw way_pts goal = {}\n", goal_state(0));
-//            cout << times.transpose() << endl;
     }
 
     YawTrajOpt::YawTrajOpt(const double &_yaw_dot_max) : yaw_dot_max_(_yaw_dot_max) {
@@ -173,20 +164,9 @@ namespace traj_opt {
             }
         }
 
-//            for (double eval_t = 0; eval_t < yaw_traj.getTotalDuration(); eval_t += 0.01) {
-//                cout << yaw_traj.getPos(eval_t)[0] << " ";
-//            }
-//            cout << ";" << endl;
-//            for (double eval_t = 0; eval_t < yaw_traj.getTotalDuration(); eval_t += 0.01) {
-//                cout << yaw_traj.getVel(eval_t)[0] << " ";
-//            }
-//            cout << endl;
-//
-//            yaw_traj.printProfile();
         double max_yaw_rate = yaw_traj.getMaxVelRate();
         if (max_yaw_rate > yaw_dot_max_ + 2.0) {
             cout << YELLOW << " Yaw rate too large, " << max_yaw_rate << RESET << endl;
-//                return false;
         }
         out_traj = yaw_traj;
         out_traj.start_WT = pos_traj.start_WT;

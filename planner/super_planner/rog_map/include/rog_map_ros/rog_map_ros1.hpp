@@ -258,7 +258,6 @@ namespace rog_map {
         }
 
         void vecEVec3fToPC2(const vec_E<Vec3f>& points, sensor_msgs::PointCloud2& cloud) {
-            // 设置header信息
             pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
             pcl_cloud.resize(points.size());
             for (long unsigned int i = 0; i < points.size(); i++) {
@@ -341,10 +340,9 @@ namespace rog_map {
 
 
             line_strip.color = color;
-            line_strip.color.a = alpha; //不透明度，设0则全透明
+            line_strip.color.a = alpha;
             geometry_msgs::Point p[8];
 
-            //vis_pos_world是目标物的坐标
             p[0].x = vis_pos_world(0) - width;
             p[0].y = vis_pos_world(1) + length;
             p[0].z = vis_pos_world(2) + hight;
@@ -369,11 +367,9 @@ namespace rog_map {
             p[7].x = vis_pos_world(0) + width;
             p[7].y = vis_pos_world(1) + length;
             p[7].z = vis_pos_world(2) + hight;
-            //LINE_STRIP类型仅仅将line_strip.points中相邻的两个点相连，如0和1，1和2，2和3
             for (int i = 0; i < 8; i++) {
                 line_strip.points.push_back(p[i]);
             }
-            //为了保证矩形框的八条边都存在：
             line_strip.points.push_back(p[0]);
             line_strip.points.push_back(p[3]);
             line_strip.points.push_back(p[2]);

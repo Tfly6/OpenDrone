@@ -43,7 +43,6 @@ namespace super_planner {
         iris_iter_num_ = iris_iter_num;
         virtual_ceil_height_ = virtual_ceil_height - robot_r;
         virtual_groud_height_ = virtual_groud_height + robot_r;
-//        failed_traj_log.open(DEBUG_FILE_DIR("sfc.csv"), std::ios::out | std::ios::trunc);
     }
 
 
@@ -57,7 +56,6 @@ namespace super_planner {
                                             bool cut_first_poly) {
         // https://whimsical.com/flow-3TASJFwe1dASYYY2xHEmze
         // password: wtr
-        //	TimeConsuming t___("SearchPolytopeOnPath");
         sfcs.clear();
         if (path.empty()) {
             return false;
@@ -118,9 +116,6 @@ namespace super_planner {
                 return false;
             }
 
-// viz for debug
-//            ros_ptr_->vizCiriPolytope(temp_poly, "debug");
-//            usleep(10000);
 
             if (!sfcs.empty()) {
                 overlap = sfcs.back().CrossWith(temp_poly);
@@ -138,10 +133,6 @@ namespace super_planner {
                         ros_ptr_->warn(
                                 " -- [SUPER] Cannot find continuous corridor on path, overlap only {}, force return.",
                                 interior_depth);
-// viz for debug
-//                        ros_ptr_->vizCiriPointCloud(latest_pc);
-//                        usleep(100000);
-//                        exit(-1);
                         return false;
                     }
                     temp_poly_fix_p.overlap_depth_with_last_one = interior_depth;
@@ -153,10 +144,6 @@ namespace super_planner {
                         ros_ptr_->warn(
                                 " -- [SUPER] Cannot find continuous corridor on path, overlap only {}, force return.",
                                 interior_depth);
-                        // viz for debug
-//                        ros_ptr_->vizCiriPointCloud(latest_pc);
-//                        usleep(100000);
-//                        exit(-1);
                         return false;
                     }
                 } else {
@@ -200,8 +187,6 @@ namespace super_planner {
         box_max = p1.cwiseMax(p2);
         box_min -= Vec3f(bound_dis_, bound_dis_, bound_dis_);
         box_max += Vec3f(bound_dis_, bound_dis_, bound_dis_);
-//        box_min.z() = std::max(box_min.z(), virtual_groud_height_);
-//        box_max.z() = std::min(box_max.z(), virtual_ceil_height_);
     }
 
     bool CorridorGenerator::GeneratePolytopeFromPoint(const Vec3f &pt, Polytope &polytope) {
@@ -228,9 +213,7 @@ namespace super_planner {
         bd(3, 3) = box_min.y();
         bd(4, 3) = -box_max.z();
         bd(5, 3) = box_min.z();
-        // 将vector放到Eigen里，准备开始分解
         if (pc.empty()) {
-            // 障碍物点云为空，直接返回一个方块
             // Ax + By + Cz + D = 0
             planes.resize(6, 4);
             planes.row(0) << 1, 0, 0, -box_max.x();
@@ -287,7 +270,6 @@ namespace super_planner {
         bd(3, 3) = box_min.y();
         bd(4, 3) = -box_max.z();
         bd(5, 3) = box_min.z();
-        // 障碍物点云为空，直接返回一个方块
         // Ax + By + Cz + D = 0
         planes.resize(6, 4);
         planes.row(0) << 1, 0, 0, -box_max.x();
@@ -324,9 +306,7 @@ namespace super_planner {
         bd(3, 3) = box_min.y();
         bd(4, 3) = -box_max.z();
         bd(5, 3) = box_min.z();
-        // 将vector放到Eigen里，准备开始分解
         if (pc.empty()) {
-            // 障碍物点云为空，直接返回一个方块
             // Ax + By + Cz + D = 0g
             planes.resize(6, 4);
             planes.row(0) << 1, 0, 0, -box_max.x();
@@ -358,18 +338,6 @@ namespace super_planner {
             cout << YELLOW << "\t seed line =" << line.first.transpose() << " --> " << line.second.transpose()
                  << RESET << endl;
 
-//            failed_traj_log << 889900 << endl;
-//            failed_traj_log << bd << endl;
-//            failed_traj_log << 0 << endl;
-//            failed_traj_log << pp << endl;
-//            failed_traj_log << 0 << endl;
-//            failed_traj_log << a.transpose() << endl;
-//            failed_traj_log << 0 << endl;
-//            failed_traj_log << b.transpose() << endl;
-//            failed_traj_log << 0 << endl;
-//            failed_traj_log << robot_r_ << endl;
-//            failed_traj_log << 0 << endl;
-//            failed_traj_log << iris_iter_num_ << endl;
             return false;
         }
 

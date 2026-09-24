@@ -48,7 +48,6 @@ void ObjHistory::poseCallback(const geometry_msgs::PoseStampedConstPtr& msg) {
   pos_t(3) = (ros::Time::now() - ObjHistory::global_start_time_).toSec();
 
   history_.push_back(pos_t);
-  // cout << "idx: " << obj_idx_ << "pos_t: " << pos_t.transpose() << endl;
 
   if (history_.size() > queue_size_) history_.pop_front();
 
@@ -174,7 +173,6 @@ void ObjPredictor::predictPolyFit() {
 }
 
 void ObjPredictor::predictCallback(const ros::TimerEvent& e) {
-  // predictPolyFit();
   predictConstVel();
 }
 
@@ -204,9 +202,6 @@ void ObjPredictor::predictConstVel() {
     list<Eigen::Vector4d>::iterator list_it = his.end();
 
     /* ---------- test iteration ---------- */
-    // cout << "----------------------------" << endl;
-    // for (auto v4d : his)
-    //   cout << "v4d: " << v4d.transpose() << endl;
 
     Eigen::Vector3d q1, q2;
     double t1, t2;

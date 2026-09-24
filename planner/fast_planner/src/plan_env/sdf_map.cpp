@@ -25,8 +25,6 @@
 
 #include "sdf_map.h"
 
-// #define current_img_ md_.depth_image_[image_cnt_ & 1]
-// #define last_img_ md_.depth_image_[!(image_cnt_ & 1)]
 
 void SDFMap::initMap(ros::NodeHandle& nh) {
   node_ = nh;
@@ -280,8 +278,6 @@ void SDFMap::updateESDF3d() {
       fillESDF([&](int x) { return md_.tmp_buffer2_[toAddress(x, y, z)]; },
                [&](int x, double val) {
                  md_.distance_buffer_[toAddress(x, y, z)] = mp_.resolution_ * std::sqrt(val);
-                 //  min(mp_.resolution_ * std::sqrt(val),
-                 //      md_.distance_buffer_[toAddress(x, y, z)]);
                },
                min_esdf[0], max_esdf[0], 0);
     }
@@ -369,11 +365,9 @@ int SDFMap::setCacheOccupancy(Eigen::Vector3d pos, int occ) {
 }
 
 void SDFMap::projectDepthImage() {
-  // md_.proj_points_.clear();
   md_.proj_points_cnt = 0;
 
   uint16_t* row_ptr;
-  // int cols = current_img_.cols, rows = current_img_.rows;
   int cols = md_.depth_image_.cols;
   int rows = md_.depth_image_.rows;
 
@@ -381,8 +375,6 @@ void SDFMap::projectDepthImage() {
 
   Eigen::Matrix3d camera_r = md_.camera_q_.toRotationMatrix();
 
-  // cout << "rotate: " << md_.camera_q_.toRotationMatrix() << endl;
-  // std::cout << "pos in proj: " << md_.camera_pos_ << std::endl;
 
   if (!mp_.use_depth_filter_) {
     for (int v = 0; v < rows; v++) {
@@ -425,8 +417,6 @@ void SDFMap::projectDepthImage() {
           row_ptr = row_ptr + mp_.skip_pixel_;
 
           // filter depth
-          // depth += rand_noise_(eng_);
-          // if (depth > 0.01) depth += rand_noise2_(eng_);
 
           if (*row_ptr == 0) {
             depth = mp_.max_ray_length_ + 0.1;
@@ -442,9 +432,6 @@ void SDFMap::projectDepthImage() {
           pt_cur(2) = depth;
 
           pt_world = camera_r * pt_cur + md_.camera_pos_;
-          // if (!isInMap(pt_world)) {
-          //   pt_world = closetPointInMap(pt_world, md_.camera_pos_);
-          // }
 
           md_.proj_points_[md_.proj_points_cnt++] = pt_world;
 
@@ -476,7 +463,6 @@ void SDFMap::projectDepthImage() {
 }
 
 void SDFMap::raycastProcess() {
-  // if (md_.proj_points_.size() == 0)
   if (md_.proj_points_cnt == 0) return;
 
   ros::Time t1, t2;
@@ -548,7 +534,6 @@ void SDFMap::raycastProcess() {
       Eigen::Vector3d tmp = (ray_pt + half) * mp_.resolution_;
       length = (tmp - md_.camera_pos_).norm();
 
-      // if (length < mp_.min_ray_length_) break;
 
       vox_idx = setCacheOccupancy(tmp, 0);
 
@@ -593,7 +578,6 @@ void SDFMap::raycastProcess() {
   boundIndex(min_id);
   boundIndex(max_id);
 
-  // std::cout << "cache all: " << md_.cache_voxel_.size() << std::endl;
 
   while (!md_.cache_voxel_.empty()) {
 
@@ -651,9 +635,6 @@ Eigen::Vector3d SDFMap::closetPointInMap(const Eigen::Vector3d& pt, const Eigen:
 void SDFMap::clearAndInflateLocalMap() {
   /*clear outside local*/
   const int vec_margin = 5;
-  // Eigen::Vector3i min_vec_margin = min_vec - Eigen::Vector3i(vec_margin,
-  // vec_margin, vec_margin); Eigen::Vector3i max_vec_margin = max_vec +
-  // Eigen::Vector3i(vec_margin, vec_margin, vec_margin);
 
   Eigen::Vector3i min_cut = md_.local_bound_min_ -
       Eigen::Vector3i(mp_.local_map_margin_, mp_.local_map_margin_, mp_.local_map_margin_);
@@ -720,9 +701,7 @@ void SDFMap::clearAndInflateLocalMap() {
   // inflate occupied voxels to compensate robot size
 
   int inf_step = ceil(mp_.obstacles_inflation_ / mp_.resolution_);
-  // int inf_step_z = 1;
   vector<Eigen::Vector3i> inf_pts(pow(2 * inf_step + 1, 3));
-  // inf_pts.resize(4 * inf_step + 3);
   Eigen::Vector3i inf_pt;
 
   // clear outdated data
@@ -765,11 +744,7 @@ void SDFMap::clearAndInflateLocalMap() {
 void SDFMap::visCallback(const ros::TimerEvent& /*event*/) {
   publishMap();
   publishMapInflate(false);
-  // publishUpdateRange();
-  // publishESDF();
 
-  // publishUnknown();
-  // publishDepth();
 }
 
 void SDFMap::updateOccupancyCallback(const ros::TimerEvent& /*event*/) {
@@ -830,7 +805,6 @@ void SDFMap::depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
   }
   cv_ptr->image.copyTo(md_.depth_image_);
 
-  // std::cout << "depth: " << md_.depth_image_.cols << ", " << md_.depth_image_.rows << std::endl;
 
   /* get pose */
   md_.camera_pos_(0) = pose->pose.position.x;
@@ -865,7 +839,6 @@ void SDFMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& img) {
   md_.has_cloud_ = true;
 
   if (!md_.has_odom_) {
-    // std::cout << "no odom!" << std::endl;
     return;
   }
 
@@ -951,43 +924,15 @@ void SDFMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& img) {
 }
 
 void SDFMap::publishMap() {
-  // pcl::PointXYZ pt;
-  // pcl::PointCloud<pcl::PointXYZ> cloud;
 
-  // Eigen::Vector3i min_cut = md_.local_bound_min_ -
-  //     Eigen::Vector3i(mp_.local_map_margin_, mp_.local_map_margin_, mp_.local_map_margin_);
-  // Eigen::Vector3i max_cut = md_.local_bound_max_ +
-  //     Eigen::Vector3i(mp_.local_map_margin_, mp_.local_map_margin_, mp_.local_map_margin_);
 
-  // boundIndex(min_cut);
-  // boundIndex(max_cut);
 
-  // for (int x = min_cut(0); x <= max_cut(0); ++x)
-  //   for (int y = min_cut(1); y <= max_cut(1); ++y)
-  //     for (int z = min_cut(2); z <= max_cut(2); ++z) {
 
-  //       if (md_.occupancy_buffer_[toAddress(x, y, z)] <= mp_.min_occupancy_log_) continue;
 
-  //       Eigen::Vector3d pos;
-  //       indexToPos(Eigen::Vector3i(x, y, z), pos);
-  //       if (pos(2) > mp_.visualization_truncate_height_) continue;
 
-  //       pt.x = pos(0);
-  //       pt.y = pos(1);
-  //       pt.z = pos(2);
-  //       cloud.points.push_back(pt);
-  //     }
 
-  // cloud.width = cloud.points.size();
-  // cloud.height = 1;
-  // cloud.is_dense = true;
-  // cloud.header.frame_id = mp_.frame_id_;
 
-  // sensor_msgs::PointCloud2 cloud_msg;
-  // pcl::toROSMsg(cloud, cloud_msg);
-  // map_pub_.publish(cloud_msg);
 
-  // ROS_INFO("pub map");
 
   pcl::PointXYZ pt;
   pcl::PointCloud<pcl::PointXYZ> cloud;
@@ -1067,7 +1012,6 @@ void SDFMap::publishMapInflate(bool all_info) {
   pcl::toROSMsg(cloud, cloud_msg);
   map_inf_pub_.publish(cloud_msg);
 
-  // ROS_INFO("pub map");
 }
 
 void SDFMap::publishUnknown() {
@@ -1101,9 +1045,6 @@ void SDFMap::publishUnknown() {
   cloud.is_dense = true;
   cloud.header.frame_id = mp_.frame_id_;
 
-  // auto sz = max_cut - min_cut;
-  // std::cout << "unknown ratio: " << cloud.width << "/" << sz(0) * sz(1) * sz(2) << "="
-  //           << double(cloud.width) / (sz(0) * sz(1) * sz(2)) << std::endl;
 
   sensor_msgs::PointCloud2 cloud_msg;
   pcl::toROSMsg(cloud, cloud_msg);
@@ -1208,7 +1149,6 @@ void SDFMap::publishESDF() {
 
   esdf_pub_.publish(cloud_msg);
 
-  // ROS_INFO("pub esdf");
 }
 
 void SDFMap::getSliceESDF(const double height, const double res, const Eigen::Vector4d& range,

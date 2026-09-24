@@ -77,7 +77,6 @@ namespace ego_planner
     for (int i = 0; i <= p_; ++i)
     {
       d.push_back(control_points_.col(k - p_ + i));
-      // cout << d[i].transpose() << endl;
     }
 
     for (int r = 1; r <= p_; ++r)
@@ -93,9 +92,6 @@ namespace ego_planner
     return d[p_];
   }
 
-  // Eigen::VectorXd UniformBspline::evaluateDeBoorT(const double& t) {
-  //   return evaluateDeBoor(t + u_(p_));
-  // }
 
   Eigen::MatrixXd UniformBspline::getDerivativeControlPoints()
   {
@@ -277,7 +273,6 @@ namespace ego_planner
     ctrl_pts.row(1) = py.transpose();
     ctrl_pts.row(2) = pz.transpose();
 
-    // cout << "[B-spline]: parameterization ok." << endl;
   }
 
   double UniformBspline::getTimeSum()

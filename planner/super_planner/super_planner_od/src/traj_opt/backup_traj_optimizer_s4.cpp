@@ -67,7 +67,6 @@ void BackupTrajOpt::constraintsFunctional(const Eigen::VectorXd &T,
     const double weightVel = penaltyWeights[1];
     const double weightAcc = penaltyWeights[2];
     const double weightJer = penaltyWeights[3];
-    // const double weightAtt = penaltyWeights[4];
     const double weightOmg = penaltyWeights[5];
     const double weightAccThr = penaltyWeights[6];
 
@@ -135,7 +134,6 @@ void BackupTrajOpt::constraintsFunctional(const Eigen::VectorXd &T,
             violaAcc = acc.squaredNorm() - amaxSqr;
             violaJer = jer.squaredNorm() - jmaxSqr;
             gradThr = 0.0;
-//            gradQuat.setZero();
             gradPos << 0, 0, 0;
             gradVel << 0, 0, 0;
             gradAcc << 0, 0, 0;
@@ -190,13 +188,6 @@ void BackupTrajOpt::constraintsFunctional(const Eigen::VectorXd &T,
                     thr_penna_log += weightAccThr * violaThrustPena;
                 }
 
-//            if (smoothedL1(violaTheta, smoothFactor, violaThetaPena, violaThetaPenaD))
-//            {
-//                gradQuat += weightTheta * violaThetaPenaD /
-//                            sqrt(1.0 - cos_theta * cos_theta) * 4.0 *
-//                            Eigen::Vector4d(0.0, quat(1), quat(2), 0.0);
-//                pena += weightTheta * violaThetaPena;
-//            }
 
 
                 flatMap.backward(gradPos, gradVel, gradAcc, gradJer, gradThr, Vec4f(0, 0, 0, 0), gradOmg,
@@ -236,13 +227,6 @@ void BackupTrajOpt::constraintsFunctional(const Eigen::VectorXd &T,
         }
     }
 
-//    pena_log(1) = pos_penna_log;
-//    pena_log(2) = vel_penna_log;
-//    pena_log(3) = acc_penna_log;
-//    pena_log(4) = jer_penna_log;
-//    pena_log(5) = att_penna_log;
-//    pena_log(6) = omg_penna_log;
-//    pena_log(7) = thr_penna_log;
     pena_log(1) = max_pos_viola_log;
     pena_log(2) = max_vel_viola_log;
     pena_log(3) = max_acc_viola_log;
@@ -254,7 +238,6 @@ void BackupTrajOpt::constraintsFunctional(const Eigen::VectorXd &T,
 
 
 double BackupTrajOpt::costFunctional(void *ptr, const Eigen::VectorXd &x, Eigen::VectorXd &g) {
-//            TimeConsuming t_("cost functional");
     auto &obj = *static_cast<OptimizationVariables *>(ptr);
     obj.iter_num++;
     const long dimTau = obj.temporalDim;
@@ -297,7 +280,6 @@ double BackupTrajOpt::costFunctional(void *ptr, const Eigen::VectorXd &x, Eigen:
     headPVAJ = obj.exp_traj.getState(obj.ts);
     tailPVAJ.col(0) = obj.points.rightCols(1);
     obj.minco.setConditions(headPVAJ, tailPVAJ);
-    // points在这里是没有用的
     obj.minco.setParameters(obj.points.leftCols(obj.piece_num - 1), obj.times);
     double cost = 0;
     obj.partialGradByCoeffs.setZero();
@@ -350,27 +332,17 @@ double BackupTrajOpt::costFunctional(void *ptr, const Eigen::VectorXd &x, Eigen:
     // Add ts cost and gradient;
     if (obj.weight_ts > 0) {
         // square cost
-//        cost += weight_ts * pow(obj.bod_.t_e - obj.ts, 2);
 //        obj.gradTs =
 //                partGradOfHeadPVAJ.col(0).dot(obj.bod_.exp_traj.getVel(obj.ts)) +
 //                partGradOfHeadPVAJ.col(1).dot(obj.bod_.exp_traj.getAcc(obj.ts)) +
 //                partGradOfHeadPVAJ.col(2).dot(obj.bod_.exp_traj.getJer(obj.ts)) +
 //                partGradOfHeadPVAJ.col(3).dot(obj.bod_.exp_traj.getSnap(obj.ts)) +
-//                -weight_ts * 2 * (obj.bod_.t_e - obj.ts);
-//        gcopter::propagateGradIntervalToInf(obj.bod_.t_0, obj.bod_.t_e, tau_s, obj.gradTs, gradTaus);
-//        g(g.size() - 1) = gradTaus;
         // linear cost
-//        double vioTs = (obj.bod_.t_e - obj.ts);
-//        double vioTsPen, vioTsPenD;
-//        gcopter::smoothedL1(vioTs, obj.smoothEps, vioTsPen, vioTsPenD);
-//        cost += weight_ts * vioTsPen;
 //        double gradTs = partGradOfHeadPVAJ.col(0).dot(obj.bod_.exp_traj.getVel(obj.ts)) +
 //                        partGradOfHeadPVAJ.col(1).dot(obj.bod_.exp_traj.getAcc(obj.ts)) +
 //                        partGradOfHeadPVAJ.col(2).dot(obj.bod_.exp_traj.getJer(obj.ts)) +
 //                        partGradOfHeadPVAJ.col(3).dot(obj.bod_.exp_traj.getSnap(obj.ts)) +
 //                        -weight_ts * vioTsPenD;
-//        gcopter::propagateGradIntervalToInf(obj.bod_.t_0, obj.bod_.t_e, tau_s, gradTs, gradTaus);
-//        g(g.size() - 1) = gradTaus;
 
         cost += weight_ts * (obj.max_ts - obj.ts);
         obj.gradTs =
@@ -390,16 +362,14 @@ double BackupTrajOpt::costFunctional(void *ptr, const Eigen::VectorXd &x, Eigen:
 }
 
 bool BackupTrajOpt::processCorridor() {
-    PolyhedronV curIV, curIOB; // 走廊的顶点
+    PolyhedronV curIV, curIOB;
     if (!geometry_utils::enumerateVs(opt_vars.hPolytope, curIV)) {
         std::cout << YELLOW << " -- [MINCO] enumerateVs failed." << RESET << std::endl;
         return false;
     }
     long nv = curIV.cols();
     curIOB.resize(3, nv);
-    // 第一个点存储第一个顶点
     curIOB.col(0) = curIV.col(0);
-    // 后面的点都归一化到第一个点坐标系下
     curIOB.rightCols(nv - 1) = curIV.rightCols(nv - 1).colwise() - curIV.col(0);
     opt_vars.vPolytope = curIOB;
     return true;
@@ -447,7 +417,6 @@ double BackupTrajOpt::optimize(Trajectory &traj, const double &relCostTol) {
     Eigen::Map<Eigen::VectorXd> xi(x.data() + opt_vars.temporalDim, opt_vars.spatialDim);
 
     // 2. Initialize the optimization problem
-    // 初始化均匀时间分配，均匀waypoint分配
     Vec3f step = (opt_vars.tailPVAJ.col(0) - opt_vars.headPVAJ.col(0)) / opt_vars.piece_num;
     for (int i = 0; i < opt_vars.piece_num - 1; i++) {
         opt_vars.points.col(i) = step * (i + 1) + opt_vars.headPVAJ.col(0);

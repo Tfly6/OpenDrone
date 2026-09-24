@@ -326,11 +326,9 @@ namespace poly_traj
             }
             std::set<double> roots =
                 RootFinder::solvePolynomial(eq, l, r, 1e-6);
-            // std::cout << "# roots: " << roots.size() << std::endl;
             double min_dist = -1;
             for (const auto &root : roots)
             {
-                // std::cout << "root: " << root << std::endl;
                 if (root < 0 || root > duration)
                 {
                     continue;
@@ -339,9 +337,7 @@ namespace poly_traj
                 { // velocity == 0, ignore it
                     continue;
                 }
-                // std::cout << "find min!" << std::endl;
                 Eigen::Vector3d p = getPos(root);
-                // std::cout << "p: " << p.transpose() << std::endl;
                 double distance = (p - pt).norm();
                 if (distance < min_dist || min_dist < 0)
                 {
@@ -655,9 +651,6 @@ namespace poly_traj
             }
             if (!find_project_pt)
             {
-                // std::cout << "\033[32m" << "cannot project pt to traj" << "\033[0m" << std::endl;
-                // std::cout << "pt: " << pt.transpose() << std::endl;
-                // assert(false);
             }
             return find_project_pt;
         }
@@ -1017,7 +1010,6 @@ namespace poly_traj
         {
             for (int i = 0; i < N - 1; i++)
             {
-                // gdInP.col(i) += adjGdC.row(6 * i + 5).transpose();
                 gdInP.col(i) = adjGdC.row(6 * i + 5).transpose(); // zxzx
             }
             return;
@@ -1142,7 +1134,6 @@ namespace poly_traj
             A.create(6 * N, 6, 6);
             b.resize(6 * N, 3);
             gdC.resize(6 * N, 3);
-            // gdT.resize(6 * N);
             return;
         }
 
@@ -1270,15 +1261,7 @@ namespace poly_traj
             return gdC;
         }
 
-        // inline Eigen::MatrixXd get_gdT() const
-        // {
-        //     return gdT;
-        // }
 
-        // inline Eigen::MatrixXd get_gdT(size_t i) const
-        // {
-        //     return gdT(i);
-        // }
 
         inline double getTrajJerkCost() const
         {
@@ -1321,7 +1304,6 @@ namespace poly_traj
                 step = T1(i) / K;
                 s1 = 0.0;
                 double t = 0;
-                // innerLoop = K;
 
                 for (int j = 0; j <= K; ++j)
                 {
@@ -1357,7 +1339,6 @@ namespace poly_traj
         inline void initGradCost(EIGENVEC &gdT,
                                  double &cost)
         {
-            // printf( "gdInPs=%d\n", gdInPs.size() );
 
             gdT.setZero();
             gdC.setZero();

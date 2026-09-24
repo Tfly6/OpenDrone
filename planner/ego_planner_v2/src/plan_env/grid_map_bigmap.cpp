@@ -1,7 +1,5 @@
 #include "grid_map.h"
 
-// #define current_img_ md_.depth_image_[image_cnt_ & 1]
-// #define last_img_ md_.depth_image_[!(image_cnt_ & 1)]
 
 void GridMap::initMap(ros::NodeHandle &nh)
 {
@@ -148,10 +146,6 @@ void GridMap::initMap(ros::NodeHandle &nh)
   md_.flag_depth_odom_timeout_ = false;
   md_.flag_use_depth_fusion = false;
 
-  // rand_noise_ = uniform_real_distribution<double>(-0.2, 0.2);
-  // rand_noise2_ = normal_distribution<double>(0, 0.2);
-  // random_device rd;
-  // eng_ = default_random_engine(rd());
 }
 
 void GridMap::resetBuffer()
@@ -208,11 +202,9 @@ int GridMap::setCacheOccupancy(Eigen::Vector3d pos, int occ)
 
 void GridMap::projectDepthImage()
 {
-  // md_.proj_points_.clear();
   md_.proj_points_cnt_ = 0;
 
   uint16_t *row_ptr;
-  // int cols = current_img_.cols, rows = current_img_.rows;
   int cols = md_.depth_image_.cols;
   int rows = md_.depth_image_.rows;
   int skip_pix = mp_.skip_pixel_;
@@ -270,8 +262,6 @@ void GridMap::projectDepthImage()
           row_ptr = row_ptr + mp_.skip_pixel_;
 
           // filter depth
-          // depth += rand_noise_(eng_);
-          // if (depth > 0.01) depth += rand_noise2_(eng_);
 
           if (*row_ptr == 0)
           {
@@ -292,9 +282,6 @@ void GridMap::projectDepthImage()
           pt_cur(2) = depth;
 
           pt_world = camera_r * pt_cur + md_.camera_pos_;
-          // if (!isInMap(pt_world)) {
-          //   pt_world = closetPointInMap(pt_world, md_.camera_pos_);
-          // }
 
           md_.proj_points_[md_.proj_points_cnt_++] = pt_world;
 
@@ -332,7 +319,6 @@ void GridMap::projectDepthImage()
 
 void GridMap::raycastProcess()
 {
-  // if (md_.proj_points_.size() == 0)
   if (md_.proj_points_cnt_ == 0)
     return;
 
@@ -487,16 +473,9 @@ void GridMap::raycastProcess()
     }
     else if (log_odds_update <= 0 && md_.occupancy_buffer_[idx_ctns] <= mp_.clamp_min_log_)
     {
-      // md_.occupancy_buffer_[idx_ctns] = mp_.clamp_min_log_;
       continue;
     }
 
-    // bool in_local = idx(0) >= min_id(0) && idx(0) <= max_id(0) && idx(1) >= min_id(1) &&
-    //                 idx(1) <= max_id(1) && idx(2) >= min_id(2) && idx(2) <= max_id(2);
-    // if (!in_local)
-    // {
-    //   md_.occupancy_buffer_[idx_ctns] = mp_.clamp_min_log_;
-    // }
 
     md_.occupancy_buffer_[idx_ctns] =
         std::min(std::max(md_.occupancy_buffer_[idx_ctns] + log_odds_update, mp_.clamp_min_log_),
@@ -541,9 +520,6 @@ void GridMap::clearAndInflateLocalMap()
 {
   /*clear outside local*/
   const int vec_margin = 5;
-  // Eigen::Vector3i min_vec_margin = min_vec - Eigen::Vector3i(vec_margin,
-  // vec_margin, vec_margin); Eigen::Vector3i max_vec_margin = max_vec +
-  // Eigen::Vector3i(vec_margin, vec_margin, vec_margin);
 
   Eigen::Vector3i min_cut = md_.local_bound_min_ -
                             Eigen::Vector3i(mp_.local_map_margin_, mp_.local_map_margin_, mp_.local_map_margin_);
@@ -618,7 +594,6 @@ void GridMap::clearAndInflateLocalMap()
     ROS_ERROR("Inflation is too big, which will cause siginificant computation! Reduce inflation or enlarge resolution.");
   }
   vector<Eigen::Vector3i> inf_pts(pow(2 * inf_step + 1, 3));
-  // inf_pts.resize(4 * inf_step + 3);
   Eigen::Vector3i inf_pt;
 
   // clear outdated data
@@ -747,7 +722,6 @@ void GridMap::depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
   }
   cv_ptr->image.copyTo(md_.depth_image_);
 
-  // std::cout << "depth: " << md_.depth_image_.cols << ", " << md_.depth_image_.rows << std::endl;
 
   /* get pose */
   md_.camera_pos_(0) = pose->pose.position.x;
@@ -980,7 +954,6 @@ void GridMap::publishMapInflate(bool all_info)
   pcl::toROSMsg(cloud, cloud_msg);
   map_inf_pub_.publish(cloud_msg);
 
-  // ROS_INFO("pub map");
 }
 
 bool GridMap::odomValid() { return md_.has_odom_; }
@@ -989,9 +962,6 @@ bool GridMap::hasDepthObservation() { return md_.has_first_depth_; }
 
 Eigen::Vector3d GridMap::getOrigin() { return mp_.map_origin_; }
 
-// int GridMap::getVoxelNum() {
-//   return mp_.map_voxel_num_[0] * mp_.map_voxel_num_[1] * mp_.map_voxel_num_[2];
-// }
 
 void GridMap::getRegion(Eigen::Vector3d &ori, Eigen::Vector3d &size)
 {

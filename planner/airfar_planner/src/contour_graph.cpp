@@ -31,8 +31,6 @@ void ContourGraph::UpdateContourGraph(const NavNodePtr& odom_node_ptr,
                                       const int& layer_idx,
                                       const std::vector<std::vector<Point3D>>& filtered_contours) {
     if (filtered_contours.empty()) return;
-    // ROS_WARN("odom node layer id: %d", odom_node_ptr->layer_id);
-    // ROS_WARN("odom position: %f, %f, %f", odom_node_ptr->position.x, odom_node_ptr->position.y, odom_node_ptr->position.z);
     odom_node_ptr_ = odom_node_ptr;
     this->ClearContourGraph(layer_idx);
     for (const auto& poly : filtered_contours) {
@@ -100,10 +98,6 @@ void ContourGraph::MatchContourWithNavGraph(const NodePtrStack& nav_graph,
             if (ctnode_ptr->free_direct != NodeFreeDirect::UNKNOW) {
                 const NavNodePtr matched_node = this->NearestNavNodeForCTNode(ctnode_ptr, nav_graph, layer_id);                     
 
-                // if (ctnode_ptr->is_wall_insert && matched_node != NULL)
-                //     cout<<"CG: WALL CONTOUR MATCHED"<< endl;
-                // else if (ctnode_ptr->is_wall_insert && matched_node == NULL)
-                //     cout<<"CG: WALL CONTOUR NULL"<< endl;
 
                 if (matched_node != NULL) {
                     ctnode_ptr->is_global_match = true;
@@ -157,28 +151,17 @@ bool ContourGraph::IsNavNodesConnectFreePolygon(const NavNodePtr& node_ptr1, con
 }
 
 bool ContourGraph::IsNavToOdomConnectFreePolygon(const NavNodePtr& node_ptr, const NavNodePtr& odom_ptr) {
-    // ros::Time start_time = ros::Time::now();
     if ((node_ptr->position - odom_ptr->position).norm() < DPUtil::kNavClearDist) return true;
     ConnectPair cedge;
     ConnectPair cedge2;
     int start_layer, end_layer;
     auto diff = odom_ptr->position - node_ptr->position;
-    // auto diff = node_ptr->position - odom_ptr->position;
     diff = diff/ diff.norm();
     cv::Point2f diff2d;
     diff2d.x = diff.x;
     diff2d.y = diff.y;
     diff2d = diff2d * 0.4;
 
-    // if (node_ptr->layer_id <= odom_ptr->layer_id) {
-    //     cedge = ContourGraph::ReprojectEdge(node_ptr, odom_ptr, DPUtil::kNavClearDist);
-    //     cedge.start_p = cedge.start_p + diff2d;
-    //     start_layer = node_ptr->layer_id, end_layer = odom_ptr->layer_id;
-    // } else {
-    //     cedge = ContourGraph::ReprojectEdge(odom_ptr, node_ptr, DPUtil::kNavClearDist);
-    //     cedge.end_p = cedge.end_p + diff2d;
-    //     start_layer = odom_ptr->layer_id, end_layer = node_ptr->layer_id;
-    // }
 
     if (node_ptr->layer_id <= odom_ptr->layer_id) {
         cedge = ContourGraph::ReprojectEdge(node_ptr, odom_ptr, DPUtil::kNavClearDist, false);
@@ -197,25 +180,11 @@ bool ContourGraph::IsNavToOdomConnectFreePolygon(const NavNodePtr& node_ptr, con
     }
 
     const bool is_global_check = ContourGraph::IsNeedGlobalCheck(node_ptr->position, odom_ptr->position, DPUtil::odom_pos);
-    // return (ContourGraph::IsPointsConnectFreePolygon(cedge, start_layer, end_layer, is_global_check, false) || 
-    //        ContourGraph::IsPointsConnectFreePolygon(cedge2, start_layer, end_layer, is_global_check, false));
 
-    // bool res1 = ContourGraph::IsPointsConnectFreePolygon(cedge, start_layer, end_layer, is_global_check, false);
-    // ROS_WARN("IsNavToOdomConnectFreePolygon time: %f", (ros::Time::now()-start_time).toSec());
 
 
     if (node_ptr->is_inserted) {
-        // print cedge use roswarn
-        // ROS_ERROR("start_p: %f, %f", cedge.start_p.x, cedge.start_p.y);
-        // ROS_ERROR("end_p: %f, %f", cedge.end_p.x, cedge.end_p.y);
-        // ROS_WARN("==============================");
-        // ROS_WARN("start_p2: %f, %f", cedge2.start_p.x, cedge2.start_p.y);
-        // ROS_WARN("end_p2: %f, %f", cedge2.end_p.x, cedge2.end_p.y);
-        // print diff2d
-        // ROS_WARN("diff2d: %f, %f", diff2d.x, diff2d.y);
         return ContourGraph::IsPointsConnectFreePolygon(cedge, start_layer, end_layer, is_global_check, false);
-        // return (ContourGraph::IsPointsConnectFreePolygonTest(cedge, start_layer, end_layer, is_global_check, false) || 
-        // ContourGraph::IsPointsConnectFreePolygonTest(cedge2, start_layer, end_layer, is_global_check, false));
     } else {
         return ContourGraph::IsPointsConnectFreePolygon(cedge, start_layer, end_layer, is_global_check, false);
     }
@@ -238,15 +207,11 @@ bool ContourGraph::IsNavToGoalConnectFreePolygon(const NavNodePtr& node_ptr, con
 
     if (node_ptr->layer_id <= goal_ptr->layer_id) {
         cedge = ContourGraph::ReprojectEdge(node_ptr, goal_ptr, DPUtil::kNavClearDist, false);
-        // cedge2 = ContourGraph::ReprojectEdge(node_ptr, goal_ptr, DPUtil::kNavClearDist, true);
         cedge.start_p = cedge.start_p + diff2d;
-        // cedge2.start_p = cedge2.start_p + diff2d;
         start_layer = node_ptr->layer_id, end_layer = goal_ptr->layer_id;
     } else {
         cedge = ContourGraph::ReprojectEdge(goal_ptr, node_ptr, DPUtil::kNavClearDist, false);
-        // cedge2 = ContourGraph::ReprojectEdge(goal_ptr, node_ptr, DPUtil::kNavClearDist, true);
         cedge.end_p = cedge.end_p + diff2d;
-        // cedge2.end_p = cedge2.end_p + diff2d;
         start_layer = goal_ptr->layer_id, end_layer = node_ptr->layer_id;
     }
 
@@ -312,7 +277,6 @@ bool ContourGraph::IsPointsConnectFreePolygonTest(const ConnectPair& cedge,
     for (int layer_id=start_layer; layer_id<=end_layer; layer_id++) {
         const int segs = (layer_id == start_layer || layer_id == end_layer) ? 1 : 2;
         const ConnectPair check_edge(start_cv_p, start_cv_p + unit_diff * segs); 
-        // ROS_WARN("Checkpoint 1");
         if (is_global_check) {
             for (const auto& contour : ContourGraph::multi_global_contour_[layer_id]) {
                 if ((contour.first - DPUtil::odom_pos).norm() > DPUtil::kSensorRange || 
@@ -324,14 +288,12 @@ bool ContourGraph::IsPointsConnectFreePolygonTest(const ConnectPair& cedge,
                 }
             }
         }
-        // ROS_WARN("Checkpoint 2");
         if (ContourGraph::multi_contour_polygons_[layer_id].empty()) continue;
         for (const auto& poly_ptr : ContourGraph::multi_contour_polygons_[layer_id]) {
             if (poly_ptr->is_pillar) continue;
             ROS_WARN("Checkpoint 3: %d", ContourGraph::IsEdgeCollidePoly(poly_ptr->vertices, check_edge)); 
             if (ContourGraph::IsEdgeCollidePoly(poly_ptr->vertices, check_edge)) {
 
-                // // DEBUG
                 const int N = poly_ptr->vertices.size();
                 for (int i=0; i<N; i++) {
                     const PointPair line(poly_ptr->vertices[i], poly_ptr->vertices[DPUtil::Mod(i+1, N)]);
@@ -349,7 +311,6 @@ bool ContourGraph::IsPointsConnectFreePolygonTest(const ConnectPair& cedge,
                 return false;
             }
         }
-        // ROS_WARN("Checkpoint 4");        
         start_cv_p = start_cv_p + unit_diff * segs;
     }
 
@@ -438,7 +399,6 @@ void ContourGraph::CreatePolygon(const PointStack& poly_points, const int& layer
 }
 
 NavNodePtr ContourGraph::NearestNavNodeForCTNode(const CTNodePtr& ctnode_ptr, const NodePtrStack& nav_graph, const int& layer_id) {
-    // ROS_WARN("NearestNavNodeForCTNode");
     float nearest_dist = DPUtil::kINF;
     NavNodePtr nearest_node = NULL;
     float min_edist = DPUtil::kINF;
@@ -547,12 +507,6 @@ bool ContourGraph::IsEdgeCollideSegment(const PointPair& line, const ConnectPair
     const cv::Point2f start_p(line.first.x, line.first.y);
     const cv::Point2f end_p(line.second.x, line.second.y);
 
-    // cv::Point2f vec1 = end_p - start_p;
-    // cv::Point2f vec2 = edge.end_p - edge.start_p;
-    // vec1 = vec1 / cv::norm(vec1);
-    // vec2 = vec2 / cv::norm(vec2);
-    // float cos_value = vec1.x * vec2.x + vec1.y * vec2.y;
-    // if (cos_value > this->ALIGN_ANGLE_COS) return false;
     if (POLYOPS::doIntersect(start_p, end_p, edge.start_p, edge.end_p)) {
         return true;
     }
@@ -563,9 +517,6 @@ cv::Point2f ContourGraph::getIntersectionPoint(const PointPair& line, const Conn
     const cv::Point2f start_p(line.first.x, line.first.y);
     const cv::Point2f end_p(line.second.x, line.second.y);
     const cv::Point2f inter_p = POLYOPS::IntersectionwithLine(start_p, end_p, edge.start_p, edge.end_p);
-    // if (POLYOPS::onSegment(edge.start_p, inter_p, edge.end_p)) {
-    //     return inter_p;
-    // }
     return inter_p;
 }
 
@@ -583,7 +534,6 @@ bool ContourGraph::IsEdgeCollidePoly(const PointStack& poly, const ConnectPair& 
 
 void ContourGraph::AnalysisConvexityOfCTNode(const CTNodePtr& ctnode_ptr) 
 {
-    // ROS_WARN("AnalysisConvexityOfCTNode");
     if (ctnode_ptr->free_direct == NodeFreeDirect::PILLAR || ctnode_ptr->free_direct == NodeFreeDirect::INSERT) return;
     if (ctnode_ptr->surf_dirs.first == Point3D(0,0,-1) || 
         ctnode_ptr->surf_dirs.second == Point3D(0,0,-1) || 
@@ -670,13 +620,7 @@ ConnectPair ContourGraph::ReprojectEdge(const NavNodePtr& node_ptr1, const NavNo
         else dir1 = -NodeProjectDir(ctnode1);
         ref_dist1 = DPUtil::kLeafSize;
     } else {
-        // if (node_ptr1->is_odom) {
-        //     node1_cv = cv::Point2f(DPUtil::free_odom_p.x, DPUtil::free_odom_p.y);
-        // } else {
-        //     node1_cv = cv::Point2f(node_ptr1->position.x, node_ptr1->position.y);
-        // }  
         node1_cv = cv::Point2f(node_ptr1->position.x, node_ptr1->position.y); 
-        // dir1 = NodeProjectDir(node_ptr1);
         if (!is_inv) dir1 = NodeProjectDir(node_ptr1);
         else {
             dir1 = -NodeProjectDir(node_ptr1);
@@ -691,11 +635,6 @@ ConnectPair ContourGraph::ReprojectEdge(const NavNodePtr& node_ptr1, const NavNo
         dir2 = NodeProjectDir(ctnode2);
         ref_dist2 = DPUtil::kLeafSize;
     } else {
-        // if (node_ptr2->is_odom) {
-        //     node2_cv = cv::Point2f(DPUtil::free_odom_p.x, DPUtil::free_odom_p.y);
-        // } else {
-        //     node2_cv = cv::Point2f(node_ptr2->position.x, node_ptr2->position.y);
-        // }
         node2_cv = cv::Point2f(node_ptr2->position.x, node_ptr2->position.y);
         dir2 = NodeProjectDir(node_ptr2);
         ref_dist2 = std::min(norm*(float)0.4, dist);
@@ -714,7 +653,6 @@ void ContourGraph::BuildKDTreeOnContourGraph(const CTNodeStack& contour_graph, c
 
     multi_contour_graph_kdtree_[layer_id].reset(new cv::flann::Index(contour_mat, *indexParams));
     is_kdtree_built_= true;
-    // TestContourGraph(layer_id);
 }
 
 void ContourGraph::SearchKNN(const CTNodePtr& node, std::vector<int>& indices, const int& layer_id) {
@@ -732,14 +670,6 @@ void ContourGraph::SearchKNN(const CTNodePtr& node, std::vector<int>& indices, c
                 // cout<<"distance: "<<distance<<endl;
                 indices.push_back(index);
             }
-            // std::cout<<"========================"<<std::endl;
-            // cout<<"contour_graph size: "<<contour_graph.size()<<endl;
-            // std::cout << "Index: " << index 
-            //           << ", Distance: " << sqrt(distance)
-            //           << ", GraphPoint: (" << multi_contour_graph_[layer_id][index]->position.x << ", " << multi_contour_graph_[layer_id][index]->position.y << ", " << multi_contour_graph_[layer_id][index]->position.z
-            //           << ", node: (" << node->position.x << ", " << node->position.y << ")"
-            //           << std::endl;
-            // std::cout<<"========================"<<std::endl;
         }
     }    
 }
@@ -748,13 +678,11 @@ void ContourGraph::ConnectVerticalEdges(const int& layer_id) {
     for (const auto& node_ptr : multi_contour_graph_[layer_id]) {
         std::vector<int> indices;
         SearchKNN(node_ptr, indices, layer_id+1);
-        // ROS_WARN("indices size: %d", indices.empty());
 
         for (const auto& index : indices) {
             if (index == -1 || index >= multi_contour_graph_[layer_id+1].size()) break;
             const auto& neighbor_ptr = multi_contour_graph_[layer_id+1][index];
             if (neighbor_ptr == NULL) continue;
-            // ROS_WARN("neighbor_ptr is not NULL");
             if (node_ptr->free_direct == NodeFreeDirect::PILLAR || neighbor_ptr->free_direct == NodeFreeDirect::PILLAR) continue;
             if (node_ptr->free_direct == neighbor_ptr->free_direct && (node_ptr->position - neighbor_ptr->position).norm() < 1.5) {
                 Point3D topo_dir = node_ptr->surf_dirs.first + node_ptr->surf_dirs.second;
@@ -781,10 +709,8 @@ void ContourGraph::ConnectVerticalEdges(const int& layer_id) {
 }
 
 void ContourGraph::SetWallCornerNodes(const CTNodePtr& node_ptr1, const CTNodePtr& node_ptr2, const int& layer_idx) {
-    // if (node_ptr1->is_wall_corner || node_ptr2->is_wall_corner) {ROS_ERROR("SetWallCornerNodes: node_ptr1 or node_ptr2 is already wall corner node"); return;}
 
     node_ptr1->is_wall_corner = true;
-    // node_ptr2->is_wall_corner = true;
 
     bool is_insert_finished = false;
     CTNodePtr start = node_ptr1;
@@ -796,13 +722,6 @@ void ContourGraph::SetWallCornerNodes(const CTNodePtr& node_ptr1, const CTNodePt
         }
 
 
-        // if (InsertWallNodes(start, end, layer_idx)) {
-        //     is_insert_finished = true;
-        // } else {
-        //     // if (InsertWallNodes(end, start, layer_idx)) {
-        //     //     is_insert_finished = true;
-        //     // }
-        // }
     }
 }
 
@@ -821,14 +740,11 @@ bool ContourGraph::InsertWallNodes(CTNodePtr& start, CTNodePtr& end, const int& 
         insert_node_ptr->back = start;
         insert_node_ptr->is_wall_insert = true;
         insert_node_ptr->poly_ptr->is_connect = true;
-        // insert_node_ptr->is_global_match = true;
-        // start->poly_ptr->vertices.push_back(insert_node_ptr->position);
 
         this->AddCTNodeToGraph(insert_node_ptr, layer_idx);
         start = insert_node_ptr;
 
         if ((insert_node_ptr->position - end->position).norm() > DPUtil::kSensorRange*ctgraph_params_.wall_insert_factor) {
-            // cout<<"Current dis: "<<(start->position - end->position).norm()<<endl;
             return false;
         }
     } 
@@ -839,32 +755,19 @@ bool ContourGraph::InsertWallNodes(CTNodePtr& start, CTNodePtr& end, const int& 
         insert_node_ptr->back = end;
         insert_node_ptr->is_wall_insert = true;
         insert_node_ptr->poly_ptr->is_connect = true;
-        // insert_node_ptr->is_global_match = true;
-        // start->poly_ptr->vertices.push_back(insert_node_ptr->position);
 
         this->AddCTNodeToGraph(insert_node_ptr, layer_idx);
         start = insert_node_ptr;
 
         if ((insert_node_ptr->position - end->position).norm() > DPUtil::kSensorRange*ctgraph_params_.wall_insert_factor) {
-            // cout<<"Current dis: "<<(start->position - end->position).norm()<<endl;
             return false;
         }
     } 
-    // else {
-    //     ROS_ERROR("InsertWallNodes: start and end node are not connected");
-    //     return false;
-    // }
-    // cout<<"EXIT dis: "<<(start->position - end->position).norm()<<endl;
     return true;
 
 }
 
 bool ContourGraph::IsTopLayerNodesConnectFreePolygon(const NavNodePtr& node_ptr1, const NavNodePtr& node_ptr2, const bool& layer_limited) {
-    // if (node_ptr1->is_navpoint || node_ptr2->is_navpoint) {
-    //     if (node_ptr1->layer_id == node_ptr2->layer_id && (node_ptr1->position - node_ptr2->position).norm() < DPUtil::kNavClearDist) { // connect to internav node
-    //         return true;
-    //     }
-    // }
     bool is_layer_limit = layer_limited;
     if (node_ptr1->is_odom || node_ptr2->is_odom) is_layer_limit = false;
     ConnectPair cedge;
@@ -880,91 +783,5 @@ bool ContourGraph::IsTopLayerNodesConnectFreePolygon(const NavNodePtr& node_ptr1
         start_layer = node_ptr2->layer_id+1, end_layer = node_ptr1->layer_id;
     }
     bool is_global_check = false;
-    // if (!is_local_only && (!node_ptr1->is_contour_match || !node_ptr2->is_contour_match) && 
-    //     ContourGraph::IsNeedGlobalCheck(node_ptr1->position, node_ptr2->position, DPUtil::odom_pos)) 
-    // {
-    //     is_global_check = true;
-    // }
     return ContourGraph::IsPointsConnectFreePolygon(cedge, start_layer, end_layer, is_global_check, layer_limited);
 }
-
-
-/************************** UNUSE CODE ****************************/
-
-// bool ContourGraph::ReprojectPointOutsidePolygons(Point3D& point, const float& free_radius) {
-    // PolygonPtr inside_poly_ptr = NULL;
-    // bool is_inside_poly = false;
-    // for (const auto& poly_ptr : ContourGraph::contour_polygons_) {
-    //     if (poly_ptr->is_pillar) continue;
-    //     if (DPUtil::PointInsideAPoly(poly_ptr->vertices, point) && !DPUtil::PointInsideAPoly(poly_ptr->vertices, DPUtil::free_odom_p)) {
-    //         inside_poly_ptr = poly_ptr;
-    //         is_inside_poly = true;
-    //         break;
-    //     }
-    // }
-    // if (is_inside_poly) {
-    //     float near_dist = DPUtil::kINF;
-    //     Point3D reproject_p = point;
-    //     Point3D free_dir(0,0,-1);
-    //     const int N = inside_poly_ptr->vertices.size();
-    //     for (int idx=0; idx<N; idx++) {
-    //         const Point3D vertex = inside_poly_ptr->vertices[idx];
-    //         const float temp_dist = (vertex - point).norm();
-    //         if (temp_dist < near_dist) {
-    //             const Point3D dir1 = (inside_poly_ptr->vertices[DPUtil::Mod(idx-1, N)] - vertex).normalize();
-    //             const Point3D dir2 = (inside_poly_ptr->vertices[DPUtil::Mod(idx+1, N)] - vertex).normalize();
-    //             const Point3D dir = (dir1 + dir2).normalize();
-    //             if (DPUtil::PointInsideAPoly(inside_poly_ptr->vertices, vertex + dir * DPUtil::kLeafSize)) { // convex 
-    //                 reproject_p = vertex;
-    //                 near_dist = temp_dist;
-    //                 free_dir = dir;
-    //             }
-    //         }
-    //     }
-    //     const float origin_z = point.z;
-    //     point = reproject_p - free_dir * free_radius;
-    //     point.z = origin_z;
-    // }
-    // return is_inside_poly;
-// }
-
-// bool ContourGraph::IsPoint3DConnectFreePolygon(const Point3D& p1, const Point3D& p2, const int& start_layer, const int& end_layer) {
-//     const bool is_global_check = ContourGraph::IsNeedGlobalCheck(p1, p2, DPUtil::odom_pos);
-//     const ConnectPair ori_cedge(p1, p2);
-//     const ConnectPair cedge = ori_cedge;
-//     if (end_layer - start_layer > DPUtil::kNeighborLayers) return false; // max acrossing layers
-//     return ContourGraph::IsPointsConnectFreePolygon(cedge, ori_cedge, 
-//                                                     start_layer, end_layer,
-//                                                     NULL, NULL, 
-//                                                     is_global_check);
-// }
-
-// test functions
-
-// // test knn search
-// void TestContourGraph(const int& layer_id) {
-//     cv::Mat odom_mat(1, 2, CV_32FC1);
-//     odom_mat.at<float>(0, 0) = odom_node_ptr_->position.x;
-//     odom_mat.at<float>(0, 1) = odom_node_ptr_->position.y;
-//     cv::Mat indices, dists;
-//     multi_contour_graph_kdtree_[layer_id]->knnSearch(odom_mat, indices, dists, 1);
-//     // Print out the results
-//     for (int i = 0; i < indices.rows; i++)
-//     {
-//         for (int j = 0; j < indices.cols; j++)
-//         {
-//             int index = indices.at<int>(i, j);
-//             float x = contour_mat.at<float>(index, 0);
-//             float y = contour_mat.at<float>(index, 1);
-//             float distance = dists.at<float>(i, j);
-//             std::cout<<"========================"<<std::endl;
-//             cout<<"contour_graph size: "<<contour_graph.size()<<endl;
-//             std::cout << "Index: " << index 
-//                       << ", Distance: " << sqrt(distance)
-//                       << ", GraphPoint: (" << contour_graph[index]->position.x << ", " << contour_graph[index]->position.y << ", " << contour_graph[index]->position.z
-//                       << ", odom: (" << odom_node_ptr_->position.x << ", " << odom_node_ptr_->position.y << ")"
-//                       << std::endl;
-//             std::cout<<"========================"<<std::endl;
-//         }
-//     }
-// }

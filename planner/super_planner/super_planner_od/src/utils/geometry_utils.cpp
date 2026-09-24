@@ -306,13 +306,13 @@ void geometry_utils::convertFlatOutputToAttAndOmg(const Vec3f& p,
     Mat3f R;
     R << xB, yB, zB;
     Quatf q(R);
-    // 原始代码替换为：
     Eigen::Quaterniond eigen_q(q.w(), q.x(), q.y(), q.z());
-    eigen_q.normalize(); // 重要！确保单位四元数
+    // Normalization prevents numerical drift from producing invalid Euler angles.
+    eigen_q.normalize();
     rpy = eigen_q.toRotationMatrix().eulerAngles(0, 1, 2);
 
-// 如果需要与 tf 完全兼容的输出：
-    if (rpy(2) < 0) rpy(2) += 2*M_PI; // 将 yaw 调整到 [0, 2pi) 范围
+    // Match the [0, 2*pi) yaw convention used by the ROS-facing code.
+    if (rpy(2) < 0) rpy(2) += 2*M_PI;
     Vec3f omega;
     Vec3f hw = (j - (zB.dot(j) * zB)) / aT;
     omega(0) = hw.dot(yB);
@@ -386,12 +386,8 @@ int geometry_utils::lineIntersectBox(Vec3f L1, Vec3f L2, Vec3f B1, Vec3f B2, Vec
     if (L2.z() > B2.z() && L1.z() > B2.z()) return false;
 
     // inside box seems intersect
-    //        if (L1.x() > B1.x() && L1.x() < B2.x() &&
     //            L1.y() > B1.y() && L1.y() < B2.y() &&
     //            L1.z() > B1.z() && L1.z() < B2.z()) {
-    //            Hit = L1;
-    //            return true;
-    //        }
 
     if ((GetIntersection(L1.x() - B1.x(), L2.x() - B1.x(), L1, L2, Hit) && InBox(Hit, B1, B2, 1))
         || (GetIntersection(L1.y() - B1.y(), L2.y() - B1.y(), L1, L2, Hit) && InBox(Hit, B1, B2, 2))
@@ -439,7 +435,6 @@ Eigen::Matrix3d geometry_utils::RotationFromVec3(const Eigen::Vector3d& v) {
     return Eigen::Matrix3d(qz * qy * qx);
 }
 
-// 通过三点获得一个平面
 void geometry_utils::FromPointsToPlane(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3,
                                        Eigen::Vector4d& hPoly) {
     // Each row of hPoly is defined by h0, h1, h2, h3 as
@@ -452,7 +447,6 @@ void geometry_utils::FromPointsToPlane(const Eigen::Vector3d& p1, const Eigen::V
 
 void geometry_utils::getFovCheckPlane(const Eigen::Matrix3d R, const Eigen::Vector3d t, Eigen::MatrixX4d& fov_planes,
                                       std::vector<Eigen::Matrix3d>& fov_pts) {
-    // 只使用上下两个切面来约束。
     fov_planes.resize(2, 4);
     fov_pts.clear();
     static Eigen::Vector3d inner_pt(1, 0, 0);
@@ -494,7 +488,6 @@ void geometry_utils::GetFovPlanes(const Eigen::Matrix3d R, const Eigen::Vector3d
                                   std::vector<Eigen::Matrix3d>& fov_pts) {
     fov_planes.resize(10, 4);
     fov_pts.clear();
-    // 1) 获得前三个面
     static const double sqrt2 = sqrt(2);
     static Eigen::Vector3d center(0, 0, 0);
     static Eigen::Vector3d inner_pt(0, 0, -1);
@@ -510,7 +503,6 @@ void geometry_utils::GetFovPlanes(const Eigen::Matrix3d R, const Eigen::Vector3d
     ten_pts.col(4) = (Eigen::Vector3d(0, -r, z));
 
 
-    // 2) 获得下三个面
     constexpr double rad85 = (55.0 / 180.0 * M_PI);
     static double z85 = -cos(rad85) * 5;
     static double r85 = sin(rad85) * 5;
@@ -520,7 +512,6 @@ void geometry_utils::GetFovPlanes(const Eigen::Matrix3d R, const Eigen::Vector3d
     ten_pts.col(8) = (Eigen::Vector3d(r85 / sqrt2, -r85 / sqrt2, z85));
     ten_pts.col(9) = (Eigen::Vector3d(0, -r85, z85));
 
-    // 3) 旋转所有点
     ten_pts = (R * ten_pts).colwise() + t;
     Eigen::Vector3d fov_inner_pt = R * inner_pt + t;
     Eigen::Vector3d fov_inner_pt2 = R * inner_pt2 + t;
@@ -546,7 +537,6 @@ void geometry_utils::GetFovPlanes(const Eigen::Matrix3d R, const Eigen::Vector3d
         fov_planes.row(i) = temp;
     }
 
-    // 4）转为平面方程输出
 }
 
 

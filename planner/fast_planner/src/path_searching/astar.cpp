@@ -71,12 +71,6 @@ int Astar::search(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, bool dynamic
   while (!open_set_.empty()) {
     /* ---------- get lowest f_score node ---------- */
     cur_node = open_set_.top();
-    // cout << "pos: " << cur_node->state.head(3).transpose() << endl;
-    // cout << "time: " << cur_node->time << endl;
-    // cout << "dist: " <<
-    // edt_environment_->evaluateCoarseEDT(cur_node->state.head(3),
-    // cur_node->time) <<
-    // endl;
 
     /* ---------- determine termination ---------- */
 
@@ -84,9 +78,6 @@ int Astar::search(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, bool dynamic
         abs(cur_node->index(1) - end_index(1)) <= 1 && abs(cur_node->index(2) - end_index(2)) <= 1;
 
     if (reach_end) {
-      // cout << "[Astar]:---------------------- " << use_node_num_ << endl;
-      // cout << "use node num: " << use_node_num_ << endl;
-      // cout << "iter num: " << iter_num_ << endl;
       terminate_node = cur_node;
       retrievePath(terminate_node);
       has_path_ = true;
@@ -140,10 +131,6 @@ int Astar::search(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, bool dynamic
           }
 
           /* collision free */
-          // double dist = dynamic ?
-          // edt_environment_->evaluateCoarseEDT(pro_pos, cur_node->time + dt) :
-          //                         edt_environment_->evaluateCoarseEDT(pro_pos,
-          //                         -1.0);
           double dist = edt_environment_->evaluateCoarseEDT(pro_pos, -1.0);
           if (dist <= margin_) {
             continue;
@@ -180,7 +167,6 @@ int Astar::search(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, bool dynamic
             }
           } else if (pro_node->node_state == IN_OPEN_SET) {
             if (tmp_g_score < pro_node->g_score) {
-              // pro_node->index = pro_id;
               pro_node->position = pro_pos;
               pro_node->f_score = tmp_f_score;
               pro_node->g_score = tmp_g_score;
@@ -319,7 +305,6 @@ Eigen::Vector3i Astar::posToIndex(Eigen::Vector3d pt) {
 
   // idx << floor((pt(0) - origin_(0)) * inv_resolution_), floor((pt(1) -
   // origin_(1)) * inv_resolution_),
-  //     floor((pt(2) - origin_(2)) * inv_resolution_);
 
   return idx;
 }

@@ -23,7 +23,6 @@
 
 
 
-// #include <fstream>
 #include "planner_manager.h"
 #include <thread>
 
@@ -253,8 +252,6 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
     if (++iter_num >= 3) break;
   }
 
-  // pos.checkFeasibility(true);
-  // cout << "[Main]: iter num: " << iter_num << endl;
 
   double tn = pos.getTimeSum();
 
@@ -427,7 +424,6 @@ bool FastPlannerManager::topoReplan(bool collide) {
         optimize_threads.emplace_back(&FastPlannerManager::optimizeTopoBspline, this, t_now,
                                       local_traj_duration, select_paths[i], i);
         // optimizeTopoBspline(t_now, local_traj_duration,
-        // select_paths[i], origin_len, i);
       }
       for (int i = 0; i < select_paths.size(); ++i) optimize_threads[i].join();
 
@@ -459,7 +455,6 @@ void FastPlannerManager::refineTraj(NonUniformBspline& best_traj, double& time_i
   double    dt, t_inc;
   const int max_iter = 1;
 
-  // int cost_function = BsplineOptimizer::NORMAL_PHASE | BsplineOptimizer::VISIBILITY;
   Eigen::MatrixXd ctrl_pts      = best_traj.getControlPoint();
   int             cost_function = BsplineOptimizer::NORMAL_PHASE;
 
@@ -488,8 +483,6 @@ void FastPlannerManager::reparamBspline(NonUniformBspline& bspline, double ratio
   int    prev_num    = bspline.getControlPoint().rows();
   double time_origin = bspline.getTimeSum();
   int    seg_num     = bspline.getControlPoint().rows() - 3;
-  // double length = bspline.getLength(0.1);
-  // int seg_num = ceil(length / pp_.ctrl_pt_dist);
 
   ratio = min(1.01, ratio);
   bspline.lengthenTime(ratio);
@@ -503,7 +496,6 @@ void FastPlannerManager::reparamBspline(NonUniformBspline& bspline, double ratio
   }
   NonUniformBspline::parameterizeToBspline(dt, point_set, plan_data_.local_start_end_derivative_,
                                            ctrl_pts);
-  // ROS_WARN("prev: %d, new: %d", prev_num, ctrl_pts.rows());
 }
 
 void FastPlannerManager::optimizeTopoBspline(double start_t, double duration,
@@ -519,7 +511,6 @@ void FastPlannerManager::optimizeTopoBspline(double start_t, double duration,
   double          dt;
 
   ctrl_pts = reparamLocalTraj(start_t, duration, seg_num, dt);
-  // std::cout << "ctrl pt num: " << ctrl_pts.rows() << std::endl;
 
   // discretize the guide path and align it with B-spline control points
   vector<Eigen::Vector3d> guide_pt;
@@ -529,7 +520,6 @@ void FastPlannerManager::optimizeTopoBspline(double start_t, double duration,
   guide_pt.pop_back();
   guide_pt.erase(guide_pt.begin(), guide_pt.begin() + 2);
 
-  // std::cout << "guide pt num: " << guide_pt.size() << std::endl;
   if (guide_pt.size() != int(ctrl_pts.rows()) - 6) ROS_WARN("what guide");
 
   tm1 = (ros::Time::now() - t1).toSec();
@@ -571,7 +561,6 @@ Eigen::MatrixXd FastPlannerManager::reparamLocalTraj(double start_t, double& dt,
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(dt, point_set, start_end_derivative, ctrl_pts);
   plan_data_.local_start_end_derivative_ = start_end_derivative;
-  // cout << "ctrl pts:" << ctrl_pts.rows() << endl;
 
   return ctrl_pts;
 }
@@ -587,7 +576,6 @@ Eigen::MatrixXd FastPlannerManager::reparamLocalTraj(double start_t, double dura
   /* parameterization of B-spline */
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(dt, point_set, start_end_derivative, ctrl_pts);
-  // cout << "ctrl pts:" << ctrl_pts.rows() << endl;
 
   return ctrl_pts;
 }
@@ -635,12 +623,6 @@ void FastPlannerManager::findCollisionRange(vector<Eigen::Vector3d>& colli_start
   dt = initial_traj->getInterval();
   sn = ceil((t_mp - t_e) / dt);
   dt = (t_mp - t_e) / sn;
-  // std::cout << "dt: " << dt << std::endl;
-  // std::cout << "sn: " << sn << std::endl;
-  // std::cout << "t_m: " << t_m << std::endl;
-  // std::cout << "t_mp: " << t_mp << std::endl;
-  // std::cout << "t_s: " << t_s << std::endl;
-  // std::cout << "t_e: " << t_e << std::endl;
 
   if (dt > 1e-4) {
     for (double tc = t_e; tc <= t_mp + 1e-4; tc += dt) {

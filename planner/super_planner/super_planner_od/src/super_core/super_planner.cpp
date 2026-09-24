@@ -106,7 +106,6 @@ namespace super_planner {
         last_exp_traj_info_.setEmpty();
         local_start_p_ = local_star_pt;
         RET_CODE exp_ret_code = generateExpTraj(last_exp_traj_info_, exp_traj_info);
-        //GenerateRestToRestExpTraj(local_star_pt, exp_traj_info);
         if (exp_ret_code == FAILED) {
             ros_ptr_->warn(" -- [SUPER] in [PlanFromRest] GenerateExpTrajectory failed with {}.",
                            RET_CODE_STR[exp_ret_code].c_str());
@@ -218,7 +217,6 @@ namespace super_planner {
 
 
         BackupTraj back_traj_info;
-        // 2）生成back轨迹
         TimeConsuming t_back("t_back", false);
         RET_CODE back_ret_code = generateBackupTrajectory(exp_traj_info, back_traj_info);
         time_consuming_[GENERATE_BACK_TRAJ] = t_back.stop();
@@ -254,7 +252,6 @@ namespace super_planner {
                 ros_ptr_->info(" -- [SUPER] in [ReplanOnce]: Replan a new back traj success, all replan success.");
             return SUCCESS;
         } else if (back_ret_code == NO_NEED) {
-            // 这次生成backup轨迹的点没有意义,
             robot_on_backup_traj_ = false;
             last_exp_traj_info_ = exp_traj_info;
             gi_.new_goal = false;
@@ -327,14 +324,11 @@ namespace super_planner {
         cmd_traj_info_.lock();
         const double &cur_t = ros_ptr_->getSimTime();
         const double &cmd_start_WT = cmd_traj_info_.getStartWallTime();
-//        const bool &backup_avilibale = cmd_traj_info_.backupTrajAvilibale();
-//        const double &backup_start_TT = cmd_traj_info_.getBackupTrajStartTT();
         const double &total_dur = cmd_traj_info_.getTotalDuration();
 
         traj_finish = (cur_t - cmd_start_WT) > total_dur;
         const double &eval_t = traj_finish ? total_dur : (cur_t - cmd_start_WT);
 
-//        bool last_round_robot_on_backup_traj = robot_on_backup_traj_;
         robot_on_backup_traj_ = cmd_traj_info_.isTTOnBackupTraj(eval_t);
         on_backup_traj = robot_on_backup_traj_;
 
@@ -357,15 +351,7 @@ namespace super_planner {
             yaw_dot = 0;
         }
 
-//        if (last_round_robot_on_backup_traj != robot_on_backup_traj_) {
-//            if (last_round_robot_on_backup_traj) {
-//                ros_ptr_->info(" -- [CMD] Emergency Stop End ========================");
-//            } else {
-//                ros_ptr_->info(" -- [CMD] Emergency Stop Start ========================");
-//            }
-//        }
 
-//        double cur_yaw = geometry_utils::get_yaw_from_quaternion(robot_state_.q);
         cmd_traj_info_.unlock();
     }
 
@@ -508,7 +494,6 @@ namespace super_planner {
             last_exp_traj_info.setWholeTrajKnownFreeFlag(true);
             last_sample_pt = guide_pos_traj.getPos(eval_t);
             eval_t += cfg_.sample_traj_dt;
-            // * 4) 记录replan点在evaluated_pts上的id
             int replan_id = -1;
             for (; eval_t < guide_pos_traj_total_time; eval_t += cfg_.sample_traj_dt) {
                 temp_pt = guide_pos_traj.getPos(eval_t);
@@ -603,7 +588,6 @@ namespace super_planner {
         // if need a geometry path
         if (temp_horizon > cfg_.resolution * 2) {
             /// start point TT + exp_traj start_WT
-//            double path_search_start_point_WT = guide_stamp.back() + guide_pos_traj.start_WT;
             // if the goal is close to the last point of the guide path, just add the goal to the guide path
             if ((guide_path.back() - gi_.goal_p).norm() < cfg_.resolution * 5) {
                 guide_stamp.push_back(guide_stamp.back() +
@@ -612,32 +596,6 @@ namespace super_planner {
                 // NO NEED
             } else {
                 vec_Vec3f new_path;
-                // project goal within the planning horizon
-//                const Vec3f dir = (gi_.goal_p - robot_state_.p).normalized();
-//                const double dis2goal = (gi_.goal_p - robot_state_.p).norm();
-//                Vec3f cadi_p = gi_.goal_p;
-//                if(dis2goal > cfg_.planning_horizon) {
-//                    double proj_l = cfg_.planning_horizon;
-//                    Vec3f cadi_p = robot_state_.p + dir * proj_l;
-//                    int max_iter = 100;
-//                    while(map_ptr_->isOccupiedInflate(cadi_p) && max_iter-- > 0) {
-//                        if(map_ptr_->getNearestInfCellNot(OCCUPIED, cadi_p, cadi_p, 1.0)) {
-//                            break;
-//                        }
-//                        proj_l -= 2.0;
-//                        if(proj_l < 1){
-//                            ros_ptr_->warn(" -- [SUPER] Project goal failed");
-//                            gi_.goal_valid = false;
-//                            return FAILED;
-//                        }
-//                        cadi_p = robot_state_.p + dir * proj_l;
-//                    }
-//                    if(max_iter <= 0) {
-//                        ros_ptr_->warn(" -- [SUPER] Project goal failed");
-//                        gi_.goal_valid = false;
-//                        return FAILED;
-//                    }
-//                }
                 if (!PathSearch(guide_path.back(), gi_.goal_p, temp_horizon, new_path)) {
                     ros_ptr_->warn(" -- [SUPER] PathSearch for new path failed");
                     return FAILED;
@@ -660,10 +618,6 @@ namespace super_planner {
                 }
                 total_dis += (new_path.front() - guide_path.back()).norm();
                 dis[0] = total_dis;
-//                for (int i = 0; i < dis.size(); i++) {
-//                    cout << dis[i] << " ";
-//                }
-//                cout << endl;
                 vector<double> stamps(new_path.size(), 0);
                 vector<double> dt(new_path.size(), 0);
                 double last_stamp = 0;
@@ -678,15 +632,6 @@ namespace super_planner {
                 }
                 double time_stamp = guide_stamp.back();
 
-//                for (int i = 0; i < stamps.size(); i++) {
-//                    cout << stamps[i] << " ";
-//                }
-//                cout << endl;
-//
-//                for (int i = 0; i < dt.size(); i++) {
-//                    cout << dt[i] << " ";
-//                }
-//                cout << endl;
 
                 for (long unsigned int i = 1; i < new_path.size(); i++) {
                     double t = dt[i];
@@ -844,12 +789,10 @@ namespace super_planner {
         Vec3f temp_point;
         double out_t;
         bool all_traj_visible{true};
-        // 同时记录每一个点的刹车时间和刹车距离
         vector<double> min_stop_dis;
         vector<TimePosPair> eval_ps;
         Vec3f temp_vel;
 
-        // 记录当前时刻到最远时刻的所有可视部分
         Vec3f last_pos = ref_exp_traj.getPos(start_t);
         for (out_t = start_t; out_t < total_dur; out_t += cfg_.sample_traj_dt) {
             temp_point = ref_exp_traj.getPos(out_t);
@@ -908,10 +851,7 @@ namespace super_planner {
         // 1) last exp traj has a backup traj
         // 2) last backup WT is larger than this term
         // 3) last exp is collision free
-        // if (ref_exp_traj.back_traj_start_TT > 0 &&
         // seed_point_t < ref_exp_traj.back_traj_start_TT) {
-        // return NO_NEED;
-        // }
 
 
         Vec3f seed_point = ref_exp_traj.getPos(seed_point_t);
@@ -962,8 +902,6 @@ namespace super_planner {
             time_consuming_[VISUALIZATION] += t_viz.stop();
         }
 
-//        Vec3f out_p = temp_point;
-//        double t_R = 0.0;
         double eval_t = eval_ps.back().first + cfg_.sample_traj_dt;
         last_pos = eval_ps.back().second;
         while (temp_poly.PointIsInside(eval_ps.back().second) && eval_t < total_dur) {
@@ -984,14 +922,9 @@ namespace super_planner {
         seed_point = eval_ps.back().second;
         seed_point_t = eval_ps.back().first;
 
-        //        bool use_new{true};
-        //        if (use_new) {
         double t0 = ros_ptr_->getSimTime() -
                     ref_exp_traj.getStartWallTime() + 0.01;
         double te = seed_point_t;
-        //            cout << "t0: " << t0 << endl;
-        //            cout << "te: " << te << endl;
-        //            cout << "exp_traj_dur: " << ref_exp_traj.optimized_exp_traj.getTotalDuration() << endl;
         double vel_e_n = ref_exp_traj.getVel(te).norm();
         double heu_ts = std::max((t0 + te) / 2, te - vel_e_n / cfg_.back_traj_cfg.max_acc);
         double heu_dur = te - heu_ts;
@@ -1150,7 +1083,6 @@ namespace super_planner {
         Vec3f temp_goal_point, temp_start_point;
         temp_start_point = shifted_start_pt;
         double temp_plannning_horizon = searching_horizon;
-        //            int start_id = getNearestFurtherGoalPoint(goal_waypoints, start_pt);
 
         int flag = ON_INF_MAP | (cfg_.frontend_in_known_free ? UNKNOWN_AS_OCCUPIED : UNKNOWN_AS_FREE) | DONT_USE_INF_NEIGHBOR;
 

@@ -68,7 +68,7 @@ def _write_parameter_snapshot_manifest(
 
 
 def _parse_roslaunch_args(arg_items):
-    """解析 --planner-arg key:=value / key=value 参数。"""
+    """Parse --planner-arg entries in key:=value or key=value form."""
     parsed = {}
     for item in arg_items or []:
         if ':=' in item:
@@ -93,7 +93,7 @@ def _generate_core_metric_plots(
     hover_height: float,
     duration: float,
 ) -> dict:
-    """为每个 task 自动输出核心轨迹、误差和姿态图，复用当前分析缓存。"""
+    """Generate core trajectory, error, and attitude plots from cached analysis."""
     full_data, phase_data = analyzer.get_cached_data()
     visualizer = BagVisualizer(
         bag_file=analyzer.bag_file,
@@ -116,7 +116,7 @@ def _generate_core_metric_plots(
 
 
 def _postprocess_completed_run(result: dict, record_dir: str) -> dict:
-    """复用单次 run 的归档、分析和核心作图流程，供 batch 调用。"""
+    """Reuse single-run archival, analysis, and plotting for batch execution."""
     controller_name = result['controller']
     takeoff_height = result['takeoff_height']
     task_duration = result['task_duration']

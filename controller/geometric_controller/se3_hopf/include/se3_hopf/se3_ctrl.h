@@ -16,7 +16,6 @@
 
 #include "se3_hopf/se3_hopf.hpp"
 #include "se3_hopf/se3_dynamic_tuneConfig.h"
-// #include "math_utils/math_utils.h"
 #include <std_msgs/Int8.h>
 #include <std_srvs/SetBool.h>
 
@@ -46,7 +45,6 @@ private:
     bool offboard_triggered_{false};
     bool auto_takeoff_{false};
     bool use_dynamic_reconfigure_{false};
-    // bool takeoffFlag_{false};
     bool landing_locked_{false};
     bool enable_auto_offboard_{false};
     bool enable_auto_arm_{false};

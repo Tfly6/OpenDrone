@@ -1,4 +1,3 @@
-// #include <fstream>
 #include "planner_manager.h"
 #include <thread>
 #include <visualization_msgs/Marker.h> // zx-todo
@@ -48,11 +47,6 @@ namespace ego_planner
 
     static int count = 0;
     cout << "\033[47;30m\n[" << t_start << "] Drone " << pp_.drone_id << " Replan " << count++ << "\033[0m" << endl;
-    // cout.precision(3);
-    // cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << "\ngoal:" << local_target_pt.transpose() << ", " << local_target_vel.transpose()
-    //      << endl;
-    // if ((start_pt - local_target_pt).norm() < 0.2)
-    //   cout << "Close to goal" << endl;
 
     /*** STEP 1: INIT ***/
     ploy_traj_opt_->setIfTouchGoal(touch_goal);
@@ -86,7 +80,6 @@ namespace ego_planner
     vector<vector<Eigen::Vector3d>> vis_trajs;
     poly_traj::MinJerkOpt best_MJO;
 
-    // ROS_ERROR("BBBB");
 
     if (pp_.use_multitopology_trajs)
     {
@@ -169,7 +162,6 @@ namespace ego_planner
       // cout << "total time:\033[42m" << (t_init + t_opt).toSec()
       //      << "\033[0m,init:" << t_init.toSec()
       //      << ",optimize:" << t_opt.toSec()
-      //      << ",avg_time=" << sum_time / count_success << endl;
 
       setLocalTrajFromOpt(best_MJO, touch_goal);
       cstr_pts = best_MJO.getInitConstraintPoints(ploy_traj_opt_->get_cps_num_prePiece_());
@@ -333,7 +325,6 @@ namespace ego_planner
     traj_.global_traj.last_glb_t_of_lc_tgt = traj_.global_traj.glb_t_of_lc_tgt;
 
     double t_step = planning_horizen / 20 / pp_.max_vel_;
-    // double dist_min = 9999, dist_min_t = 0.0;
     for (t = traj_.global_traj.glb_t_of_lc_tgt;
          t < (traj_.global_traj.global_start_time + traj_.global_traj.duration);
          t += t_step)

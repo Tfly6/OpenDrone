@@ -29,7 +29,7 @@ class FlightPhase:
 
 
 class TaskBase(abc.ABC):
-    """任务基类"""
+    """Base class for evaluation tasks."""
 
     def __init__(self, takeoff_height: float = 2.0, duration: Optional[float] = None):
         self.takeoff_height = takeoff_height
@@ -59,7 +59,7 @@ class TaskBase(abc.ABC):
 
     @abc.abstractmethod
     def get_hover_height(self) -> float:
-        """返回悬停目标高度"""
+        """Return the target hover altitude."""
         pass
 
     @property
@@ -71,60 +71,60 @@ class TaskBase(abc.ABC):
 
     @property
     def duration(self) -> float:
-        """定时任务的评价窗口，或有限终点任务的完成期限。"""
+        """Return the evaluation window or deadline for a finite task."""
         return self._duration
 
     @property
     def default_duration(self) -> float:
-        """任务默认主阶段时长。"""
+        """Return the default duration of the task's main phase."""
         return 20.0
 
     @property
     def metric_profile(self) -> str:
-        """稳定的指标集合标识；只描述任务语义，不表示评分或报告视图。"""
+        """Return the stable metric profile describing task semantics."""
         return 'online_mission'
 
     @property
     def render_trajectory_plots(self) -> bool:
-        """是否生成 2D/3D 空间轨迹图。"""
+        """Return whether to render 2D and 3D trajectory plots."""
         return True
 
     @property
     def execution_start_policy(self) -> str:
-        """任务执行起点策略。"""
+        """Return the task execution-start policy."""
         return 'mission_state'
 
     @property
     def waypoint_type(self) -> str:
-        """传给 waypoint_generator 的预设航点类型"""
+        """Return the preset waypoint type passed to waypoint_generator."""
         return ''
 
     @property
     def planner_name_override(self) -> str:
-        """任务要求的参考源 / planner 启动项。空字符串表示不覆盖。"""
+        """Return the required reference source or planner; empty means no override."""
         return ''
 
     @property
     def planner_args(self) -> Dict[str, str]:
-        """任务要求注入的 planner launch 参数。"""
+        """Return planner launch arguments required by the task."""
         return {}
 
     @property
     def record_topics(self) -> List[str]:
-        """任务协议自身拥有的录包话题。"""
+        """Return bag topics owned by the task protocol."""
         return []
 
     @property
     def has_terminal_outcome(self) -> bool:
-        """任务是否存在可提前结束执行阶段的语义终点。"""
+        """Return whether a semantic endpoint can finish execution early."""
         return False
 
     def create_outcome_evaluator(self):
-        """创建一次运行独占的任务结果判定器。"""
+        """Create a run-local task outcome evaluator."""
         return NoOutcomeEvaluator()
 
     def get_target_position(self) -> np.ndarray:
-        """返回任务目标位置。默认任务是在世界坐标原点上方悬停。"""
+        """Return the task target, defaulting to a hover above the world origin."""
         return np.array([0.0, 0.0, self.get_hover_height()])
 
     def get_analysis_phase(self, analysis_type: str = 'evaluation') -> FlightPhase:
@@ -202,7 +202,7 @@ class TaskBase(abc.ABC):
 
     @abc.abstractmethod
     def compute_metrics(self, calculator, phase_data: Dict, full_data: Dict) -> List:
-        """根据任务语义计算指标"""
+        """Compute metrics according to task semantics."""
         pass
 
 
@@ -248,7 +248,7 @@ class HoverTask(TaskBase):
         return False
 
     def compute_metrics(self, calculator, phase_data: Dict, full_data: Dict) -> List:
-        """计算自动起飞悬停任务的稳态指标"""
+        """Compute steady-state metrics for automatic takeoff and hover."""
         metrics = []
         positions = phase_data.get('positions', np.empty((0, 3)))
         attitudes = phase_data.get('attitudes', np.empty((0, 3)))
@@ -299,7 +299,7 @@ class HoverTask(TaskBase):
 
 
 class PresetTrajectoryTask(TaskBase):
-    """预设航点轨迹任务基类"""
+    """Base class for preset waypoint trajectory tasks."""
 
     task_name = ''
     preset_name = ''
@@ -344,7 +344,7 @@ class PresetTrajectoryTask(TaskBase):
         return [MISSION_PATH_TOPIC, TRAJECTORY_TRIGGER_TOPIC]
 
     def compute_metrics(self, calculator, phase_data: Dict, full_data: Dict) -> List:
-        """根据任务语义计算预设轨迹任务指标。"""
+        """Compute preset-trajectory metrics according to task semantics."""
         metrics = []
         planner_message_times = phase_data.get('planner_output_message_times', np.empty(0))
         waypoint_positions = full_data.get('waypoint_positions', np.empty((0, 3)))
@@ -386,7 +386,7 @@ class PresetTrajectoryTask(TaskBase):
 
 
 class DiscreteTrajectoryTaskBase(PresetTrajectoryTask):
-    """有限时间内完成整条离散 waypoint Path 的轨迹生成任务。"""
+    """Generate a trajectory for an entire discrete waypoint path by a deadline."""
 
     @property
     def description(self) -> str:
@@ -431,7 +431,7 @@ class IntegratedMissionTaskBase(TaskBase):
 
     @property
     def planner_args(self) -> Dict[str, str]:
-        """整链路任务必须主动发起预设 mission，不能依赖人工点击触发。"""
+        """Start the preset mission automatically for an end-to-end task."""
         return {
             'use_preset_waypoints': 'true',
             'auto_trigger_waypoints': 'true',
@@ -446,7 +446,7 @@ class IntegratedMissionTaskBase(TaskBase):
         return True
 
     def compute_metrics(self, calculator, phase_data: Dict, full_data: Dict) -> List:
-        """计算 mission 型整链路任务指标。"""
+        """Compute metrics for an end-to-end mission task."""
         metrics = []
         planner_message_times = phase_data.get('planner_output_message_times', np.empty(0))
 
@@ -559,7 +559,7 @@ class AnalyticReferenceTaskBase(PresetTrajectoryTask):
 
 
 class DiscreteCircleTrajectoryTask(DiscreteTrajectoryTaskBase):
-    """离散圆点重建任务"""
+    """Reconstruct a circle from discrete waypoints."""
 
     task_name = 'discrete_circle'
     preset_name = 'circle'
@@ -661,7 +661,7 @@ class DiscreteCircleTrajectoryTask(DiscreteTrajectoryTaskBase):
 
 
 class DiscreteFigure8TrajectoryTask(DiscreteTrajectoryTaskBase):
-    """离散 8 字点重建任务"""
+    """Reconstruct a figure eight from discrete waypoints."""
 
     task_name = 'discrete_figure8'
     preset_name = 'eight'
@@ -722,14 +722,14 @@ class DiscreteFigure8TrajectoryTask(DiscreteTrajectoryTaskBase):
 
 
 class AnalyticCircleTrajectoryTask(AnalyticReferenceTaskBase):
-    """解析圆参考跟踪任务"""
+    """Track an analytic circular reference."""
 
     task_name = 'analytic_circle'
     display_name = '解析圆'
     trajectory_type = 'circle'
 
 class AnalyticFigure8TrajectoryTask(AnalyticReferenceTaskBase):
-    """解析 8 字参考跟踪任务"""
+    """Track an analytic figure-eight reference."""
 
     task_name = 'analytic_figure8'
     display_name = '解析8字'
@@ -737,7 +737,7 @@ class AnalyticFigure8TrajectoryTask(AnalyticReferenceTaskBase):
 
 
 class AnalyticSpiralTrajectoryTask(AnalyticReferenceTaskBase):
-    """解析螺旋参考跟踪任务"""
+    """Track an analytic spiral reference."""
 
     task_name = 'analytic_spiral'
     display_name = '解析螺旋'
@@ -757,7 +757,7 @@ TASK_REGISTRY = {
 
 
 def create_task(task_name: str, **kwargs) -> TaskBase:
-    """根据任务名创建任务实例"""
+    """Create a task instance by name."""
     if task_name not in TASK_REGISTRY:
         raise ValueError(f"未知任务: {task_name}, 可用任务: {list(TASK_REGISTRY.keys())}")
     return TASK_REGISTRY[task_name](**kwargs)

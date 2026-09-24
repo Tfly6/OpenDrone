@@ -47,13 +47,10 @@
 
 using namespace Eigen;
 using namespace std;
-// Constructor
 Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
     : nh_(nh), nh_private_(nh_private), dyn_config_server_(nh_private_), flightState_(WAITING_FOR_CONNECTED) {
   // referenceSub_ =
-  //     nh_.subscribe<geometry_msgs::TwistStamped>("reference/setpoint", 1, &Se3LeeCtrl::targetCallback, this, ros::TransportHints().tcpNoDelay());
   // yawreferenceSub_ =
-  //     nh_.subscribe<std_msgs::Float32>("reference/yaw", 1, &Se3LeeCtrl::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
   plannerOutputSub_ = nh_.subscribe<opendrone::PlannerOutput>("/planner/output", 1, &Se3LeeCtrl::plannerOutputCallback, this,
                                     ros::TransportHints().tcpNoDelay());
   mavstateSub_ =
@@ -62,15 +59,12 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
                               ros::TransportHints().tcpNoDelay());
   mavtwistSub_ = nh_.subscribe<geometry_msgs::TwistStamped>("mavros/local_position/velocity_local", 1, &Se3LeeCtrl::mavtwistCallback, this,
                                ros::TransportHints().tcpNoDelay());
-  // ctrltriggerServ_ = nh_.advertiseService("trigger_rlcontroller", &Se3LeeCtrl::ctrltriggerCallback, this);
   
   cmdloop_timer_ = nh_.createTimer(ros::Duration(0.01), &Se3LeeCtrl::cmdloopCallback,
                                    this);  // Define timer for constant loop rate
 
   angularVelPub_ = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 1);
   target_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-  // posehistoryPub_ = nh_.advertise<nav_msgs::Path>("se3_lee/path", 10);
-  // systemstatusPub_ = nh_.advertise<mavros_msgs::CompanionProcessStatus>("mavros/companion_process/status", 1);
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
   land_service_ = nh_.advertiseService("/land", &Se3LeeCtrl::landCallback, this);
@@ -109,14 +103,10 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   nh_private_.param<double>("Kv_x", Kvel_x_, 1.5);
   nh_private_.param<double>("Kv_y", Kvel_y_, 1.5);
   nh_private_.param<double>("Kv_z", Kvel_z_, 3.3);
-  // nh_private_.param<int>("posehistory_window", posehistory_window_, 200);
   nh_private_.param<double>("takeoff_height", takeoff_height_, 2.0);
   nh_private_.param<double>("geo_fence/x", geo_fence_[0], 10.0);
   nh_private_.param<double>("geo_fence/y", geo_fence_[1], 10.0);
   nh_private_.param<double>("geo_fence/z", geo_fence_[2], 4.0);
-  // nh_private_.param<double>("init_pos_x", initTargetPos_x_, 0.0);
-  // nh_private_.param<double>("init_pos_y", initTargetPos_y_, 0.0);
-  // nh_private_.param<double>("init_pos_z", initTargetPos_z_, 2.0);
 
   // targetPos_ << initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;  // Initial Position
   targetPos_.setZero();
@@ -136,7 +126,6 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   }
   last_mode_request_ = ros::Time(0);
   last_arm_request_ = ros::Time(0);
-  // targetPos_[2] = takeoff_height_;
   Kpos_ << -Kpos_x_, -Kpos_y_, -Kpos_z_;
   Kvel_ << -Kvel_x_, -Kvel_y_, -Kvel_z_;
 
@@ -160,29 +149,12 @@ Se3LeeCtrl::Se3LeeCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
   }
 }
 Se3LeeCtrl::~Se3LeeCtrl() {
-  // Destructor
 }
 
-// void Se3LeeCtrl::targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg) { // reference/setpoint
-//   reference_request_last_ = reference_request_now_;
-//   targetPos_prev_ = targetPos_;
-//   targetVel_prev_ = targetVel_;
 
-//   reference_request_now_ = ros::Time::now();
-//   reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
 
-//   targetPos_ = toEigen(msg->twist.angular);
-//   targetVel_ = toEigen(msg->twist.linear);
 
-//   if (reference_request_dt_ > 0)
-//     targetAcc_ = (targetVel_ - targetVel_prev_) / reference_request_dt_;
-//   else
-//     targetAcc_ = Eigen::Vector3d::Zero();
-// }
 
-// void Se3LeeCtrl::yawtargetCallback(const std_msgs::Float32::ConstPtr &msg) { // reference/yaw
-//   if (!velocity_yaw_) mavYaw_ = double(msg->data); // false
-// }
 
 void Se3LeeCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg) {
   if (msg->points.empty()) {
@@ -210,11 +182,6 @@ void Se3LeeCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr 
 }
 
 void Se3LeeCtrl::mavposeCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
-  // if (!received_home_pose) {
-  //   received_home_pose = true;
-  //   home_pose_ = msg->pose;
-  //   ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
-  // }
   mavPos_ = toEigen(msg->pose.position);
   for(int i = 0;i<3;i++){
     if(mavPos_[i] > geo_fence_[i] || mavPos_[i] < -geo_fence_[i]){
@@ -249,27 +216,7 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
     prev_flightState_ = flightState_;
   }
   switch (flightState_) {
-    // case WAITING_FOR_HOME_POSE:
-    //   waitForPredicate(&received_home_pose, "Waiting for home pose...");
-    //   ROS_INFO("Got pose! Drone Ready to be armed.");
-    //   ROS_INFO("Drone will takeoff to %lf[m]", takeoff_height_);
-      // cout << takeoff_height_ <<std::endl;
-      // if(!takeoffFlag_){
-      //   double t = sqrt((2 * takeoff_height_)/max_fb_acc_);
-      //   double takeoffVel = sqrt((2 * takeoff_height_ * max_fb_acc_));
-      //   targetVel_[0] = mavVel_[0];
-      //   targetVel_[1] = mavVel_[1];
-      //   ROS_INFO("vel:%lf", takeoffVel);
-      //   targetVel_[2] = min(takeoffVel, max_vel_);
-      //   targetAcc_[2] = 0.5;
-      // }
-      // if (received_home_pose) {
-      //   offboard_warmup_counter_ = 0;
-      //   flightState_ = WAITING_FOR_OFFBOARD;
-      // }
       
-      // flightState_ = TAKEOFF;
-      // break;
     case WAITING_FOR_CONNECTED: {
       ROS_INFO_ONCE("Waiting for FCU connection...");
       if (current_state_.connected) {
@@ -326,8 +273,6 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       computeBodyRateCmd(cmdBodyRate_, desired_acc);
       // pubReferencePose(targetPos_, q_des); // reference/pose
       pubRateCommands(cmdBodyRate_, q_des); // command/bodyrate_command
-      // appendPoseHistory();
-      // pubPoseHistory();
       break;
     }
 
@@ -339,7 +284,6 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
         flightState_ = LANDED;  
         ROS_INFO("land enabled");
       }
-      // ros::spinOnce();
       break;
     }
     case LANDED:{
@@ -347,27 +291,15 @@ void Se3LeeCtrl::cmdloopCallback(const ros::TimerEvent &event) {
         ROS_INFO("Landed. Please set to position control and disarm.");
         cmdloop_timer_.stop();
       }
-      // ros::spinOnce();
       break;
     }
     case EMERGENCY:{
       ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
       flightState_ = LANDING;
-      // if(!current_state_.armed){
-      //   ROS_WARN("Not arm, nothing to do");
-      //   flightState_ = LANDED;
-      //   break;
-      // } 
-      // geometry_msgs::PoseStamped msg;
-      // msg.header.stamp = ros::Time::now();
-      // msg.pose = home_pose_;
-      // msg.pose.position.z = takeoff_height_;
-      // target_pose_pub_.publish(msg);
       break;
     }
   }
 
-  // pubSystemStatus();
 }
 
 void Se3LeeCtrl::mavstateCallback(const mavros_msgs::State::ConstPtr &msg) {
@@ -430,19 +362,7 @@ void Se3LeeCtrl::TryArm(const ros::Time &now) {
   last_arm_request_ = now;
 }
 
-// void Se3LeeCtrl::pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude) {
-//   geometry_msgs::PoseStamped msg;
 
-//   msg.header.stamp = ros::Time::now();
-//   msg.header.frame_id = "map";
-//   msg.pose.position.x = target_position(0);
-//   msg.pose.position.y = target_position(1);
-//   msg.pose.position.z = target_position(2);
-//   msg.pose.orientation.w = target_attitude(0);
-//   msg.pose.orientation.x = target_attitude(1);
-//   msg.pose.orientation.y = target_attitude(2);
-//   msg.pose.orientation.z = target_attitude(3);
-// }
 
 void Se3LeeCtrl::pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude) {
   mavros_msgs::AttitudeTarget msg;
@@ -462,32 +382,12 @@ void Se3LeeCtrl::pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector
   angularVelPub_.publish(msg);
 }
 
-// void Se3LeeCtrl::pubPoseHistory() {
-//   nav_msgs::Path msg;
 
-//   msg.header.stamp = ros::Time::now();
-//   msg.header.frame_id = "map";
-//   msg.poses = posehistory_vector_;
 
-//   posehistoryPub_.publish(msg);
-// }
 
-// void Se3LeeCtrl::pubSystemStatus() {
-//   mavros_msgs::CompanionProcessStatus msg;
 
-//   msg.header.stamp = ros::Time::now();
-//   msg.component = 196;  // MAV_COMPONENT_ID_AVOIDANCE
-//   msg.state = (int)companion_state_;
 
-//   systemstatusPub_.publish(msg);
-// }
 
-// void Se3LeeCtrl::appendPoseHistory() {
-//   posehistory_vector_.insert(posehistory_vector_.begin(), vector3d2PoseStampedMsg(mavPos_, mavAtt_));
-//   if (posehistory_window_ != 0 && posehistory_vector_.size() > posehistory_window_) {
-//     posehistory_vector_.pop_back();
-//   }
-// }
 
 geometry_msgs::PoseStamped Se3LeeCtrl::vector3d2PoseStampedMsg(Eigen::Vector3d &position,
                                                                   Eigen::Vector4d &orientation) {
@@ -572,14 +472,7 @@ Eigen::Vector4d Se3LeeCtrl::acc2quaternion(const Eigen::Vector3d &vector_acc, co
   return quat;
 }
 
-// bool Se3LeeCtrl::ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
-//   unsigned char mode = req.data;
 
-//   ctrl_mode_ = mode;
-//   res.success = ctrl_mode_;
-//   res.message = "controller triggered";
-//   return true;
-// }
 
 void Se3LeeCtrl::dynamicReconfigureCallback(se3_lee::GeometricControllerConfig &config,
                                                uint32_t level) {

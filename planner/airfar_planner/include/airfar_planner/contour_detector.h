@@ -251,10 +251,3 @@ public:
 };
 
 #endif
-
-/************************** UNUSE CODE ****************************/
-
-// inline void ImgGradientGXGY(const cv::Mat& imgIn, cv::Mat& GX, cv::Mat& GY) {
-//         cv::Scharr(imgIn, GX, CV_32F, 1, 0);
-//         cv::Scharr(imgIn, GY, CV_32F, 0, 1);
-// }

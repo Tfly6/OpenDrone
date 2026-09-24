@@ -755,7 +755,6 @@ void udp_recv_fun()
 
     default:
 
-      //ROS_ERROR("Unknown received message???");
 
       break;
     }
@@ -795,8 +794,6 @@ int main(int argc, char **argv)
   other_odoms_sub_ = nh.subscribe("my_odom", 10, odom_sub_udp_cb, ros::TransportHints().tcpNoDelay());
   other_odoms_pub_ = nh.advertise<nav_msgs::Odometry>("/others_odom", 10);
 
-  //emergency_stop_sub_ = nh.subscribe("emergency_stop_broadcast", 10, emergency_stop_sub_udp_cb, ros::TransportHints().tcpNoDelay());
-  //emergency_stop_pub_ = nh.advertise<std_msgs::Empty>("emergency_stop_recv", 10);
 
   one_traj_sub_ = nh.subscribe("/broadcast_bspline", 100, one_traj_sub_udp_cb, ros::TransportHints().tcpNoDelay());
   one_traj_pub_ = nh.advertise<quadrotor_msgs::Bspline>("/broadcast_bspline2", 100);

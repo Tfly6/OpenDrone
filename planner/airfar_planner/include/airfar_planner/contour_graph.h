@@ -86,7 +86,6 @@ public:
                                               const NavNodePtr& odom_ptr);                                        
 
     // static bool IsPoint3DConnectFreePolygon(const Point3D& p1, const Point3D& p2, 
-    //                                         const int& start_layer, const int& end_layer);
 
     static bool IsPointsConnectFreePolygon(const ConnectPair& cedge, 
                                            const int& start_layer,
@@ -105,7 +104,6 @@ public:
     static bool IsEdgeCollideSegment(const PointPair& line, const ConnectPair& edge);
 
     static cv::Point2f getIntersectionPoint(const PointPair& line, const ConnectPair& edge);
-    // static bool ReprojectPointOutsidePolygons(Point3D& point, const float& free_radius);
 
     bool IsPointInVetexAngleRestriction(const CTNodePtr& ctnode, const Point3D end_p);
 

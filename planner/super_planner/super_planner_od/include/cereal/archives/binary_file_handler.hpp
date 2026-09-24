@@ -22,19 +22,17 @@ class BinaryFileHandler {
 public:
 
     static std::string getCurrentTimeStr() {
-        // 获取当前时间
         std::time_t now = std::time(nullptr);
         std::tm localTime = *std::localtime(&now);
 
-        // 使用 stringstream 格式化时间为 YYMMDD-HHMMSS
         std::ostringstream oss;
-        oss << std::setfill('0') << std::setw(2) << (localTime.tm_year % 100)  // 年份后两位
-            << std::setw(2) << (localTime.tm_mon + 1)                         // 月份 (tm_mon 从 0 开始)
-            << std::setw(2) << localTime.tm_mday                              // 日期
-            << "-"                                                            // 分隔符
-            << std::setw(2) << localTime.tm_hour                              // 小时
-            << std::setw(2) << localTime.tm_min                               // 分钟
-            << std::setw(2) << localTime.tm_sec;                              // 秒
+        oss << std::setfill('0') << std::setw(2) << (localTime.tm_year % 100)
+            << std::setw(2) << (localTime.tm_mon + 1)
+            << std::setw(2) << localTime.tm_mday
+            << "-"
+            << std::setw(2) << localTime.tm_hour
+            << std::setw(2) << localTime.tm_min
+            << std::setw(2) << localTime.tm_sec;
 
         return oss.str();
     }

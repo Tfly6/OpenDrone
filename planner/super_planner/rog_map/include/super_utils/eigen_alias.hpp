@@ -122,7 +122,6 @@ namespace super_utils{
     constexpr decimal_t
             epsilon_ = 1e-10; // numerical calculation error
 #endif
-// Eigen::Map<const Eigen::Matrix<double, 3, -1, Eigen::ColMajor>> way_pts_E(way_pts[0].data(), 3, way_pts.size());
 
     typedef vec_E<Vec3f> vec_Vec3f;
 

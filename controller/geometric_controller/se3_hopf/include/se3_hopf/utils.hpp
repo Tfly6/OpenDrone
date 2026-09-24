@@ -34,7 +34,6 @@ namespace utils{
 		if(x == 0.0 && y == 0.0){
 			return 0;
 		}else{
-			// return 1 / (1 + (y / x) * (y / x)) * (y_dot * x - y * x_dot) / (x * x);
 			return (y_dot * x - y * x_dot) / (x * x + y * y);
 		}
 	}

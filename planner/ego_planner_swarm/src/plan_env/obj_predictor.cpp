@@ -29,9 +29,6 @@
 namespace fast_planner {
 /* ============================== obj history_ ============================== */
 
-// int ObjHistory::queue_size_;
-// int ObjHistory::skip_num_;
-// ros::Time ObjHistory::global_start_time_;
 
 void ObjHistory::init(int id, int skip_num, int queue_size, ros::Time global_start_time) {
   clear();
@@ -51,7 +48,6 @@ void ObjHistory::poseCallback(const geometry_msgs::PoseStampedConstPtr& msg) {
   pos_t(3) = (ros::Time::now() - global_start_time_).toSec();
 
   history_.push_back(pos_t);
-  // cout << "idx: " << obj_idx_ << "pos_t: " << pos_t.transpose() << endl;
 
   if (history_.size() > queue_size_) history_.pop_front();
 
@@ -184,7 +180,6 @@ void ObjPredictor::predictPolyFit() {
 }
 
 void ObjPredictor::predictCallback(const ros::TimerEvent& e) {
-  // predictPolyFit();
   predictConstVel();
 }
 
@@ -211,20 +206,9 @@ void ObjPredictor::predictConstVel() {
     /* ---------- get the last two point ---------- */
     list<Eigen::Vector4d> his;
     obj_histories_[i]->getHistory(his);
-    // if ( i==0 )
-    // {
-    //   cout << "his.size()=" << his.size() << endl;
-    //   for ( auto hi:his )
-    //   {
-    //     cout << hi.transpose() << endl;
-    //   }
-    // }
     list<Eigen::Vector4d>::iterator list_it = his.end();
 
     /* ---------- test iteration ---------- */
-    // cout << "----------------------------" << endl;
-    // for (auto v4d : his)
-    //   cout << "v4d: " << v4d.transpose() << endl;
 
     Eigen::Vector3d q1, q2;
     double t1, t2;
@@ -252,11 +236,6 @@ void ObjPredictor::predictConstVel() {
       polys[j].head(2) = p01.col(j);
     }
     
-    // if ( i==0 )
-    // {
-    //   cout << "q1=" << q1.transpose() << " t1=" << t1 << " q2=" << q2.transpose() << " t2=" << t2 << endl;
-    //   cout << "polys=" << polys[0].transpose() << endl;
-    // }
 
     predict_trajs_->at(i).setPolynomial(polys);
     predict_trajs_->at(i).setTime(t1, t2);

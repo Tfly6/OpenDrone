@@ -149,29 +149,8 @@ void updateCallback(const ros::TimerEvent& e) {
   ros::Time time_now = ros::Time::now();
 
   /* ---------- change input ---------- */
-  // double dtc = (time_now - time_change).toSec();
-  // if (dtc > _interval) {
-  //   for (int i = 0; i < obj_num; ++i) {
-  //     /* ---------- use acc input ---------- */
-  //     // double r, t, z;
-  //     // r = rand_acc_r(eng);
-  //     // t = rand_acc_t(eng);
-  //     // z = rand_acc_z(eng);
-  //     // Eigen::Vector3d acc(r * cos(t), r * sin(t), z);
-  //     // obj_models[i].setInput(acc);
 
-  //     /* ---------- use vel input ---------- */
-  //     double vx, vy, vz, yd;
-  //     vx = rand_vel(eng);
-  //     vy = rand_vel(eng);
-  //     vz = 0.0;
-  //     yd = rand_yaw_dot(eng);
 
-  //     obj_models[i].setInput(Eigen::Vector3d(vx, vy, vz));
-  //     obj_models[i].setYawDot(yd);
-  //   }
-  //   time_change = time_now;
-  // }
 
   /* ---------- update obj state ---------- */
   double dt = (time_now - time_update).toSec();
@@ -183,16 +162,6 @@ void updateCallback(const ros::TimerEvent& e) {
   }
 
   /* ---------- collision ---------- */
-  // for (int i = 0; i < obj_num; ++i)
-  //   for (int j = i + 1; j < obj_num; ++j) {
-  //     bool collision = LinearObjModel::collide(obj_models[i], obj_models[j]);
-  //     if (collision) {
-  //       double yd1 = rand_yaw_dot(eng);
-  //       double yd2 = rand_yaw_dot(eng);
-  //       obj_models[i].setYawDot(yd1);
-  //       obj_models[j].setYawDot(yd2);
-  //     }
-  //   }
 }
 
 void visualizeObj(int id) {

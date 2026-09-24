@@ -48,32 +48,12 @@ Se3HopfCtrl::Se3HopfCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &priva
     last_mode_request_ = ros::Time(0);
     last_arm_request_ = ros::Time(0);
 
-    // kp_p_ << 0.85, 0.85, 1.5;
-    // kp_v_ << 1.5, 1.5, 1.5;
-    // kp_a_ << 1.5, 1.5, 1.5;
-    // kp_q_ << 5.5, 5.5, 0.1;
-    // kp_w_ << 1.5, 1.5, 0.1;
 
-    // kd_p_ << 0.1, 0.1, 0.0;
-    // kd_v_ << 0.0, 0.0, 0.0;
-    // kd_a_ << 0.0, 0.0, 0.0;
-    // kd_q_ << 0.0, 0.0, 0.0;
-    // kd_w_ << 0.0, 0.0, 0.0;
 
-    // limit_err_p_ = 3.0;
-    // limit_err_v_ = 2.0;
-    // limit_err_a_ = 1.0;
-    // limit_d_err_p_ = 3.5;
-    // limit_d_err_v_ = 1.0;
-    // limit_d_err_a_ = 1.0;
 
     hover_percent_ = 0.25;
     max_hover_percent_ = 0.75;
 
-    // desired_state_.p(0) = 0.0;
-    // desired_state_.p(1) = 0.0;
-    // desired_state_.p(2) = takeoff_height_;
-    // desired_state_.yaw = 0.0;
 
     se3_hopf_.init(hover_percent_, max_hover_percent_, enu_frame_, vel_in_body_);
     if (use_dynamic_reconfigure_) {
@@ -155,18 +135,8 @@ void Se3HopfCtrl::loadStaticTuneConfig() {
 
 
 void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
-    // exec_timer_.stop();
 
-    // Controller_Output_t output;
-    // if(se3_hopf_.calControl(odom_data_, imu_data_, desired_state_, output)){
-    //     send_cmd(output, true);
-    //     desire_odom_pub_.publish(desire_odom_);
-    //     if(state_.mode == mavros_msgs::State::MODE_PX4_OFFBOARD && state_.armed == true){
-    //         se3_hopf_.estimateTa(imu_data_.a);
-    //     }
-    // }
     
-    // exec_timer_.start();
     std_msgs::Int8 flight_state_msg;
     flight_state_msg.data = static_cast<int8_t>(flightState_);
     flight_state_pub_.publish(flight_state_msg);
@@ -240,7 +210,6 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
             flightState_ = LANDED;
             ROS_INFO("land enabled");
         }
-        // ros::spinOnce();
         break;
     }
     case LANDED:
@@ -248,7 +217,6 @@ void Se3HopfCtrl::execFSMCallback(const ros::TimerEvent &e){
             ROS_INFO("Landed. Please set to position control and disarm.");
             exec_timer_.stop();
         }
-        // ros::spinOnce();
         break;
     case EMERGENCY:
          ROS_ERROR("Emergency state! Please check the system.");
@@ -270,9 +238,7 @@ void Se3HopfCtrl::send_cmd(const Controller_Output_t &output, bool angle){
     cmd.orientation.y = output.q.y();
     cmd.orientation.z = output.q.z();
     cmd.thrust = output.thrust;
-    // ROS_INFO_STREAM_THROTTLE(3.0, "Publishing command: bodyrates [" << cmd.body_rate.x << ", " << cmd.body_rate.y << ", " << cmd.body_rate.z << "], "
     //                          << "orientation [" << cmd.orientation.w << ", " << cmd.orientation.x << ", " << cmd.orientation.y << ", " << cmd.orientation.z << "], "
-    //                          << "thrust: " << cmd.thrust );
     if(angle){
         cmd.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE + 
                         mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE + 
@@ -309,12 +275,6 @@ void Se3HopfCtrl::OdomCallback(const nav_msgs::Odometry::ConstPtr &msg){
     bool judge = (judge_x || judge_y || judge_z);
     if(judge && currState_.mode != mavros_msgs::State::MODE_PX4_LAND && flightState_ != LANDING && flightState_ != LANDED){
         flightState_ = EMERGENCY;
-        // mavros_msgs::SetMode land_set_mode;
-        // land_set_mode.request.custom_mode = mavros_msgs::State::MODE_PX4_LAND;
-        // if(set_mode_client_.call(land_set_mode) && land_set_mode.response.mode_sent){
-        //     flightState_ = LANDED;
-        //     ROS_WARN("obs Land enabled");
-        // }
     }
 }
 
@@ -397,24 +357,13 @@ void Se3HopfCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr
     desired_state_.v = opendrone::planner_output::SelectVelocity(pt);
 
     desired_state_.a = opendrone::planner_output::SelectAcceleration(pt);
-    // desired_state_.a.setZero();
     desired_state_.j.setZero();
 
     desired_state_.yaw = opendrone::planner_output::SelectYaw(pt, desired_state_.yaw);
     desired_state_.yaw_rate = opendrone::planner_output::SelectYawRate(pt);
     desired_state_.q = opendrone::planner_output::QuaternionFromYaw(desired_state_.yaw);
-    // reference_request_last_ = reference_request_now_;
   
-    // reference_request_now_ = ros::Time::now();
-    // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
   
-    // targetPos_ << pt.transforms[0].translation.x, pt.transforms[0].translation.y, pt.transforms[0].translation.z;
-    // targetVel_ << pt.velocities[0].linear.x, pt.velocities[0].linear.y, pt.velocities[0].linear.z;
   
-    // targetAcc_ << pt.accelerations[0].linear.x, pt.accelerations[0].linear.y, pt.accelerations[0].linear.z;
 
-    // Eigen::Quaterniond q(pt.transforms[0].rotation.w, pt.transforms[0].rotation.x, pt.transforms[0].rotation.y,
-    //     pt.transforms[0].rotation.z);
-    // Eigen::Vector3d rpy = Eigen::Matrix3d(q).eulerAngles(0, 1, 2);  // RPY
-    // yaw_ref_ = rpy(2);
 }

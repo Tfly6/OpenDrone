@@ -76,7 +76,7 @@ class TrajectorySamplerNode {
   ros::ServiceServer stop_srv_;
 
   bool loop_trajectory_;
-  bool trigger_sent_;  // 防止重复触发
+  bool trigger_sent_;
   ros::Time start_time_;
   int64_t trajectory_id_{0};
 

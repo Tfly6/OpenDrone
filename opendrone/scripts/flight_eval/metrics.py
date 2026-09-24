@@ -10,7 +10,7 @@ import numpy as np
 
 @dataclass
 class MetricResult:
-    """单个事实指标；不携带阈值、评级或综合结论。"""
+    """A factual metric without thresholds, ratings, or aggregate conclusions."""
     name: str
     description: str
     value: float
@@ -31,7 +31,7 @@ class MetricResult:
 
 @dataclass
 class AnalysisReport:
-    """完整分析报告"""
+    """Complete analysis report."""
     controller: str
     task: str
     bag_file: str
@@ -50,14 +50,14 @@ class AnalysisReport:
 
 
 class MetricsCalculator:
-    """指标计算器"""
+    """Compute flight-evaluation metrics."""
 
     def __init__(self, hover_height: float = 2.0):
         self.hover_height = hover_height
 
     @staticmethod
     def _wrap_angle(angle: np.ndarray) -> np.ndarray:
-        """将角度包裹到 [-pi, pi]。"""
+        """Wrap an angle to [-pi, pi]."""
         return (angle + np.pi) % (2.0 * np.pi) - np.pi
 
     @staticmethod
@@ -67,7 +67,7 @@ class MetricsCalculator:
         reference_values: np.ndarray,
         reference_times: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """只对齐真正存在的时序参考，不跨 reference gap 插值。"""
+        """Align only existing timed references without interpolating across gaps."""
         if not len(sample_values) or not len(sample_times) or not len(reference_values) or not len(reference_times):
             width = sample_values.shape[1] if np.ndim(sample_values) == 2 else 1
             return np.empty((0, width)), np.empty((0, width)), np.empty(0)
@@ -117,7 +117,7 @@ class MetricsCalculator:
         reference_positions: np.ndarray,
         ref_pos_times: np.ndarray
     ) -> List[MetricResult]:
-        """计算显式时序位置参考的 3D RMSE 和 P95。"""
+        """Compute 3D RMSE and P95 against an explicit timed position reference."""
         names = (
             ('position_tracking_rmse_3d', '位置跟踪 RMSE (3D)', 'rmse'),
             ('position_tracking_p95_3d', '位置跟踪 P95 (3D)', 'p95'),
@@ -156,7 +156,7 @@ class MetricsCalculator:
         reference_velocities: np.ndarray,
         ref_pos_times: np.ndarray,
     ) -> MetricResult:
-        """计算实际速度相对显式速度参考的 3D RMSE。"""
+        """Compute 3D RMSE against an explicit velocity reference."""
         if len(velocities) < 10 or len(reference_velocities) < 2:
             return MetricResult(
                 name='velocity_tracking_rmse_3d',
@@ -197,7 +197,7 @@ class MetricsCalculator:
         sample_times: np.ndarray,
         reference_times: np.ndarray,
     ) -> List[MetricResult]:
-        """计算参考覆盖率和最长缺口，缺口不会被插值掩盖。"""
+        """Compute reference coverage and the longest gap without interpolation."""
         if len(sample_times) < 2:
             reason = {'error': '状态时间样本不足'}
             return [
@@ -307,7 +307,7 @@ class MetricsCalculator:
 
     @staticmethod
     def select_primary_trajectory(trajectories: List[Dict]) -> Optional[Dict]:
-        """选择采样时间跨度最大的一条轨迹；不跨 trajectory_id 拼接。"""
+        """Select the trajectory with the widest time span without joining IDs."""
         candidates = []
         for trajectory in trajectories:
             points = trajectory.get('points', [])
@@ -319,7 +319,7 @@ class MetricsCalculator:
 
     @staticmethod
     def _point_to_polyline_distances(waypoints: np.ndarray, path: np.ndarray) -> np.ndarray:
-        """计算 waypoint 到连续折线的最短距离，而非离散采样点命中。"""
+        """Measure waypoint distance to a polyline instead of discrete samples."""
         if len(waypoints) == 0 or len(path) < 2:
             return np.empty(0)
         starts = path[:-1]
@@ -340,7 +340,7 @@ class MetricsCalculator:
     def _continuity_residual(
         points: List[Dict], value_key: str, derivative_key: str,
     ) -> np.ndarray:
-        """以梯形积分残差度量相邻采样间的最大连续性跳变。"""
+        """Measure the largest continuity jump using trapezoidal residuals."""
         residuals = []
         for left, right in zip(points[:-1], points[1:]):
             dt = float(right['time'] - left['time'])
@@ -359,7 +359,7 @@ class MetricsCalculator:
         trajectories: List[Dict],
         waypoint_positions: np.ndarray,
     ) -> List[MetricResult]:
-        """从按轨迹身份去重后的 PlannerOutput 计算通用生成质量指标。"""
+        """Compute generic generation-quality metrics from deduplicated planner output."""
         definitions = (
             ('generated_trajectory_duration', '生成轨迹时长', 's'),
             ('waypoint_distance_mean', 'Waypoint 到生成轨迹平均距离', 'm'),
@@ -475,7 +475,7 @@ class MetricsCalculator:
         group: str = 'interface_health',
         source: str = '/planner/output',
     ) -> MetricResult:
-        """计算任意时间序列的发布频率。"""
+        """Compute the publication rate of a time series."""
         if len(times) < 2:
             return MetricResult(
                 name=name,
@@ -510,7 +510,7 @@ class MetricsCalculator:
         group: str = 'interface_health',
         source: str = '/planner/output',
     ) -> MetricResult:
-        """记录某类消息数量。"""
+        """Record the number of messages of a given type."""
         return MetricResult(
             name=name,
             description=description,
@@ -526,7 +526,7 @@ class MetricsCalculator:
         emergency_occurred: bool,
         emergency_time: float = 0.0
     ) -> MetricResult:
-        """记录是否触发紧急状态。"""
+        """Record whether an emergency state was triggered."""
         return MetricResult(
             name='emergency_status',
             description='紧急状态触发',
@@ -545,7 +545,7 @@ class MetricsCalculator:
         positions: np.ndarray,
         reference: Optional[np.ndarray] = None
     ) -> MetricResult:
-        """计算位置抖动 RMS。"""
+        """Compute position-jitter RMS."""
         if len(positions) < 10:
             return MetricResult(
                 name='position_jitter_rms',
@@ -588,7 +588,7 @@ class MetricsCalculator:
     def compute_position_bias(
         self, positions: np.ndarray, reference: np.ndarray
     ) -> MetricResult:
-        """计算稳态平均位置相对任务目标的三维偏差。"""
+        """Compute steady-state 3D position bias from the task target."""
         if len(positions) < 10:
             return MetricResult(
                 name='position_bias', description='稳态位置偏差',
@@ -612,7 +612,7 @@ class MetricsCalculator:
         z_positions: np.ndarray,
         target_z: Optional[float] = None
     ) -> MetricResult:
-        """计算 Z 轴稳态误差。"""
+        """Compute steady-state error along the Z axis."""
         if len(z_positions) < 10:
             return MetricResult(
                 name='z_steady_state_error',
@@ -653,7 +653,7 @@ class MetricsCalculator:
         self,
         attitudes: np.ndarray
     ) -> MetricResult:
-        """计算姿态波动 RMS。"""
+        """Compute attitude-fluctuation RMS."""
         if len(attitudes) < 10:
             return MetricResult(
                 name='attitude_fluctuation_rms',
@@ -696,7 +696,7 @@ class MetricsCalculator:
         self,
         attitudes: np.ndarray
     ) -> MetricResult:
-        """计算仅包含 roll/pitch 的姿态波动 RMS。"""
+        """Compute attitude-fluctuation RMS for roll and pitch only."""
         if len(attitudes) < 10:
             return MetricResult(
                 name='roll_pitch_fluctuation_rms',
@@ -738,7 +738,7 @@ class MetricsCalculator:
         ref_pos_times: np.ndarray,
         reference_yaws: np.ndarray,
     ) -> MetricResult:
-        """仅使用 VALID_YAW 显式声明的参考计算 yaw 跟踪 RMSE。"""
+        """Compute yaw-tracking RMSE using only explicit VALID_YAW references."""
         if len(attitudes) < 10 or len(reference_yaws) < 2:
             return MetricResult(
                 name='yaw_tracking_rmse',
@@ -815,7 +815,7 @@ class MetricsCalculator:
         times: Optional[np.ndarray] = None,
         min_amplitude: float = 0.0,
     ) -> MetricResult:
-        """检测振荡；非均匀采样会先重采样，再去线性趋势并加 Hann 窗。"""
+        """Detect oscillation after resampling, detrending, and Hann windowing."""
         result = self._detect_oscillation_impl(
             signal, sample_rate, min_freq, max_freq,
             times=times, min_amplitude=min_amplitude,
@@ -832,7 +832,7 @@ class MetricsCalculator:
         times: Optional[np.ndarray] = None,
         min_amplitude: float = 0.0,
     ) -> MetricResult:
-        """振荡检测实现"""
+        """Implement oscillation detection."""
         if len(signal) < 64:
             return MetricResult(
                 name='oscillation_detection',

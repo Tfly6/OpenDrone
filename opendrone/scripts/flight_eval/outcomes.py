@@ -118,7 +118,7 @@ class NoOutcomeEvaluator:
 
 
 class PathGoalEvaluator:
-    """根据原始 Path 和机体位姿判定整条路径任务。"""
+    """Evaluate a full-path task from the original path and vehicle poses."""
 
     def __init__(
         self,

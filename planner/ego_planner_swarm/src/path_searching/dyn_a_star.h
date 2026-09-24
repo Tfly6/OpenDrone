@@ -58,7 +58,6 @@ private:
 	inline Eigen::Vector3d Index2Coord(const Eigen::Vector3i &index) const;
 	inline bool Coord2Index(const Eigen::Vector3d &pt, Eigen::Vector3i &idx) const;
 
-	//bool (*checkOccupancyPtr)( const Eigen::Vector3d &pos );
 
 	inline bool checkOccupancy(const Eigen::Vector3d &pos) { return (bool)grid_map_->getInflateOccupancy(pos); }
 

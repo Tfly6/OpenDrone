@@ -29,7 +29,6 @@ void DPUtil::RemoveNanInfPoints(const PointCloudPtr& cloudInOut) {
       ROS_WARN_ONCE("DPUtil: nan or inf point detected.");
       continue;
     }
-    // if (!is_graph_init_ && p.z < 0.2) continue;
     if (p.z > -0.2 && p.z < 0.2) continue;
     temp_cloud.points[idx] = p;
     idx ++;
@@ -369,7 +368,6 @@ bool DPUtil::IsInSurfacePairs(const Point3D& diff_p,
   Point3D temp_opposite_dir;
   // check first half range
   temp_opposite_dir = -surf_dirs.second;
-  // DEBUG
   if (temp_opposite_dir != (Point3D(0,0,0) - surf_dirs.second)) {
     ROS_ERROR("Point3D negative calcualtion error.");
   }
@@ -822,46 +820,3 @@ bool DPUtil::IsVoteTrue(const std::deque<int>& votes) {
   }
   return false;
 }
-
-
-/************************** UNUSE CODE ****************************/
-
-// PointPair DPUtil::TangentFreePoint(const NavNodePtr& from_node_ptr,
-//                                    const NavNodePtr& to_node_ptr) 
-// {
-//   const Point3D from_p = from_node_ptr->position;
-//   const Point3D to_p = to_node_ptr->position;
-//   PointPair tangent_pair;
-//   if (DPUtil::IsGroundOnly) {
-//     const float radius = DPUtil::kNavClearDist;
-//     const Point3D diff_p = to_p - from_p;
-//     const float dist = diff_p.norm();
-//     const float tan_dist = sqrt(dist*dist - radius*radius);
-//     const float d_theta = std::asin(radius / dist);
-//     const float ori_theta = DPUtil::ApproxAtan2(diff_p.y, diff_p.x);
-//     float c_theta = ori_theta + d_theta;
-//     const Point3D candiate_p1(from_p.x + tan_dist * cos(c_theta),
-//                               from_p.y + tan_dist * sin(c_theta),
-//                               (from_p.z + to_p.z) / 2.0);
-//     c_theta = ori_theta - d_theta;
-//     const Point3D candiate_p2(from_p.x + tan_dist * cos(c_theta),
-//                               from_p.y + tan_dist * sin(c_theta),
-//                               (from_p.z + to_p.z) / 2.0);
-//     tangent_pair.first  = candiate_p1;                              
-//     tangent_pair.second = candiate_p2;
-//     tangent_pair.first.intensity = 0.0, tangent_pair.second.intensity = 0.0;
-
-//     if (DPUtil::IsPointInFreeSpace(candiate_p1)) tangent_pair.first.intensity = 1.0;
-//     if (DPUtil::IsPointInFreeSpace(candiate_p2)) tangent_pair.second.intensity = 1.0;
-//     if (tangent_pair.first.intensity == 0.0 && tangent_pair.second.intensity == 0.0) {
-//       Point3D connect_p = to_p + (from_p - to_p).normalize() * (DPUtil::kNavClearDist);
-//       connect_p.intensity = 0.0;
-//       tangent_pair.first = connect_p, tangent_pair.second = connect_p;
-//     }
-//     return tangent_pair;
-//   } else {
-//     //TODO!
-//     ROS_ERROR("Tangent Point in 3D has not been implemented yet.");
-//     return PointPair(Point3D(0,0,0), Point3D(0,0,0));
-//   } 
-// }

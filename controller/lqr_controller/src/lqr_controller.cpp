@@ -126,11 +126,6 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
     case WAITING_FOR_OFFBOARD:
     {
-        // geometry_msgs::PoseStamped pose;
-        // pose.pose.position.x = initPose_[0];
-        // pose.pose.position.y = initPose_[1];
-        // pose.pose.position.z = initPose_[2];
-        // localPosPub_.publish(pose);
         ROS_INFO_ONCE("Waiting for OFFBOARD mode and arming...");
         publishAttitude(Eigen::Vector4d(0, 0, 0, 9.81));  // Publish hover command to help transition to OFFBOARD
 
@@ -214,11 +209,6 @@ void LQR_Controller::controlLoop(const ros::TimerEvent& event)
 
     case EMERGENCY:
     {
-        // geometry_msgs::PoseStamped pose;
-        // pose.pose.position.x = 0;
-        // pose.pose.position.y = 0;
-        // pose.pose.position.z = 2.0;
-        // localPosPub_.publish(pose);
         flightState_ = LANDING;
         ROS_WARN_STREAM_THROTTLE(2.0, "EMERGENCY: Geofence violation! Holding position.");
         break;

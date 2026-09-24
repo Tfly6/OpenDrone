@@ -6,7 +6,6 @@
 
 #include "airfar_planner/contour_detector.h"
 
-// const static int BLUR_SIZE = 10;
 
 /***************************************************************************************/
 
@@ -61,9 +60,6 @@ void ContourDetector::UpdateImgMatWithCloud(const PointCloudPtr& pc, cv::Mat& im
         }
     }
     cv::threshold(img_mat, img_mat, THRED, 1.0, cv::ThresholdTypes::THRESH_BINARY);
-    // if (cd_params_.is_save_img) {
-    //     this->SaveCurrentImg(img_mat);
-    // }
 }
 
 void ContourDetector::ResizeAndBlurImg(const cv::Mat& img, cv::Mat& Rimg) {
@@ -123,47 +119,15 @@ void ContourDetector::ExtractRefinedContours(const cv::Mat& imgIn,
         std::vector<cv::Point> approx;
         cv::approxPolyDP(c, approx, std::min(cd_params_.approx_eps * peri, double(DIST_LIMIT)), true);
         cv::approxPolyDP(approx, approx, std::max(cd_params_.approx_eps * peri, double(DIST_LIMIT)), true);
-        // if (std::abs(cv::contourArea(approx) - cv::contourArea(c))/cv::contourArea(c) > 0.05) 
-        //     cout<<"contour refine ratio: "<<std::abs(cv::contourArea(approx) - cv::contourArea(c))/cv::contourArea(c)<<endl;
-        // ROS_WARN("CD: contour para diff: %f", cd_params_.approx_eps * peri - double(DIST_LIMIT));
 
         approx_contours.push_back(approx);
 
         raw_cnt += c.size();
         approx_cnt += approx.size();
     }
-    // ROS_INFO("CD: raw contours size: %d, approx contours size: %d", raw_cnt, approx_cnt);
     raw_contours_vis = raw_contours;
     raw_contours = approx_contours;
 
-    // std::vector<CVPointStack> inserted_contours;
-    // this->CopyContours(raw_contours, inserted_contours);
-    // cout<<"raw_contours size: "<<inserted_contours.size()<<endl;
-    // for (std::size_t i=0; i<raw_contours.size(); i++) {
-    //     const auto c = raw_contours[i];
-    //     int inserted_cnt = 0;
-    //     if (c.size() < 3) continue;
-    //     for (std::size_t j=1; j<c.size(); j++) {
-    //         cv::Point2f p = c[j];
-    //         if (DPUtil::PixelDistance(c[j-1], p) > 4.0 * DIST_LIMIT) {
-    //             cv::Point2f mid_p;
-    //             mid_p.x = (p.x + c[j-1].x) / 2;
-    //             mid_p.y = (p.y + c[j-1].y) / 2;
-    //             inserted_contours[i].insert(inserted_contours[i].begin() + j + inserted_cnt, mid_p);      
-    //             inserted_cnt ++;
-    //         }
-    //     }
-    //     cout<<"inserted_contours size: "<<inserted_contours.size()<<endl;
-    //     if (DPUtil::PixelDistance(c[c.size()-1], c[0]) > 4.0 * DIST_LIMIT) {
-    //         cv::Point2f mid_p;
-    //         mid_p.x = (c[0].x + c[c.size()-1].x) / 2;
-    //         mid_p.y = (c[0].y + c[c.size()-1].y) / 2;
-    //         inserted_contours[i].push_back(mid_p);     
-    //     }
-    // }
-    // // inserted_contours.
-    // this->RoundContours(inserted_contours, raw_contours);
-    // cout<<"raw_contours size: "<<inserted_contours.size()<<endl;
 
     this->CopyContours(raw_contours, refined_contours);
     for (std::size_t i=0; i<raw_contours.size(); i++) {
@@ -235,77 +199,3 @@ void ContourDetector::TopoFilterContours(std::vector<CVPointStack>& contoursInOu
         contoursInOut.push_back(temp_contours[i]);
     }
 }
-
-/************************** UNUSE CODE ****************************/
-
-// float ContourDetector::ComputeConvexityValue(const std::size_t idx, 
-//                                             const CVPointStack contour,
-//                                             const cv::Mat& imgIn)
-// {
-//     const std::size_t N = contour.size();
-//     const cv::Point2i c_p = contour[idx];
-//     const cv::Point2i ref_p1 = contour[(idx+N_STEP)%N];
-//     const cv::Point2i ref_p2 = contour[(idx-N_STEP)%N];
-//     cv::Point2i ref_pc;
-//     ref_pc.x = (int)std::round((ref_p1.x + ref_p2.x) / 2.0);
-//     ref_pc.y = (int)std::round((ref_p1.y + ref_p2.y) / 2.0);
-//     const int img_value = (int)imgIn.at<uchar>(ref_pc.y, ref_pc.x);
-//     float c_dist = std::hypotf(c_p.x - ref_pc.x, c_p.y - ref_pc.y);
-//     if (img_value < OBSVALUE) {
-//         c_dist = -c_dist;
-//     }
-//     return c_dist;
-// }
-
-
-// void ContourDetector::ExtractConersFromImg(const cv::Mat& img, 
-//                                           CVPointStack& cv_corners)
-// {
-//     cv_corners.clear();
-//     cv::Mat mask;
-//     const double kMinDistance = cd_params_.near_dist * 1.1 / cd_params_.voxel_dim;
-//     const bool useHarrisDetector = false;
-//     const double k = 0.04;
-
-//     cv::goodFeaturesToTrack(img, cv_corners, 
-//                             cd_params_.kMaxCorners, 
-//                             cd_params_.kQualityLevel, 
-//                             kMinDistance, mask, 
-//                             cd_params_.kBlockSize, 
-//                             useHarrisDetector, k);
-// }
-
-// bool ContourDetector::IsAdjacentVertex(const CVPointStack& contour,
-//                                       const std::size_t& cur_idx,
-//                                       const std::size_t& horizon,
-//                                       std::size_t& adjacent_id) 
-// {
-//     const int c_size = contour.size();
-//     if (c_size < 3 || horizon < 3) return false;
-//     const auto cur_p = contour[cur_idx];
-//     for (std::size_t i=2; i<horizon; i++) {
-//         const int ref_idx = cur_idx + i;
-//         if (ref_idx == c_size) break;
-//         const auto ref_p = contour[ref_idx];
-//         if (DPUtil::PixelDistance(cur_p, ref_p) < DIST_LIMIT) {
-//             adjacent_id = ref_idx;
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
-// void ContourDetector::UpdateVerticesCloud(const PointStack& vertices_stack) {
-//     DPUtil::ConvertCloudToPCL(vertices_stack, new_corners_cloud_);
-//     ROS_INFO("CD: number of raw corners detected: %d", new_corners_cloud_->size());
-//     for (std::size_t i=0; i<new_corners_cloud_->size(); i++) {
-//         const Point3D p(new_corners_cloud_->points[i]);
-//         const Point3D refined_p = CPerceptor::PreRefineCornerPosition(p);
-//         new_corners_cloud_->points[i] = DPUtil::Point3DToPCLPoint(refined_p);
-//     }
-//     DPUtil::FilterCloud(new_corners_cloud_, DPUtil::kLeafSize * 2.0);
-//     ROS_INFO("CD: corners updated, number of new corners: %d", new_corners_cloud_->size());
-// }
-
-
-

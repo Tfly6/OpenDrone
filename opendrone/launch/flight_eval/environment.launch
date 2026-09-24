@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <launch>
   <!--
-    由使用者在运行 flight_eval batch 前手动启动。
-    只启动 Gazebo Classic、车辆模型和 MAVROS；PX4 由 batch 为每条样本单独启动。
+    Start this manually before running a flight_eval batch.
+    It launches Gazebo Classic, the vehicle model, and MAVROS;
+    the batch starts a separate PX4 process for each case.
   -->
   <arg name="world" />
   <arg name="sdf" />

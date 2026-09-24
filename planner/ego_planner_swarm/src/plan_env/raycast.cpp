@@ -24,7 +24,6 @@ double intbound(double s, double ds) {
 
 void Raycast(const Eigen::Vector3d& start, const Eigen::Vector3d& end, const Eigen::Vector3d& min,
              const Eigen::Vector3d& max, int& output_points_cnt, Eigen::Vector3d* output) {
-  //    std::cout << start << ' ' << end << std::endl;
   // From "A Fast Voxel Traversal Algorithm for Ray Tracing"
   // by John Amanatides and Andrew Woo, 1987
   // <http://www.cse.yorku.ca/~amana/research/grid.pdf>
@@ -127,7 +126,6 @@ void Raycast(const Eigen::Vector3d& start, const Eigen::Vector3d& end, const Eig
 
 void Raycast(const Eigen::Vector3d& start, const Eigen::Vector3d& end, const Eigen::Vector3d& min,
              const Eigen::Vector3d& max, std::vector<Eigen::Vector3d>* output) {
-  //    std::cout << start << ' ' << end << std::endl;
   // From "A Fast Voxel Traversal Algorithm for Ray Tracing"
   // by John Amanatides and Andrew Woo, 1987
   // <http://www.cse.yorku.ca/~amana/research/grid.pdf>
@@ -230,8 +228,6 @@ bool RayCaster::setInput(const Eigen::Vector3d& start,
                          const Eigen::Vector3d& max */) {
   start_ = start;
   end_ = end;
-  // max_ = max;
-  // min_ = min;
 
   x_ = (int)std::floor(start_.x());
   y_ = (int)std::floor(start_.y());
@@ -275,23 +271,16 @@ bool RayCaster::setInput(const Eigen::Vector3d& start,
 }
 
 bool RayCaster::step(Eigen::Vector3d& ray_pt) {
-  // if (x_ >= min_.x() && x_ < max_.x() && y_ >= min_.y() && y_ < max_.y() &&
   // z_ >= min_.z() && z_ <
   // max_.z())
   ray_pt = Eigen::Vector3d(x_, y_, z_);
 
-  // step_num_++;
 
-  // dist_ = (Eigen::Vector3d(x_, y_, z_) - start_).squaredNorm();
 
   if (x_ == endX_ && y_ == endY_ && z_ == endZ_) {
     return false;
   }
 
-  // if (dist_ > maxDist_)
-  // {
-  //   return false;
-  // }
 
   // tMaxX stores the t-value at which we cross a cube boundary along the
   // X axis, and similarly for Y and Z. Therefore, choosing the least tMax

@@ -15,7 +15,7 @@ PLOTS_DIRNAME = 'plots'
 
 
 class BagVisualizer:
-    """从 rosbag 生成静态论文图和可选的三维飞行回放 GIF。"""
+    """Generate publication plots and an optional 3D replay GIF from a rosbag."""
 
     def __init__(
         self,
@@ -37,7 +37,7 @@ class BagVisualizer:
 
     @staticmethod
     def _import_plotting():
-        """延迟导入绘图库，避免普通 analyze 命令依赖 GUI 环境。"""
+        """Import plotting libraries lazily so analysis does not require a GUI."""
         try:
             os.environ.setdefault('MPLCONFIGDIR', '/tmp/matplotlib')
             import matplotlib
@@ -90,7 +90,7 @@ class BagVisualizer:
 
     @staticmethod
     def _set_equal_3d_axes(ax, points: np.ndarray):
-        """保持 x/y/z 比例一致，防止轨迹在论文图中失真。"""
+        """Use equal x, y, and z scales to avoid distorting trajectories."""
         mins = np.min(points, axis=0)
         maxs = np.max(points, axis=0)
         centers = (mins + maxs) / 2.0
@@ -113,12 +113,12 @@ class BagVisualizer:
 
     @staticmethod
     def _metric_label(metric: MetricResult) -> str:
-        """论文图使用稳定的英文机器名，避免主机字体缺少中文 glyph。"""
+        """Use stable English metric labels that do not depend on host fonts."""
         return metric.name.replace('_', ' ').title()
 
     @staticmethod
     def _rotation_matrix(roll: float, pitch: float, yaw: float) -> np.ndarray:
-        """ENU 中的 ZYX 欧拉角旋转矩阵，用于绘制无人机机架。"""
+        """Build an ENU ZYX Euler rotation matrix for drawing the airframe."""
         cr, sr = math.cos(roll), math.sin(roll)
         cp, sp = math.cos(pitch), math.sin(pitch)
         cy, sy = math.cos(yaw), math.sin(yaw)
@@ -129,7 +129,7 @@ class BagVisualizer:
         ])
 
     def _collect_data(self, scope: str) -> Tuple[Optional[AnalysisReport], Dict, Tuple[float, float]]:
-        """分析 bag，并取得渲染所需的完整数据和任务 phase。"""
+        """Analyze the bag and collect data and task phases required for rendering."""
         report = self.analyzer.analyze()
         full_data, phase_data = self.analyzer.get_cached_data()
         start_time, end_time = self._resolve_time_range(full_data, phase_data, scope)
@@ -183,7 +183,7 @@ class BagVisualizer:
         }
 
     def _planner_segments(self, data: Dict, start_time: float, end_time: float) -> List[np.ndarray]:
-        """按 PlannerOutput 消息窗口返回轨迹段，避免连接不同 horizon。"""
+        """Return per-message trajectory segments without joining separate horizons."""
         segments = []
         for window in data.get('planner_output_windows', []):
             points = window.get('points', [])
@@ -207,7 +207,7 @@ class BagVisualizer:
 
     @staticmethod
     def _tracking_alignment(plot_data: Dict) -> Optional[Dict]:
-        """按指标对齐真实存在的参考样本，不跨 reference gap 插值。"""
+        """Align existing reference samples without interpolating across gaps."""
         actual, actual_t = plot_data['actual'], plot_data['actual_t']
         reference, reference_t = plot_data['reference'], plot_data['reference_t']
         if len(actual) < 2 or len(reference) < 2:
@@ -242,7 +242,7 @@ class BagVisualizer:
         planner_segments: List[np.ndarray],
         is_3d: bool = False,
     ) -> None:
-        """批量绘制 PlannerOutput 窗口，保持窗口边界且避免海量 artist。"""
+        """Draw planner windows in batches while preserving their boundaries."""
         singleton_points = [
             segment[0] for segment in planner_segments if len(segment) == 1
         ]
@@ -484,7 +484,7 @@ class BagVisualizer:
 
     def _save_yaw_tracking_plot(self, plt, plot_data: Dict, plot_dir: str, dpi: int,
                                 report: Optional[AnalysisReport] = None) -> Dict:
-        """绘制实际/参考 yaw 与包裹后的 yaw 跟踪误差。"""
+        """Plot actual and reference yaw with wrapped tracking error."""
         attitude, attitude_t = plot_data['attitude'], plot_data['attitude_t']
         reference_yaws, reference_yaw_t = plot_data['reference_yaws'], plot_data['reference_yaw_t']
         valid_ref_yaw = np.isfinite(reference_yaws)
@@ -530,7 +530,7 @@ class BagVisualizer:
 
     def _save_hover_stability_plot(self, plt, plot_data: Dict, plot_dir: str, dpi: int,
                                    report: Optional[AnalysisReport] = None) -> Dict:
-        """单独诊断悬停抖动和 Z 轴稳态误差。"""
+        """Plot hover jitter and steady-state Z error diagnostics."""
         if self.analyzer.task.name != 'hover' or len(plot_data['actual']) < 2:
             return {}
         target_z = report.hover_height if report is not None else self.analyzer.task.get_hover_height()
@@ -567,7 +567,7 @@ class BagVisualizer:
 
     @staticmethod
     def _amplitude_spectrum(values: np.ndarray, times: np.ndarray) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """复用振荡指标的预处理，返回 0.5--20 Hz 内的单边幅值谱。"""
+        """Return the 0.5--20 Hz one-sided spectrum using metric preprocessing."""
         values = np.asarray(values, dtype=float)
         times = np.asarray(times, dtype=float)
         valid = np.isfinite(values) & np.isfinite(times)
@@ -594,7 +594,7 @@ class BagVisualizer:
         return (frequencies[mask], amplitudes[mask]) if np.any(mask) else None
 
     def _save_oscillation_spectrum(self, plt, plot_data: Dict, plot_dir: str, dpi: int) -> Dict:
-        """单独生成与 detect_oscillation 对应的频谱诊断图。"""
+        """Plot the spectrum used by detect_oscillation."""
         signals: List[Tuple[str, np.ndarray, np.ndarray, str]] = []
         if self.analyzer.task.name == 'hover':
             actual = plot_data['actual']
@@ -640,7 +640,7 @@ class BagVisualizer:
 
     def _save_core_plots(self, plt, plot_data: Dict, plot_dir: str, dpi: int,
                          report: Optional[AnalysisReport] = None) -> Dict:
-        """每次 run/analyze 自动生成任务语义对应的核心图。"""
+        """Generate task-specific core plots for each run or analysis."""
         artifacts = {}
         if self.analyzer.task.render_trajectory_plots:
             artifacts.update(self._save_trajectory_plots(plt, plot_data, plot_dir, dpi))
@@ -766,7 +766,7 @@ class BagVisualizer:
         scope: str = 'execution',
         dpi: int = 220,
     ) -> Dict:
-        """只生成 3D/XY 轨迹图；可复用分析阶段已缓存的 bag 数据。"""
+        """Render only 3D and XY trajectories, reusing cached bag data."""
         if scope not in ('execution', 'full'):
             raise ValueError("scope 必须为 'execution' 或 'full'。")
         if dpi <= 0:
@@ -792,7 +792,7 @@ class BagVisualizer:
         scope: str = 'execution',
         dpi: int = 220,
     ) -> Dict:
-        """生成每个 task 的轨迹、位置误差、姿态/推力和可用 yaw 误差图。"""
+        """Render task trajectories, errors, attitude/thrust, and available yaw."""
         if scope not in ('execution', 'full'):
             raise ValueError("scope 必须为 'execution' 或 'full'。")
         if dpi <= 0:
@@ -820,7 +820,7 @@ class BagVisualizer:
         dpi: int = 220,
         diagnostics: Optional[List[str]] = None,
     ) -> Dict:
-        """生成可视化产物并返回 ``{name: absolute_path}`` 映射。"""
+        """Generate visualization artifacts and return absolute paths by name."""
         if scope not in ('execution', 'full'):
             raise ValueError("scope 必须为 'execution' 或 'full'。")
         if dpi <= 0:

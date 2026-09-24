@@ -23,7 +23,6 @@ geometry_msgs::PoseStamped curr_pos;
 bool flag = false;
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
-    //cout <<GREEN <<(*msg).pose.position.z<<endl;
     cout <<GREEN <<fabs((*msg).pose.position.z - aim_pos.pose.position.z) <<endl; 
 
 }
@@ -56,7 +55,6 @@ int main(int argc, char **argv)
 
     ROS_INFO("vehicle connected!");
 
-    //geometry_msgs::PoseStamped pose;
     aim_pos.pose.position.x = 0;
     aim_pos.pose.position.y = 0;
     aim_pos.pose.position.z = 2;
@@ -76,7 +74,7 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    int count = 0;  // 计时
+    int count = 0;
 
     while(ros::ok()){
         if( current_state.mode == "OFFBOARD"){
@@ -116,11 +114,10 @@ int main(int argc, char **argv)
                 if(count >= 1500)
                 {
                     mavros_msgs::SetMode land_set_mode;
-                    land_set_mode.request.custom_mode = "AUTO.LAND";  // 发送降落命令
+                    land_set_mode.request.custom_mode = "AUTO.LAND";
                     if(set_mode_client.call(land_set_mode) && land_set_mode.response.mode_sent){
                         ROS_INFO("land enabled");
                     }
-                    //任务结束,关闭该节点
                     ros::shutdown();
                 }  
             }

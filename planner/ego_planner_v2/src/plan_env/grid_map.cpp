@@ -5,7 +5,6 @@ void GridMap::initMap(ros::NodeHandle &nh)
   node_ = nh;
 
   /* get parameter */
-  // double x_size, y_size, z_size;
   node_.param("grid_map/pose_type", mp_.pose_type_, 1);
   node_.param("grid_map/frame_id", mp_.frame_id_, string("world"));
   node_.param("grid_map/odom_depth_timeout", mp_.odom_depth_timeout_, 1.0);
@@ -249,7 +248,6 @@ void GridMap::depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
     md_.proj_points_.resize(md_.depth_image_.cols * md_.depth_image_.rows / mp_.skip_pixel_ / mp_.skip_pixel_);
   }
 
-  // std::cout << "depth: " << md_.depth_image_.cols << ", " << md_.depth_image_.rows << std::endl;
 
   /* get pose */
   md_.camera_pos_(0) = pose->pose.position.x;
@@ -525,8 +523,6 @@ void GridMap::projectDepthImage()
           row_ptr = row_ptr + mp_.skip_pixel_;
 
           // filter depth
-          // depth += rand_noise_(eng_);
-          // if (depth > 0.01) depth += rand_noise2_(eng_);
 
           if (depth < mp_.depth_filter_mindist_)
           {
@@ -716,7 +712,6 @@ void GridMap::initMapBoundary()
   md_.ringbuffer_inf_upbound3i_ = md_.ringbuffer_upbound3i_ + inf_grid3i;
   md_.ringbuffer_inf_upbound3d_ = md_.ringbuffer_upbound3d_ + inf_grid3d;
 
-  // cout << "md_.ringbuffer_lowbound3i_=" << md_.ringbuffer_lowbound3i_.transpose() << " md_.ringbuffer_lowbound3d_=" << md_.ringbuffer_lowbound3d_.transpose() << " md_.ringbuffer_upbound3i_=" << md_.ringbuffer_upbound3i_.transpose() << " md_.ringbuffer_upbound3d_=" << md_.ringbuffer_upbound3d_.transpose() << endl;
 
   for (int i = 0; i < 3; ++i)
   {
@@ -756,9 +751,7 @@ void GridMap::clearBuffer(char casein, int bound)
         Eigen::Vector3i id_global_inf_clr((casein == 0 ? x + mp_.inf_grid_ : (casein == 1 ? x - mp_.inf_grid_ : x)),
                                           (casein == 2 ? y + mp_.inf_grid_ : (casein == 3 ? y - mp_.inf_grid_ : y)),
                                           (casein == 4 ? z + mp_.inf_grid_ : (casein == 5 ? z - mp_.inf_grid_ : z)));
-        // int id_buf_inf_clr = globalIdx2InfBufIdx(id_global_inf_clr);
 
-        // md_.occupancy_buffer_inflate_[id_buf_inf_clr] = 0;
         md_.count_hit_[id_buf] = 0;
         md_.count_hit_and_miss_[id_buf] = 0;
         md_.flag_traverse_[id_buf] = md_.raycast_num_;

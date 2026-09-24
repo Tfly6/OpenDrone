@@ -3,9 +3,7 @@
 
 #include <Eigen/Eigen>
 #include <algorithm>
-//#include <bspline_opt/uniform_bspline.h>
 #include <iostream>
-//#include <bspline_opt/polynomial_traj.h>
 #include <ros/ros.h>
 #include <vector>
 #include <visualization_msgs/Marker.h>
@@ -48,8 +46,6 @@ namespace ego_planner
     void displayOptimalList(Eigen::MatrixXd optimal_pts, int id);
     void displayAStarList(std::vector<std::vector<Eigen::Vector3d>> a_star_paths, int id);
     void displayArrowList(ros::Publisher &pub, const vector<Eigen::Vector3d> &list, double scale, Eigen::Vector4d color, int id);
-    // void displayIntermediateState(ros::Publisher& intermediate_pub, ego_planner::BsplineOptimizer::Ptr optimizer, double sleep_time, const int start_iteration);
-    // void displayNewArrow(ros::Publisher& guide_vector_pub, ego_planner::BsplineOptimizer::Ptr optimizer);
   };
 } // namespace ego_planner
 #endif

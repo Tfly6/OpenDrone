@@ -8,7 +8,6 @@
 #include "se3_hopf/utils.hpp"
 
 #define VEL_IN_BODY /* cancel the comment if the velocity in odom topic is relative to current body frame, not to world frame.*/
-// #define AIRSIM
 
 struct Odom_Data_t{
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -99,7 +98,6 @@ struct Desired_State_t
 
 struct Controller_Output_t
 {
-	// Eigen::Vector3d v;
 
 	// Orientation of the body frame with respect to the world frame
 	Eigen::Quaterniond q;
@@ -152,16 +150,6 @@ struct Imu_Data_t{
 			w = q_mid.toRotationMatrix() * w;
 		}
 
-		// check the frequency
-		// static int one_min_count = 9999;
-		// static ros::Time last_clear_count_time = ros::Time(0.0);
-		// if ( (now - last_clear_count_time).toSec() > 1.0 ){
-		// 	if ( one_min_count < 100 )
-		// 		ROS_WARN("IMU frequency seems lower than 100Hz, which is too low!");
-		// 	one_min_count = 0;
-		// 	last_clear_count_time = now;
-		// }
-		// one_min_count ++;
 	}
 };
 
@@ -196,11 +184,6 @@ private:
 		Eigen::Vector3d yb = zb.cross(xb);
 		yb.normalize();
 		
-		// Eigen::Vector3d xb = yc.cross(desired_state.a);
-		// xb.normalize();
-		// Eigen::Vector3d yb = desired_state.a.cross(xb);
-		// yb.normalize();
-		// Eigen::Vector3d zb = xb.cross(yb);
 		Eigen::Matrix3d rotM;
 		rotM << xb, yb, zb;
 		desired_odom.q = Eigen::Quaterniond(rotM);
@@ -309,10 +292,8 @@ public:
 
 	bool calControl(Odom_Data_t odom_data, Imu_Data_t imu_data, Desired_State_t desired_state, Controller_Output_t &output){
 		if((ros::Time::now() - odom_data.rcv_stamp).toSec() > 0.1){
-			// std::cout << "odom not rcv" << std::endl;
 			return false;
 		}
-		// desired_state.yaw = limitYaw(fromQuaternion2yaw(odom_data.q), desired_state.yaw, M_PI_2 / 3);
 		Eigen::Vector3d err_p = odom_data.p - desired_state.p;
 		limitErr(err_p, -limit_err_p_, limit_err_p_);
 		if(have_last_err_ == false)
@@ -327,10 +308,6 @@ public:
 		Eigen::Vector3d d_err_v = err_v - last_err_v_;
 		limitErr(d_err_v, -limit_d_err_v_, limit_d_err_v_);
 		desired_state.a = desired_state.a - Kp_v_.asDiagonal() * err_v - Kd_v_.asDiagonal() * d_err_v + grav_vec_;
-		// std::cout << "err_p: " << err_p.transpose() << std::endl;
-		// std::cout << "err_v: " << err_v.transpose() << std::endl;
-		// std::cout << "imu_data.a: " << imu_data.a.transpose() << std::endl;
-		// std::cout << "odom_data.v: " << odom_data.v.transpose() << std::endl;
 		Eigen::Vector3d a_world = odom_data.q.toRotationMatrix() * imu_data.a;
 		Eigen::Vector3d err_a = a_world - desired_state.a;
 		limitErr(err_a, -limit_err_a_, limit_err_a_);
@@ -346,17 +323,11 @@ public:
 		
 		double thr = desired_state.a.transpose() * (odom_data.q * Eigen::Vector3d::UnitZ());
 		output.thrust = thr / T_a_;
-		// ROS_INFO_STREAM_THROTTLE(1.0, "T_a_: " << T_a_);
-		// std::cout << std::endl << "desired_state.a: " << desired_state.a.transpose() << std::endl;
-		// std::cout << "odom_v: " << odom_data.v.transpose() << std::endl;
 		
 		Odom_Data_t desired_odom;
-		// computeFlatInput(desired_state, desired_odom);
 		computeFlatInput_Hopf_Fibration(desired_state, desired_odom);
 		output.q = imu_data.q * odom_data.q.inverse() * desired_odom.q; // Align with FCU frame, from odom to imu frame
 		
-		// printf("desired q: (%lf,%lf,%lf,%lf)\n", desired_odom.q.w(), desired_odom.q.x(), desired_odom.q.y(), desired_odom.q.z());
-		// std::cout << "desired q: " << desired_state.a.transpose() << std::endl;
 
 		Eigen::Quaterniond err_q = odom_data.q.inverse() * desired_odom.q;
 		Eigen::Vector3d err_br;
@@ -381,36 +352,6 @@ public:
 			output.bodyrates = q_mid * output.bodyrates;
 		}
 	
-		// Eigen::Quaterniond err_q = odom_data.q * (desired_odom.q.inverse());
-		// // limitErr(err_q, -1.0, 1.0);
-		// // Eigen::Vector3d err_w = odom_data.w - odom_data.q.matrix().transpose() * desired_odom.q.matrix() * desired_odom.w;
-		// Eigen::Vector3d err_w = odom_data.w - desired_odom.w;
-		// limitErr(err_w, -1.0, 1.0);
-		// if(have_last_err_ == false){
-		// 	have_last_err_ = true;
-		// 	last_err_q_ = err_q.vec();
-		// 	last_err_w_ = err_w;
-		// }
-		// Eigen::Vector3d d_err_q = err_q.vec() - last_err_q_;
-		// limitErr(d_err_q, -1.0, 1.0);
-		// Eigen::Vector3d d_err_w = err_w - last_err_w_;
-		// limitErr(d_err_w, -1.0, 1.0);
-		// if (err_q.w() >= 0){
-		// 	output.bodyrates = desired_odom.w - Kp_q_.asDiagonal() * err_q.vec() - Kp_w_.asDiagonal() * err_w - Kd_q_.asDiagonal() * d_err_q - Kd_w_.asDiagonal() * d_err_w;
-		// 	// err_br.x() = Kp_q_(0) * err_q.x();
-		// 	// err_br.y() = Kp_q_(1) * err_q.y();
-		// 	// err_br.z() = Kp_q_(2) * err_q.z();
-		// }
-		// else{
-		// 	output.bodyrates = desired_odom.w + Kp_q_.asDiagonal() * err_q.vec() - Kp_w_.asDiagonal() * err_w + Kd_q_.asDiagonal() * d_err_q - Kd_w_.asDiagonal() * d_err_w;
-		// 	// err_br.x() = -Kp_q_(0) * err_q.x();
-		// 	// err_br.y() = -Kp_q_(1) * err_q.y();
-		// 	// err_br.z() = -Kp_q_(2) * err_q.z();
-		// }
-		// // std::cout << "thrust: " << output.thrust << std::endl;
-		// // std::cout << "bodyrates: " << output.bodyrates.transpose() << std::endl;
-		// last_err_q_ = err_q.vec();
-		// last_err_w_ = err_w;
 
 		timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), output.thrust));
 		while (timed_thrust_.size() > 100)
@@ -447,8 +388,6 @@ public:
 			T_a_ = T_a_ + K * (est_a(2) - thr * T_a_);
 			P_ = (1 - K * thr) * P_ / rho_;
 			T_a_ = std::max(T_a_, gravity_ / max_hover_percent_);
-			// printf("%6.3f,%6.3f,%6.3f,%6.3f\n", T_a_, gamma, K, P_);
-			//fflush(stdout);
 
 			return true;
 		}

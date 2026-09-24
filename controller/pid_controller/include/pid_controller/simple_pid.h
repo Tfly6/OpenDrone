@@ -36,21 +36,19 @@ class simplePID {
         }
 
         Eigen::Vector3d compute(const Eigen::Vector3d &currPose, Eigen::Vector3d &targetPose, double dt){
-            // 保护：防止 dt 过小或为零导致除零
+            // Bound dt away from zero before evaluating the derivative term.
             if (dt < 1e-6) {
                 dt = 1e-3;
             }
 
-            // 计算误差项
             Eigen::Vector3d pos_error = targetPose - currPose;
 
-            // 误差项限幅
             for (int i=0; i<3; i++)
             {
                 pos_error[i] = constrain_function(pos_error[i], pos_error_max_[i]);
             }
 
-            // 积分项：带 anti-windup 限幅
+            // Clamp the accumulated error to prevent integral windup.
             integral_ += pos_error * dt;
             for (int i = 0; i < 3; i++) {
                 integral_[i] = std::max(-10.0, std::min(10.0, integral_[i]));
@@ -59,7 +57,6 @@ class simplePID {
                 }
             }
 
-            // 微分项
             Eigen::Vector3d derivative = (pos_error - pre_error_) / dt;
             for (int i = 0; i < 3; i++) {
                 if (!std::isfinite(derivative[i])) {

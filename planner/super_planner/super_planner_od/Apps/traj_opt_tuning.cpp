@@ -50,7 +50,6 @@ std::string format_time(const std::filesystem::file_time_type& file_time) {
     return ss.str();
 }
 
-// 获取目录下最新修改的 .bin 文件
 std::pair<std::string, std::string> getLatestBinFile(const std::string& directory) {
     std::string latestFile;
     std::filesystem::file_time_type latestTime;
@@ -102,11 +101,11 @@ int main(int argc, char** argv) {
 
 
     // enable keyboard
-    initscr(); // 启动 ncurses 模式
-    cbreak(); // 禁用行缓冲，立即传递按键
-    noecho(); // 不在终端显示按键
-    keypad(stdscr, TRUE); // 启用功能键支持（非必需，但推荐）
-    nodelay(stdscr, TRUE); // 非阻塞模式，不等待输入
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    nodelay(stdscr, TRUE);
 
     std::cout<<"Check sim time"<<std::endl;
     while (ros::ok()) {
@@ -130,7 +129,7 @@ int main(int argc, char** argv) {
     bool pause{true};
     while (ros::ok()) {
         // if pause, wait for keyboard, else sleep 0.05
-        int ch = getch(); // 获取按键
+        int ch = getch();
         if (ch == 'p') {
             pause = !pause;
         }
@@ -157,7 +156,6 @@ int main(int argc, char** argv) {
         }
 
         auto& replan = replan_logs[replan_id];
-//        system("clear");
         fmt::print(" -- [Bench] Visualize replan ID: {}\n", replan_id);
         visualization_msgs::Marker del;
         visualization_msgs::MarkerArray arr;

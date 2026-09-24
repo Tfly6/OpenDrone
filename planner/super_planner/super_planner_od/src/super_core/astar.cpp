@@ -567,7 +567,6 @@ namespace path_search {
             return INIT_ERROR;
         }
         rog_map::Vec3f local_start_pt = start_pt;
-//        rog_map::GridType start_type = map_ptr_->getGridType(local_start_pt);
         if (!map_ptr_->getNearestCellNot(OCCUPIED, start_pt, local_start_pt,3.0)) {
             cout << rog_map::RED <<
                  " -- [A*] " << RET_CODE_STR[INIT_ERROR]
@@ -618,16 +617,12 @@ namespace path_search {
             if (md_.unknown_as_occ && cur_inf_type != OCCUPIED && cur_inf_type != UNKNOWN) {
                 retrievePath(current, node_path);
                 ConvertNodePathToPointPath(node_path, out_path);
-//                double time_2 = ros_ptr_->getSimTime();
-                //                    printf("\033[34m Escape: A star iter:%d, time:%.3f ms\033[0m\n", num_iter, (time_2 - time_1).toSec() * 1000);
                 return REACH_HORIZON;
             }
 
             if (md_.unknown_as_free && cur_inf_type != OCCUPIED) {
                 retrievePath(current, node_path);
                 ConvertNodePathToPointPath(node_path, out_path);
-//                double time_2 = ros_ptr_->getSimTime();
-                //                    printf("\033[34m Escape: A star iter:%d, time:%.3f ms\033[0m\n", num_iter, (time_2 - time_1).toSec() * 1000);
                 return REACH_HORIZON;
             }
 

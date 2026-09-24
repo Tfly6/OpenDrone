@@ -27,7 +27,6 @@ namespace ego_planner
     std::vector<std::vector<Eigen::Vector3d>> base_point; // The point at the statrt of the direction vector (collision point)
     std::vector<std::vector<Eigen::Vector3d>> direction;  // Direction vector, must be normalized.
     std::vector<bool> flag_temp;                          // A flag that used in many places. Initialize it everytime before using it.
-    // std::vector<bool> occupancy;
 
     void resize(const int size_set)
     {
@@ -36,13 +35,11 @@ namespace ego_planner
       base_point.clear();
       direction.clear();
       flag_temp.clear();
-      // occupancy.clear();
 
       points.resize(3, size_set);
       base_point.resize(size);
       direction.resize(size);
       flag_temp.resize(size);
-      // occupancy.resize(size);
     }
 
     void segment(ControlPoints &buf, const int start, const int end)
@@ -63,22 +60,8 @@ namespace ego_planner
         buf.base_point[i - start] = base_point[i];
         buf.direction[i - start] = direction[i];
 
-        // if ( buf.base_point[i - start].size() > 1 )
-        // {
-        //   ROS_ERROR("buf.base_point[i - start].size()=%d, base_point[i].size()=%d", buf.base_point[i - start].size(), base_point[i].size());
-        // }
       }
 
-      // cout << "RichInfoOneSeg_temp, insede" << endl;
-      // for ( int k=0; k<buf.size; k++ )
-      //   if ( buf.base_point[k].size() > 0 )
-      //   {
-      //     cout << "###" << buf.points.col(k).transpose() << endl;
-      //     for (int k2 = 0; k2 < buf.base_point[k].size(); k2++)
-      //     {
-      //       cout << "      " << buf.base_point[k][k2].transpose() << " @ " << buf.direction[k][k2].transpose() << endl;
-      //     }
-      //   }
     }
   };
 

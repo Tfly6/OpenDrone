@@ -167,7 +167,6 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         durations.push_back(tau);
     }
 
-    // cout << "cur state:" << cur_state.head(3).transpose() << endl;
     for (int i = 0; i < inputs.size(); ++i)
       for (int j = 0; j < durations.size(); ++j)
       {
@@ -295,7 +294,6 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
           {
             if (tmp_g_score < pro_node->g_score)
             {
-              // pro_node->index = pro_id;
               pro_node->state = pro_state;
               pro_node->f_score = tmp_f_score;
               pro_node->g_score = tmp_g_score;
@@ -312,7 +310,6 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
           }
         }
       }
-    // init_search = false;
   }
 
   cout << "open set empty, no path!" << endl;
@@ -438,8 +435,6 @@ bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd s
 
       if (fabs(vel(dim)) > max_vel_ || fabs(acc(dim)) > max_acc_)
       {
-        // cout << "vel:" << vel(dim) << ", acc:" << acc(dim) << endl;
-        // return false;
       }
     }
 
@@ -449,9 +444,6 @@ bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd s
       return false;
     }
 
-    // if (edt_environment_->evaluateCoarseEDT(coord, -1.0) <= margin_) {
-    //   return false;
-    // }
     if (edt_environment_->sdf_map_->getInflateOccupancy(coord) == 1)
     {
       return false;
@@ -757,7 +749,6 @@ Eigen::Vector3i KinodynamicAstar::posToIndex(Eigen::Vector3d pt)
 
   // idx << floor((pt(0) - origin_(0)) * inv_resolution_), floor((pt(1) -
   // origin_(1)) * inv_resolution_),
-  //     floor((pt(2) - origin_(2)) * inv_resolution_);
 
   return idx;
 }

@@ -100,7 +100,6 @@ namespace rog_map {
             expand_dir_x_ = static_cast<int>(signum(static_cast<int>(delta_X)));
             expand_dir_y_ = static_cast<int>(signum(static_cast<int>(delta_Y)));
             expand_dir_z_ = static_cast<int>(signum(static_cast<int>(delta_Z)));
-//                std::cout<<"expand_dir_x_:"<<expand_dir_x_<<" expand_dir_y_:"<<expand_dir_y_<<" expand_dir_z_:"<<expand_dir_z_<<std::endl;
             if (expand_dir_x_ == 0 && expand_dir_y_ == 0 && expand_dir_z_ == 0) {
                 return false;
             }
@@ -144,8 +143,6 @@ namespace rog_map {
                             std::fabs(next_bound_z - start_z_d_) / dis_z_over_t;
 
 
-//                std::cout << "t_to_bound_x_: " << t_to_bound_x_ << " t_to_bound_y_: " << t_to_bound_y_
-//                          << " t_to_bound_z_: " << t_to_bound_z_ << std::endl;
 
             step_num_ = 0;
             first_point = true;
@@ -165,16 +162,6 @@ namespace rog_map {
 #endif
 #endif
             step_num_++;
-//                std::cout << "Iter " << step_num_ << "========================================" << std::endl;
-//                std::cout << "start: " << start_x_d_ << ", " << start_y_d_ << ", " << start_z_d_ << std::endl;
-//                std::cout << "end: " << end_x_d_ << ", " << end_y_d_ << ", " << end_z_d_ << std::endl;
-//                std::cout << "end_id: " << end_x_i_ << ", " << end_y_i_ << ", " << end_z_i_ << std::endl;
-//                std::cout << "cur_id: " << cur_ray_pt_id_x_ << ", " << cur_ray_pt_id_y_ << ", " << cur_ray_pt_id_z_
-//                          << std::endl;
-//                std::cout << "t_to_bound
-//                : " << t_to_bound_x_ << ", " << t_to_bound_y_ << ", " << t_to_bound_z_
-//                          << std::endl;
-            // shape the output
             indexToPos(cur_ray_pt_id_x_, ray_pt.x());
             indexToPos(cur_ray_pt_id_y_, ray_pt.y());
             indexToPos(cur_ray_pt_id_z_, ray_pt.z());
@@ -185,21 +172,17 @@ namespace rog_map {
             // compute firest bound point
             if (t_to_bound_x_ < t_to_bound_y_) {
                 if (t_to_bound_x_ < t_to_bound_z_) {
-//                        std::cout << "Expand X" << std::endl;
                     cur_ray_pt_id_x_ += expand_dir_x_;
                     t_to_bound_x_ += t_when_step_x_;
                 } else {
-//                        std::cout << "Expand Z" << std::endl;
                     cur_ray_pt_id_z_ += expand_dir_z_;
                     t_to_bound_z_ += t_when_step_z_;
                 }
             } else {
                 if (t_to_bound_y_ < t_to_bound_z_) {
-//                        std::cout << "Expand Y" << std::endl;
                     cur_ray_pt_id_y_ += expand_dir_y_;
                     t_to_bound_y_ += t_when_step_y_;
                 } else {
-//                        std::cout << "Expand Z" << std::endl;
                     cur_ray_pt_id_z_ += expand_dir_z_;
                     t_to_bound_z_ += t_when_step_z_;
 

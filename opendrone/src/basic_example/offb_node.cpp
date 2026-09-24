@@ -12,7 +12,7 @@
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
-    current_state = *msg;   // 无人机当前状态
+    current_state = *msg;
 }
 
 int main(int argc, char **argv)
@@ -61,7 +61,6 @@ int main(int argc, char **argv)
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&
             (ros::Time::now() - last_request > ros::Duration(5.0))){
-            // 切换 Offboard 模式
             if( set_mode_client.call(offb_set_mode) &&
                 offb_set_mode.response.mode_sent){
                 ROS_INFO("Offboard enabled");
@@ -70,7 +69,6 @@ int main(int argc, char **argv)
         } else {
             if( !current_state.armed &&
                 (ros::Time::now() - last_request > ros::Duration(5.0))){
-                //无人机解锁
                 if( arming_client.call(arm_cmd) &&
                     arm_cmd.response.success){
                     ROS_INFO("Vehicle armed");
@@ -79,7 +77,7 @@ int main(int argc, char **argv)
             }
         }
 
-        local_pos_pub.publish(pose); // 发送目标点位置
+        local_pos_pub.publish(pose);
 
         ros::spinOnce();
         rate.sleep();
@@ -87,4 +85,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

@@ -37,9 +37,6 @@ namespace super_planner {
         /// force return if the seed is not inside the boundary
         if ((bd * ah).maxCoeff() > epsilon_ ||
             (bd * bh).maxCoeff() > epsilon_) {
-//            cout << YELLOW << " -- [WARN] ah, bh not in BD, forced return." << endl;
-//            cout << "bd  * ah: " << (bd * ah).transpose().maxCoeff() << endl;
-//            cout << "bd  * bh: " << (bd * bh).transpose().maxCoeff() << endl;
             return INIT_ERROR;
         }
 
@@ -57,7 +54,6 @@ namespace super_planner {
         vector<Eigen::Vector4d> planes;
         MatD4f hPoly;
 
-//        bool infeasible_problem{false};
         Vec3f infeasible_pt_w;
 
         for (int loop = 0; loop < iter_num_; ++loop) {
@@ -100,7 +96,6 @@ namespace super_planner {
                     const auto & pt_w = pc.col(pcMinId);
                     const auto dis = distancePointToSegment(pt_w,a,b);
                     if(dis < robot_r_ - 1e-2) {
-//                        infeasible_problem = true;
                         infeasible_pt_w = pt_w;
                         cout<<YELLOW<<" -- [CIRI] WARNING! The problem is not feasible, the min dis to obstacle is only: "<<dis<<RESET<<endl;
                         return FAILED;
@@ -203,16 +198,6 @@ namespace super_planner {
 
             if(hPoly.array().isNaN().any()) {
                 cout << YELLOW << " -- [CIRI] ERROR! maxVolInsEllipsoid failed." << RESET << endl;
-//                optimized_polytope_.Reset();
-//                optimized_polytope_.SetPlanes(hPoly);
-//                optimized_polytope_.SetSeedLine(std::make_pair(a, b));
-//                optimized_polytope_.SetEllipsoid(E);
-//                ros_ptr_->vizCiriSeedLine(a, b,robot_r_);
-//                cout<<" -- [CIRI] infeasible_pt_w: "<<infeasible_pt_w.transpose()<<endl;
-//                ros_ptr_->vizCiriInfeasiblePoint(infeasible_pt_w);
-//                ros_ptr_->vizCiriEllipsoid(E);
-////                optimized_polytope_.Visualize(debug_pub_, "optimized_polytope");
-//                std::cout << " -- [CIRI] hPoly: " << hPoly << std::endl;
                 return FAILED;
             }
 
@@ -252,8 +237,6 @@ namespace super_planner {
         robot_r_ = robot_r;
         iter_num_ = iter_num;
         sphere_template_ = Ellipsoid(Mat3f::Identity(), robot_r_ * Vec3f(1, 1, 1), Vec3f(0, 0, 0));
-        //        split_seed_max_ = split_seed_max;
-        //        split_thresh_ = split_thresh;
     }
 
     void CIRI::findTangentPlaneOfSphere(const Eigen::Vector3d& center, const double& r,
@@ -261,31 +244,6 @@ namespace super_planner {
                                         const Eigen::Vector3d& seed_p,
                                         Eigen::Vector4d& outter_plane) {
 
-        // v2
-        // const Vec3f v1 = (pass_point - seed_p);
-        // const Vec3f v2 = (center - seed_p);
-        // const Vec3f v3 = (center - pass_point);
-        // const double d1 = v1.norm();
-        // const double d2 = v2.norm();
-        // const double d3 = v3.norm();
-        //
-        // if(d3 < r || d1 < 1e-2 || d2< 1e-2) {
-        //     cout<<YELLOW<<" -- [CIRI] findTangentPlaneOfSphere: The pass point is inside the sphere."<<RESET<<endl;
-        //     return;
-        // }
-        //
-        // const double theta = asin(r / d3);
-        // const Vec3f axis = v1.cross(v2);
-        // const double d = sqrt(d3 * d3 - r * r);
-        // Eigen::AngleAxis<decimal_t> rot(theta, axis.normalized());
-        // Vec3f new_tangent_p = (rot * v3).normalized() * d + pass_point;
-        // Vec3f new_tangent_n = (new_tangent_p - center).normalized();
-        // // rebuild the tangent plan form pass point and tangent_normal
-        // outter_plane.head(3) = new_tangent_n;
-        // outter_plane(3) = -new_tangent_n.dot(new_tangent_p);
-        // if (outter_plane.head(3).dot(seed_p) + outter_plane(3) > epsilon_) {
-        //     outter_plane = -outter_plane;
-        // }
 
         Vec3f seed = seed_p;
         Vec3f dif = pass_point - pass_point;

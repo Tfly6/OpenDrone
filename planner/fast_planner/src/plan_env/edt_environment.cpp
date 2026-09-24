@@ -45,7 +45,6 @@ void EDTEnvironment::setObjScale(ObjScale scale) {
 }
 
 double EDTEnvironment::distToBox(int idx, const Eigen::Vector3d& pos, const double& time) {
-  // Eigen::Vector3d pos_box = obj_prediction_->at(idx).evaluate(time);
   Eigen::Vector3d pos_box = obj_prediction_->at(idx).evaluateConstVel(time);
 
   Eigen::Vector3d box_max = pos_box + 0.5 * obj_scale_->at(idx);

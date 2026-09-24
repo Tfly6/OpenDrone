@@ -247,7 +247,6 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "swarm_bridge");
   ros::NodeHandle nh("~");
 
-  // nh.param("broadcast_ip", udp_ip_, string("127.0.0.255"));
   nh.param("self_id", self_id_, -1);
   nh.param("is_ground_station", is_groundstation_, false);
   nh.param("drone_num", drone_num_, 0);
@@ -299,17 +298,8 @@ int main(int argc, char **argv)
   goal_pub_ = nh.advertise<quadrotor_msgs::GoalSet>("/goal_brig2plner", 100);
   register_callbak_to_all_groundstation("/goal",goal_bridge_cb);
 
-  // goal_exploration_sub_ = nh.subscribe("/goal_with_id", 100, goal_exploration_sub_udp_cb, ros::TransportHints().tcpNoDelay());
-  // goal_exploration_pub_ = nh.advertise<quadrotor_msgs::GoalSet>("/goal_with_id_to_planner", 100);
-  // bridge->register_callback_for_all("/goal_exploration",goal_exploration_bridge_cb);
 
-  // star_cvx_sub_ = nh.subscribe("/free_map/star_cvx", 100, star_cvx_sub_udp_cb, ros::TransportHints().tcpNoDelay());
-  // star_cvx_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/free_map/star_cvx_to_planner", 100);
-  // bridge->register_callback_for_all("/star_cvx",star_cvx_bridge_cb);
 
-  // frontier_sub_ = nh.subscribe("/frontier_pc", 100, frontier_sub_udp_cb, ros::TransportHints().tcpNoDelay());
-  // frontier_pub_ = nh.advertise<sensor_msgs::PointCloud2>("/frontier_pc_to_planner", 100);
-  // bridge->register_callback_for_all("/frontier",frontier_bridge_cb);
 
   ros::spin();
 

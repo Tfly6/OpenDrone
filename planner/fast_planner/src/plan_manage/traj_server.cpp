@@ -37,8 +37,6 @@ ros::Publisher cmd_vis_pub, pos_cmd_pub, traj_pub;
 nav_msgs::Odometry odom;
 
 quadrotor_msgs::PositionCommand cmd;
-// double pos_gain[3] = {5.7, 5.7, 6.2};
-// double vel_gain[3] = {3.4, 3.4, 4.0};
 double pos_gain[3] = { 5.7, 5.7, 6.2 };
 double vel_gain[3] = { 3.4, 3.4, 4.0 };
 
@@ -210,9 +208,6 @@ void odomCallbck(const nav_msgs::Odometry& msg) {
 }
 
 void visCallback(const ros::TimerEvent& e) {
-  // displayTrajWithColor(traj_real_, 0.03, Eigen::Vector4d(0.925, 0.054, 0.964,
-  // 1),
-  //                      1);
 
   displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), 2);
 }
@@ -272,12 +267,6 @@ void cmdCallback(const ros::TimerEvent& e) {
   cmd.yaw_dot = yawdot;
 
   auto pos_err = pos_f - pos;
-  // if (pos_err.norm() > 1e-3) {
-  //   cmd.yaw = atan2(pos_err(1), pos_err(0));
-  // } else {
-  //   cmd.yaw = last_yaw_;
-  // }
-  // cmd.yaw_dot = 1.0;
 
   last_yaw_ = cmd.yaw;
 
@@ -296,12 +285,9 @@ void cmdCallback(const ros::TimerEvent& e) {
 
   // draw cmd
 
-  // drawCmd(pos, vel, 0, Eigen::Vector4d(0, 1, 0, 1));
-  // drawCmd(pos, acc, 1, Eigen::Vector4d(0, 0, 1, 1));
 
   Eigen::Vector3d dir(cos(yaw), sin(yaw), 0.0);
   drawCmd(pos, 2 * dir, 2, Eigen::Vector4d(1, 1, 0, 0.7));
-  // drawCmd(pos, pos_err, 3, Eigen::Vector4d(1, 1, 0, 0.7));
 
   traj_cmd_.push_back(pos);
   if (traj_cmd_.size() > 10000) traj_cmd_.erase(traj_cmd_.begin(), traj_cmd_.begin() + 1000);

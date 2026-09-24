@@ -223,7 +223,6 @@ void LinearModelPredictiveController::applyParameters()
   R_delta = r_delta_command_.asDiagonal();
 
   //Compute terminal cost
-  //Q_final(k+1) = A'*Q_final(k)*A - (A'*Q_final(k)*B)*inv(B'*Q_final(k)*B+R)*(B'*Q_final(k)*A)+ Q;
   Q_final = Q;
   for (int i = 0; i < 1000; i++) {
     Eigen::MatrixXd temp = (model_B_.transpose() * Q_final * model_B_ + R);

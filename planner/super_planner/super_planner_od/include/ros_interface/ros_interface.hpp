@@ -53,14 +53,12 @@ namespace ros_interface{
         static std::string format(const char* fmt, Args&&... args) {
             return fmt::format(fmt, std::forward<Args>(args)...);
         }
-        // 核心日志接口
         virtual void debug(const std::string& msg) = 0;
         virtual void info(const std::string& msg) = 0;
         virtual void warn(const std::string& msg) = 0;
         virtual void error(const std::string& msg) = 0;
         virtual void fatal(const std::string& msg) = 0;
 
-        // 格式化工具函数
         template<typename... Args>
         void debug(const char* fmt, Args... args) {
             debug(format(fmt, args...));

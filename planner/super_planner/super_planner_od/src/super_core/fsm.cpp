@@ -66,7 +66,6 @@ namespace fsm {
 
         RET_CODE ret_code = planner_ptr_->ReplanOnce(gi_.goal_p, gi_.goal_yaw, gi_.new_goal);
         if (ret_code == FAILED) {
-//            cout << YELLOW << " -- [Fsm] ReplanOnce failed." << RESET << endl;
         } else { cout << GREEN << " -- [Fsm] ReplanOnce succeed." << RESET << endl; }
 
         if (ret_code == EMER) {
@@ -163,7 +162,6 @@ namespace fsm {
                     ChangeState("MainFsmCallback", FOLLOW_TRAJ);
                 } else {
                     cout << YELLOW << " -- [Fsm] PlanFromRest failed, try replan." << RESET << endl;
-                    // ros::Duration(0.1).sleep();
                 }
                 replan_logs_.push_back(planner_ptr_->getLatestReplanLog());
                 break;
@@ -237,7 +235,6 @@ namespace fsm {
 
         if ((robot_state_.p - gi_.goal_p).norm() <
             0.1) {
-            //                print(fg(color::gray), " -- [Rviz] Too close to goal, skip this target.\n");
             return GOAL_SUBMISSION_RESULT::ALREADY_REACHED;
         }
 

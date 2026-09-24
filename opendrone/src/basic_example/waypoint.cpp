@@ -12,7 +12,7 @@
 using namespace std;
 
 mavros_msgs::State current_state;
-geometry_msgs::PoseStamped curr_pos;   // 无人机当前位置
+geometry_msgs::PoseStamped curr_pos;
 vector<geometry_msgs::PoseStamped> waypoints;
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
@@ -24,7 +24,7 @@ void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
 }
 
 void waypoint_cb(const nav_msgs::Path::ConstPtr& msg){
-    waypoints.clear();  // 清空之前的航点
+    waypoints.clear();
     for(int i=0; i<msg->poses.size(); i++){
         waypoints.push_back(msg->poses[i]);
     }
@@ -32,7 +32,7 @@ void waypoint_cb(const nav_msgs::Path::ConstPtr& msg){
 }
 
 bool is_arrive(geometry_msgs::PoseStamped pos1, geometry_msgs::PoseStamped pos2){
-    double distance_threshold = 0.10;  // 到达阈值
+    double distance_threshold = 0.10;
     double dx = pos1.pose.position.x - pos2.pose.position.x;
     double dy = pos1.pose.position.y - pos2.pose.position.y;
     double dz = pos1.pose.position.z - pos2.pose.position.z;
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    int count = 0;  // 计时
+    int count = 0;
 
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&

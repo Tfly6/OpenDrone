@@ -204,12 +204,6 @@ void OdomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
 
 }
 
-// void GoalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
-//   (void)msg;
-//   if (HandlePresetTrigger(ros::Time::now(), PrivateNh())) {
-//     return;
-//   }
-// }
 
 void TrajStartTriggerCallback(const geometry_msgs::PoseStamped&) {
   ROS_WARN("[waypoint_generator] Trigger!");
@@ -243,8 +237,6 @@ int main(int argc, char** argv) {
 
   ros::Subscriber odom_sub =
       private_nh_local.subscribe("odom", 10, OdomCallback);
-//   ros::Subscriber goal_sub =
-//       private_nh_local.subscribe("goal", 10, GoalCallback);
   ros::Subscriber traj_sub =
       private_nh_local.subscribe("traj_start_trigger", 10, TrajStartTriggerCallback);
 

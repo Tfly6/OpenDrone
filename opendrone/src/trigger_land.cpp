@@ -15,7 +15,6 @@ bool is_change = false;
 bool is_trigger = false;
 
 void rcCallback(const mavros_msgs::RCIn::ConstPtr &msg) {
-    // 检查通道索引是否有效
     if (msg->channels.size() <= trigger_channel) {
         ROS_WARN("Trigger channel %d does not exist!", trigger_channel);
         return;
@@ -24,18 +23,15 @@ void rcCallback(const mavros_msgs::RCIn::ConstPtr &msg) {
     
     current_value = msg->channels[trigger_channel];
 
-    // 获取当前通道值
     if(current_value != last_value){
         is_change = true;
     }
     if(is_change && (current_value == trigger_threshold) && !is_trigger){
         ROS_INFO("Trigger detected! Sending land request...");
 
-        // 构造服务请求
         std_srvs::SetBool srv;
         srv.request.data = true;
 
-        // 调用服务
         land_client.call(srv);
         is_trigger = true;
     }

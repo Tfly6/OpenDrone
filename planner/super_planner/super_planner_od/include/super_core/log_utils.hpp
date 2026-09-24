@@ -256,11 +256,6 @@ namespace super_planner {
             fmt::print("backup_init_t_vec: {}\n", backup_init_t_vec.size());
 
             traj.clear();
-//            // for backup traj
-//            double backup_init_ts, ts_max, ts_min;
-//            VecDf backup_init_t_vec;
-//            // the last point is the init fina p
-//            vec_Vec3f backup_init_ps;
             double out_ts;
             backup_traj_opt->optimize(exp_traj,
                                       ts_min,

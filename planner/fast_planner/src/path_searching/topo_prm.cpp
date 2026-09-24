@@ -95,7 +95,6 @@ void TopologyPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
   filtered_paths = pruneEquivalent(short_paths_);
 
   prune_time = (ros::Time::now() - t1).toSec();
-  // cout << "prune: " << (t2 - t1).toSec() << endl;
 
   /* ---------- select N shortest paths ---------- */
   t1 = ros::Time::now();
@@ -114,11 +113,9 @@ void TopologyPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
 }
 
 list<GraphNode::Ptr> TopologyPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d end) {
-  // std::cout << "[Topo]: searching----------------------" << std::endl;
 
   /* init the start, end and sample region */
   graph_.clear();
-  // collis_.clear();
 
   GraphNode::Ptr start_node = GraphNode::Ptr(new GraphNode(start, GraphNode::Guard, 0));
   GraphNode::Ptr end_node = GraphNode::Ptr(new GraphNode(end, GraphNode::Guard, 1));
@@ -157,7 +154,6 @@ list<GraphNode::Ptr> TopologyPRM::createGraph(Eigen::Vector3d start, Eigen::Vect
     ++sample_num;
     double dist;
     Eigen::Vector3d grad;
-    // edt_environment_->evaluateEDTWithGrad(pt, -1.0, dist, grad);
     dist = edt_environment_->evaluateCoarseEDT(pt, -1.0);
     if (dist <= clearance_) {
       sample_time += (ros::Time::now() - t1).toSec();
@@ -171,8 +167,6 @@ list<GraphNode::Ptr> TopologyPRM::createGraph(Eigen::Vector3d start, Eigen::Vect
       graph_.push_back(guard);
     } else if (visib_guards.size() == 2) {
       /* try adding new connection between two guard */
-      // vector<pair<GraphNode::Ptr, GraphNode::Ptr>> sort_guards =
-      // sortVisibGuard(visib_guards);
       bool need_connect = needConnection(visib_guards[0], visib_guards[1], pt);
       if (!need_connect) {
         sample_time += (ros::Time::now() - t1).toSec();
@@ -197,10 +191,8 @@ list<GraphNode::Ptr> TopologyPRM::createGraph(Eigen::Vector3d start, Eigen::Vect
   std::cout << "[Topo]: sample num: " << sample_num;
 
   pruneGraph();
-  // std::cout << "[Topo]: node num: " << graph_.size() << std::endl;
 
   return graph_;
-  // return searchPaths(start_node, end_node);
 }
 
 vector<GraphNode::Ptr> TopologyPRM::findVisibGuard(Eigen::Vector3d pt) {
@@ -243,7 +235,6 @@ bool TopologyPRM::needConnection(GraphNode::Ptr g1, GraphNode::Ptr g2, Eigen::Ve
           // get shorter connection ?
           if (pathLength(path1) < pathLength(path2)) {
             g1->neighbors_[i]->pos_ = pt;
-            // ROS_WARN("shorter!");
           }
           return false;
         }
@@ -293,7 +284,6 @@ void TopologyPRM::pruneGraph() {
       if ((*iter1)->id_ <= 1) continue;
 
       /* core */
-      // std::cout << "id: " << (*iter1)->id_ << std::endl;
       if ((*iter1)->neighbors_.size() <= 1) {
         // delete this node from others' neighbor
         for (list<GraphNode::Ptr>::iterator iter2 = graph_.begin(); iter2 != graph_.end(); ++iter2) {
@@ -402,7 +392,6 @@ bool TopologyPRM::sameTopoPath(const vector<Eigen::Vector3d>& path1,
 
   int pt_num = ceil(max_len / resolution_);
 
-  // std::cout << "pt num: " << pt_num << std::endl;
 
   vector<Eigen::Vector3d> pts1 = discretizePath(path1, pt_num);
   vector<Eigen::Vector3d> pts2 = discretizePath(path2, pt_num);
@@ -517,8 +506,6 @@ void TopologyPRM::shortcutPath(vector<Eigen::Vector3d> path, int path_id, int it
     double len1 = pathLength(last_path);
     double len2 = pathLength(short_path);
     if (len2 > len1) {
-      // ROS_WARN("pause shortcut, l1: %lf, l2: %lf, iter: %d", len1, len2, k +
-      // 1);
       short_path = last_path;
       break;
     }

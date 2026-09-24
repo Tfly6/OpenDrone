@@ -43,10 +43,8 @@ namespace ego_planner
       pt.x = list[i](0);
       pt.y = list[i](1);
       pt.z = list[i](2);
-      //if (show_sphere) sphere.points.push_back(pt);
       line_strip.points.push_back(pt);
     }
-    //if (show_sphere) pub.publish(sphere);
     pub.publish(line_strip);
   }
 
@@ -95,7 +93,6 @@ namespace ego_planner
     arrow.type = visualization_msgs::Marker::ARROW;
     arrow.action = visualization_msgs::Marker::ADD;
 
-    // geometry_msgs::Point start, end;
     // arrow.points
 
     arrow.color.r = color(0);
@@ -109,9 +106,6 @@ namespace ego_planner
     geometry_msgs::Point start, end;
     for (int i = 0; i < int(list.size() / 2); i++)
     {
-      // arrow.color.r = color(0) / (1+i);
-      // arrow.color.g = color(1) / (1+i);
-      // arrow.color.b = color(2) / (1+i);
 
       start.x = list[2 * i](0);
       start.y = list[2 * i](1);
@@ -244,7 +238,6 @@ namespace ego_planner
       {
         list.push_back(pt);
       }
-      //Eigen::Vector4d color(0.5,0.5,0,1);
       displayMarkerList(a_star_list_pub, list, scale, color, id + i); // real ids used: [ id ~ id+a_star_paths.size() ]
       i++;
     }

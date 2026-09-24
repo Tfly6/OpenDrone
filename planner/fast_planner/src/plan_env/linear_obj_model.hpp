@@ -119,23 +119,7 @@ void LinearObjModel::update(double dt) {
   p0 = pos_, v0 = vel_, a0 = acc_;
 
   /* ---------- use acc as input ---------- */
-  // vel_ = v0 + acc_ * dt;
-  // for (int i = 0; i < 3; ++i)
-  // {
-  //   if (vel_(i) > 0) vel_(i) = std::max(limit_v_(0), std::min(vel_(i),
-  //   limit_v_(1)));
-  //   if (vel_(i) <= 0) vel_(i) = std::max(-limit_v_(1), std::min(vel_(i),
-  //   -limit_v_(0)));
-  // }
 
-  // pos_ = p0 + v0 * dt + 0.5 * acc_ * pow(dt, 2);
-  // for (int i = 0; i < 2; ++i)
-  // {
-  //   pos_(i) = std::min(pos_(i), bound_(i));
-  //   pos_(i) = std::max(pos_(i), -bound_(i));
-  // }
-  // pos_(2) = std::min(pos_(2), bound_(2));
-  // pos_(2) = std::max(pos_(2), 0.0);
 
   /* ---------- use vel as input ---------- */
   pos_ = p0 + v0 * dt;

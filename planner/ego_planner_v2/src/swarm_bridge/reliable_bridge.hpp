@@ -71,7 +71,6 @@ private:
      */
     void transport_msg_thread(int index)
     {
-        // int send_ID = ID;
         int ind = index;
         while (thread_flag)
         {
@@ -107,7 +106,6 @@ private:
     {
         int ind = index;
         int ID = id_list[ind];
-      //ROS_ERROR("CREATE REC THREAD %ld", std::hash<std::thread::id>{}(std::this_thread::get_id()));
         while (thread_flag)
         {
             zmqpp::message recv_array;
@@ -153,7 +151,6 @@ public:
 
    for (std::thread &th : recv_threads) {
       if(th.joinable()) {
-        //std::cout << "join rec thread: " << th.get_id() << std::endl;
         pthread_cancel(th.native_handle());
         std::cout << "rec thread stopped" << std::endl;
       } else {
@@ -163,9 +160,7 @@ public:
 
     for (std::thread &th : send_threads) {
       if(th.joinable()) {
-        //std::cout << "join send thread: " << th.get_id() << std::endl;
         pthread_cancel(th.native_handle());
-        //th.join();
         std::cout << "send thread stopped" << std::endl;
       } else {
         std::cout << "can not join send thread: " << th.get_id() << std::endl;
@@ -297,20 +292,7 @@ public:
             recv_threads.emplace_back(std::thread(&ReliableBridge::recv_thread, this, i));
         }
 
-//        for (std::thread &th : send_threads)
-//        {
-//            // If thread Object is Joinable then Join that thread.
-//            if (th.joinable())
-//                th.detach();
-//        }
-//        for (std::thread &th : recv_threads)
-//        {
-//            // If thread Object is Joinable then Join that thread.
-//            if (th.joinable())
-//                th.detach();
-//        }
     }
-    // ~ReliableBridge();
     /**
      * @brief register a callback for receiving data from a specific device.
      * For processing data, you should register a callback at the begining.

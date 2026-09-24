@@ -11,19 +11,16 @@
 
 using namespace std;
 
-mavros_msgs::State current_state;      // 无人机当前状态
-geometry_msgs::PoseStamped curr_pos;   // 无人机当前位置
-geometry_msgs::TwistStamped curr_vel;  // 无人机当前速度
+mavros_msgs::State current_state;
+geometry_msgs::PoseStamped curr_pos;
+geometry_msgs::TwistStamped curr_vel;
 nav_msgs::Odometry vins_pose;
-// 获取无人机当前状态
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
 }
-// 获取无人机当前位置
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
 }
-// 获取无人机当前速度
 void vel_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
     curr_vel = *msg;
 }
@@ -37,19 +34,14 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "print_info");
     ros::NodeHandle nh;
 
-    // 向无人机发送坐标
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_position/local", 10);
-    // 订阅无人机的状态话题
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
             ("mavros/state", 10, state_cb);
-    // 订阅无人机的位置话题
     ros::Subscriber local_pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
             ("mavros/local_position/pose",10,arrive_pos);
-    // 订阅无人机的速度话题
     ros::Subscriber sub = nh.subscribe<geometry_msgs::TwistStamped>
             ("/mavros/local_position/velocity_local", 10, vel_cb);
-    // 订阅 vins 位置
     ros::Subscriber slam_sub = nh.subscribe<nav_msgs::Odometry>
             ("/vins_estimator/odometry", 100, vins_cb);
     //the setpoint publishing rate MUST be faster than 2Hz
@@ -87,4 +79,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

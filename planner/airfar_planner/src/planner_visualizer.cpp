@@ -124,11 +124,6 @@ void DPVisualizer::VizContourGraph(const std::vector<CTNodeStack>& contour_graph
         if (ctnode_ptr->is_wall_corner) {
             wall_corner_marker.points.push_back(geo_vertex);
         }
-        // if (ctnode_ptr->down != NULL) {
-        //     contour_marker.points.push_back(geo_vertex);
-        //     geo_connect = DPUtil::Point3DToGeoMsgPoint(ctnode_ptr->down->position);
-        //     contour_marker.points.push_back(geo_connect);
-        // }
 
     };
     auto Draw_Surf_Dir = [&](const CTNodePtr& ctnode) {
@@ -238,8 +233,6 @@ void DPVisualizer::VizGraph(const NodePtrStack& graph) {
                 ROS_WARN("Viz: node connect to a NULL node");
                 continue;
             }
-            // if (DPUtil::IsTypeInStack(cnode, node_ptr->contour_connects)) continue;
-            // if (DPUtil::IsTypeInStack(cnode, node_ptr->trajectory_connects)) continue;
             p2 = DPUtil::Point3DToGeoMsgPoint(cnode->position);
             if (node_ptr->is_goal || cnode->is_goal) {
                 goal_edge_marker.points.push_back(p1);
@@ -248,10 +241,8 @@ void DPVisualizer::VizGraph(const NodePtrStack& graph) {
                 odom_edge_marker.points.push_back(p1);
                 odom_edge_marker.points.push_back(p2);
             } else {
-                // if (cnode->is_wall_insert || node_ptr->is_wall_insert) {
                 edge_marker.points.push_back(p1);
                 edge_marker.points.push_back(p2);                    
-                // }                
             }
         }
         // contour edges
@@ -331,22 +322,9 @@ void DPVisualizer::VizGraph(const NodePtrStack& graph) {
         if (!nav_node_ptr->is_finalized) {
             unfinal_node_marker.points.push_back(cpoint);
         }
-        // if (nav_node_ptr->up_node == NULL && nav_node_ptr->down_node != NULL && nav_node_ptr->free_direct == NodeFreeDirect::CONVEX) {
-        //     top_node_marker.points.push_back(cpoint);
-        // }
         if (nav_node_ptr->is_inserted || nav_node_ptr->is_wall_insert) {
             insert_node_marker.points.push_back(cpoint);
         }
-        // if (nav_node_ptr->is_top_layer == true) {
-        //     top_node_marker.points.push_back(cpoint);
-        //     for (auto cnode : nav_node_ptr->contour_connects) {
-        //         if (cnode->is_wall_insert && cnode->free_direct == NodeFreeDirect::INSERT) {
-        //             const geometry_msgs::Point cpoint_tmp = DPUtil::Point3DToGeoMsgPoint(cnode->position);
-        //             near_node_marker.points.push_back(cpoint_tmp);
-        //             // cout<<"Node direct: "<<cnode->free_direct<<endl;
-        //         }
-        //     }
-        // }
         if (nav_node_ptr->is_reach_goal) {
             reachable_node_marker.points.push_back(cpoint);
         }
@@ -483,4 +461,3 @@ void DPVisualizer::SetColor(const VizColor& color,
     }
     scan_marker.color = c;
 }
-

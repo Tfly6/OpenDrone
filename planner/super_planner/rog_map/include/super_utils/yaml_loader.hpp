@@ -58,7 +58,6 @@ namespace yaml_loader {
             }
 
             if (!tmp_node.IsNull()) {
-                // 检查类型是否匹配
                 if constexpr (is_vector<T>::value) {
                     if (tmp_node.Type() == YAML::NodeType::Sequence) {
                         try {
@@ -79,7 +78,6 @@ namespace yaml_loader {
                         return false;
                     }
                 } else {
-                    // 处理非 vector 类型
                     try {
                         param_value = tmp_node.as<T>();
                         printf("\033[0;32m Load param %s success: \033[0;0m", param_name.c_str());

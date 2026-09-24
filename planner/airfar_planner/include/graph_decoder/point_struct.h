@@ -91,8 +91,6 @@ struct Point3D {
     if (n > 1e-7f) {
       return Point3D(x/n, y/n, z/n);
     } else {
-      // DEBUG
-      // ROS_WARN("Point3D: vector normalization fails, vector norm is too small.");
       return Point3D(0,0,0);
     }
   };
@@ -103,8 +101,6 @@ struct Point3D {
     if (n > 1e-7f) {
       return Point3D(x/n, y/n, 0.0f);
     } else {
-      // DEBUG
-      // ROS_WARN("Point3D: flat vector normalization fails, vector norm is too small.");
       return Point3D(0,0,0);
     }
   };
@@ -114,8 +110,6 @@ struct Point3D {
     const float n1 = std::hypotf(x, std::hypotf(y,z));
     const float n2 = std::hypotf(p.x, std::hypotf(p.y,p.z));
     if (n1 < 1e-7f || n2 < 1e-7f) {
-      // DEBUG
-      // ROS_WARN("Point3D: vector norm dot fails, vector norm is too small.");
       return 0.f;
     }
     const float dot_value = (x * p.x + y * p.y + z * p.z) / (n1 * n2);
@@ -127,8 +121,6 @@ struct Point3D {
     const float n1 = std::hypotf(x, y);
     const float n2 = std::hypotf(p.x, p.y);
     if (n1 < 1e-7f || n2 < 1e-7f) {
-      // DEBUG
-      // ROS_WARN("Point3D: flat vector norm dot fails, vector norm is too small.");
       return 0.f;
     }
     const float dot_value = (x * p.x + y * p.y) / (n1 * n2);

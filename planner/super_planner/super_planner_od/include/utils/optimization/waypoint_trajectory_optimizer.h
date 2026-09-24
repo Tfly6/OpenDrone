@@ -85,10 +85,6 @@ namespace optimization_utils {
 
     private:
 
-        // magnitudeBounds = [v_max, a_max, omg_max, theta_max, thrust_min, thrust_max, pos_margin]^T
-        // penaltyWeights = [pos_weight, vel_weight, acc_weight, omg_weight, theta_weight, thrust_weight]^T
-        // physicalParams = [vehicle_mass, gravitational_acceleration, horitonral_drag_coeff,
-        //                   vertical_drag_coeff, parasitic_drag_coeff, speed_smooth_factor]^T
         static void attachPenaltyFunctional(const Eigen::VectorXd &T,
                                             const Eigen::MatrixX3d &coeffs,
                                             const double &smoothFactor,
@@ -107,8 +103,6 @@ namespace optimization_utils {
         void setInitial();
 
     public:
-        // magnitudeBounds = [v_max, acc_max, omg_max, theta_max, thrust_min, thrust_max, pos_margin]^T
-        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight]^T
         bool setup(const double &timeWeight,
                    const Eigen::Matrix3d &initialPVA,
                    const Eigen::Matrix3d &terminalPVA,
@@ -172,10 +166,6 @@ namespace optimization_utils {
 
     private:
 
-        // magnitudeBounds = [v_max, a_max, omg_max, theta_max, thrust_min, thrust_max, pos_margin]^T
-        // penaltyWeights = [pos_weight, vel_weight, acc_weight, omg_weight, theta_weight, thrust_weight]^T
-        // physicalParams = [vehicle_mass, gravitational_acceleration, horitonral_drag_coeff,
-        //                   vertical_drag_coeff, parasitic_drag_coeff, speed_smooth_factor]^T
         static void attachPenaltyFunctional(const Eigen::VectorXd &T,
                                             const Eigen::MatrixX3d &coeffs,
                                             const double &smoothFactor,
@@ -193,8 +183,6 @@ namespace optimization_utils {
         void setInitial();
 
     public:
-        // magnitudeBounds = [v_max, acc_max, omg_max, theta_max, thrust_min, thrust_max, pos_margin]^T
-        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight]^T
         bool setup(const double &timeWeight,
                    const StatePVAJ &initialPVAJ,
                    const StatePVAJ &terminalPVAJ,

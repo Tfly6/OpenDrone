@@ -548,11 +548,6 @@ void ProbMap::resetCell(const int& hash_id) {
 }
 
 void ProbMap::probabilisticMapFromCache() {
-    //    int addr = getHashIndexFromGlobalIndex(Vec3i(41,
-    //                                                 -216,
-    //                                                 -6));
-    //    float ret = occupancy_buffer_[addr];
-    //    std::cout << "ret: " << ret << std::endl;
     while (!raycast_data_.update_cache_id_g.empty()) {
         Vec3f pos;
         Vec3i id_g = raycast_data_.update_cache_id_g.front();

@@ -26,7 +26,6 @@
 
 #include <rog_map/rog_map_core/sliding_map.h>
 
-// #define COUNTER_MAP_DEBUG
 namespace rog_map {
     using super_utils::GridType;
 
@@ -137,4 +136,3 @@ namespace rog_map {
 
     };
 }
-

@@ -150,7 +150,6 @@ class KFDisturbanceObserver
   Eigen::Vector3d external_moments_limit_;
   Eigen::Vector3d omega_limit_;
 
-  // Parameters
   double roll_damping_;
   double roll_omega_;
   double roll_gain_;

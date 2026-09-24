@@ -41,7 +41,6 @@ namespace fs = std::filesystem;
 
 namespace fs = std::filesystem;
 
-// 格式化时间
 std::string format_time(const std::filesystem::file_time_type& file_time) {
     auto sys_time = std::chrono::system_clock::from_time_t(
         std::chrono::duration_cast<std::chrono::seconds>(file_time.time_since_epoch()).count());
@@ -51,7 +50,6 @@ std::string format_time(const std::filesystem::file_time_type& file_time) {
     return ss.str();
 }
 
-// 获取目录下最新修改的 .bin 文件
 std::pair<std::string, std::string> getLatestBinFile(const std::string& directory) {
     std::string latestFile;
     std::filesystem::file_time_type latestTime;
@@ -101,11 +99,11 @@ int main(int argc, char** argv) {
     spinner.start();
 
     // enable keyboard
-    initscr(); // 启动 ncurses 模式
-    cbreak(); // 禁用行缓冲，立即传递按键
-    noecho(); // 不在终端显示按键
-    keypad(stdscr, TRUE); // 启用功能键支持（非必需，但推荐）
-    nodelay(stdscr, TRUE); // 非阻塞模式，不等待输入
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    nodelay(stdscr, TRUE);
 
     std::cout<<"Check sim time"<<std::endl;
     while (ros::ok()) {
@@ -127,10 +125,9 @@ int main(int argc, char** argv) {
     fmt::print("Press key p to pause or run, press up or down to move.\n");
     int replan_id{0};
     int pause{1};
-//    int ch{0}, last_ch{0};
     while (ros::ok()) {
         // if pause, wait for keyboard, else sleep 0.05
-        int ch = getch(); // 获取按键
+        int ch = getch();
         if (ch == 'p') {
             pause = !pause;
         }

@@ -46,7 +46,6 @@ void GraphDecoder::GraphCallBack(const airfar_planner::VisGraphConstPtr& msg) {
         AssignConnectNodes(nodeIdx_idx_map, received_graph_, node_ptr->contour_idxs, node_ptr->contour_connects);
         AssignConnectNodes(nodeIdx_idx_map, received_graph_, node_ptr->traj_idxs, node_ptr->traj_connects);
     }
-    // ROS_INFO("Graph extraction completed. Total size of graph nodes: %ld", received_graph_.size());
     this->VisualizeGraph(received_graph_);
 }
 

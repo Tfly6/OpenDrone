@@ -487,7 +487,6 @@ namespace fsm {
                 cfg_.mission_waypoint_switch_distance = 1.0;
             }
             map_ptr_ = std::make_shared<rog_map::ROGMapROS>(nh, cfg_path);
-            // 初始化Planner
             ros_ptr_ = std::make_shared<ros_interface::Ros1Interface>(nh_);
             planner_ptr_ = std::make_shared<SuperPlanner>(cfg_path, ros_ptr_, map_ptr_);
             cmd_pub = nh_.advertise<quadrotor_msgs::PositionCommand>(cfg_.cmd_topic, 10);

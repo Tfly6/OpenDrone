@@ -62,7 +62,6 @@ private:
   /* parameters */
   int target_type_;  // 1 mannual select, 2 hard code
   double replan_distance_threshold_, replan_time_threshold_;
-  // double waypoints_[50][3];
   int waypoint_num_;
   bool act_map_;
 

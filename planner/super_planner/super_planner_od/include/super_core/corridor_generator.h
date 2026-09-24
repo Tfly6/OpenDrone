@@ -32,7 +32,6 @@
 #include <data_structure/base/trajectory.h>
 
 #include <rog_map_ros/rog_map_ros1.hpp>
-// #include <rog_map_ros/rog_map_ros2.hpp>
 #include <utils/header/fmt_eigen.hpp>
 
 #include <ros_interface/ros_interface.hpp>

@@ -88,7 +88,6 @@ class DroneDetector
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped> SyncPolicyDepthImagePose;
   typedef std::shared_ptr<message_filters::Synchronizer<SyncPolicyDepthImagePose>> SynchronizerDepthImagePose;
   
-  // std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depth_img_sub_;
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> colordepth_img_sub_;
   std::shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> camera_pos_sub_;
 
@@ -101,14 +100,9 @@ class DroneDetector
   ros::Subscriber my_odom_sub_, depth_img_sub_;
   bool has_odom_;
   nav_msgs::Odometry my_odom_;
-  // ROS topic publisher
-  // new_depth_img: erase the detected drones
-  // new_colordepth_img: for debug
   ros::Publisher new_depth_img_pub_;
   ros::Publisher debug_depth_img_pub_;
 
-  // parameters
-  //camera param
   int img_width_, img_height_;
   double fx_,fy_,cx_,cy_;
 
@@ -118,7 +112,6 @@ class DroneDetector
   double pixel_ratio_;
   int pixel_threshold_;
 
-  // for debug
   bool debug_flag_;
   int debug_detect_result_[max_drone_num_];
   std::stringstream debug_img_text_[max_drone_num_];

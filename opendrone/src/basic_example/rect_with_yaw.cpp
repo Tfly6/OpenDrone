@@ -11,22 +11,19 @@
 using namespace std;
 
 mavros_msgs::State current_state;
-geometry_msgs::PoseStamped curr_pos;   // 无人机当前位置
-geometry_msgs::PoseStamped aim_pos;    // 无人机目标位置
-geometry_msgs::TwistStamped curr_vel;  // 无人机当前速度
+geometry_msgs::PoseStamped curr_pos;
+geometry_msgs::PoseStamped aim_pos;
+geometry_msgs::TwistStamped curr_vel;
 
 void printf_info();
 bool is_arrive(geometry_msgs::PoseStamped pos1, geometry_msgs::PoseStamped pos2);
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
-    //ROS_INFO("current mode: %s",current_state.mode.c_str());
-    //ROS_INFO("system_status: %d",current_state.system_status);
 }
 
 void arrive_pos(const geometry_msgs::PoseStamped::ConstPtr& msg){
     curr_pos = *msg;
-    //cout <<GREEN <<fabs((*msg).pose.position.z - aim_pos.pose.position.z) <<endl; 
 }
 
 void velocityCallback(const geometry_msgs::TwistStamped::ConstPtr& msg)
@@ -63,7 +60,6 @@ int main(int argc, char **argv)
         rate.sleep();
     }
 
-    //geometry_msgs::PoseStamped aim_pos;
     aim_pos.pose.position.x = 0;
     aim_pos.pose.position.y = 0;
     aim_pos.pose.position.z = 2;
@@ -137,11 +133,10 @@ int main(int argc, char **argv)
                     if(count >= 100)  // 75s
                     {
                         mavros_msgs::SetMode land_set_mode;
-                        land_set_mode.request.custom_mode = "AUTO.LAND";  // 发送降落命令
+                        land_set_mode.request.custom_mode = "AUTO.LAND";
                         if( current_state.mode != "AUTO.LAND" && set_mode_client.call(land_set_mode) && land_set_mode.response.mode_sent){
                             ROS_INFO("land enabled");
                         }
-                        //任务结束,关闭该节点
                         ros::shutdown();
                     }  
                 }

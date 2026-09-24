@@ -48,12 +48,7 @@ void bsplineCallback(quadrotor_msgs::BsplineConstPtr msg)
 
   // parse yaw traj
 
-  // Eigen::MatrixXd yaw_pts(msg->yaw_pts.size(), 1);
-  // for (int i = 0; i < msg->yaw_pts.size(); ++i) {
-  //   yaw_pts(i, 0) = msg->yaw_pts[i];
-  // }
 
-  //UniformBspline yaw_traj(yaw_pts, msg->order, msg->yaw_dt);
 
   start_time_ = msg->start_time;
   traj_id_ = msg->traj_id;
@@ -72,7 +67,6 @@ std::pair<double, double> calculate_yaw(double t_cur, Eigen::Vector3d &pos, ros:
 {
   constexpr double PI = 3.1415926;
   constexpr double YAW_DOT_MAX_PER_SEC = PI;
-  // constexpr double YAW_DOT_DOT_MAX_PER_SEC = PI;
   std::pair<double, double> yaw_yawdot(0, 0);
   double yaw = 0;
   double yawdot = 0;
@@ -232,7 +226,6 @@ void cmdCallback(const ros::TimerEvent &e)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "traj_server");
-  // ros::NodeHandle node;
   ros::NodeHandle nh("~");
 
   ros::Subscriber bspline_sub = nh.subscribe("planning/bspline", 10, bsplineCallback);

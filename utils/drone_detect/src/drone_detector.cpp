@@ -10,17 +10,10 @@ DroneDetector::DroneDetector(ros::NodeHandle& nodeHandle)
 {
   readParameters();
 
-  // depth_img_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(nh_, "depth", 50, ros::TransportHints().tcpNoDelay()));
-  // colordepth_img_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(nh_, "colordepth", 50));
-  // camera_pos_sub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(nh_, "camera_pose", 50));
 
   my_odom_sub_ = nh_.subscribe("odometry", 100, &DroneDetector::rcvMyOdomCallback, this, ros::TransportHints().tcpNoDelay());
   depth_img_sub_ = nh_.subscribe("depth", 50, &DroneDetector::rcvDepthImgCallback, this, ros::TransportHints().tcpNoDelay());
-  // sync_depth_color_img_pose_->registerCallback(boost::bind(&DroneDetector::rcvDepthColorCamPoseCallback, this, _1, _2, _3));
 
-  // drone0_odom_sub_ = nh_.subscribe("drone0", 50, &DroneDetector::rcvDrone0OdomCallback, this); 
-  // drone1_odom_sub_ = nh_.subscribe("drone1", 50, &DroneDetector::rcvDrone1OdomCallback, this); 
-  // drone2_odom_sub_ = nh_.subscribe("drone2", 50, &DroneDetector::rcvDrone2OdomCallback, this); 
   droneX_odom_sub_ = nh_.subscribe("/others_odom", 100, &DroneDetector::rcvDroneXOdomCallback, this, ros::TransportHints().tcpNoDelay());
 
   new_depth_img_pub_ = nh_.advertise<sensor_msgs::Image>("new_depth_image", 50);
@@ -142,19 +135,9 @@ void DroneDetector::rcvMyOdomCallback(const nav_msgs::Odometry& odom)
   cam2world_ = body2world * cam2body_;
   cam2world_quat_ = cam2world_.block<3,3>(0,0);
 
-  // my_last_odom_stamp_ = odom.header.stamp;
 
-  // my_last_pose_world_(0) = odom.pose.pose.position.x;
-  // my_last_pose_world_(1) = odom.pose.pose.position.y;
-  // my_last_pose_world_(2) = odom.pose.pose.position.z;
-  // my_last_pose_world_(3) = 1.0;
 
   //publish tf
-  // static tf::TransformBroadcaster br;
-  // tf::Transform transform;
-  // transform.setOrigin( tf::Vector3(cam2world(0,3), cam2world(1,3), cam2world(2,3) ));
-  // transform.setRotation(tf::Quaternion(cam2world_quat.x(), cam2world_quat.y(), cam2world_quat.z(), cam2world_quat.w()));
-  // br.sendTransform(tf::StampedTransform(transform, my_last_odom_stamp, "world", "camera")); 
   //publish transform from world frame to quadrotor frame.
 }
 void DroneDetector::rcvDepthImgCallback(const sensor_msgs::ImageConstPtr& depth_img)
@@ -178,7 +161,6 @@ void DroneDetector::rcvDepthImgCallback(const sensor_msgs::ImageConstPtr& depth_
     if (in_depth_[i]) {
       // erase hit pixels in depth
       for(int k = 0; k < int(hit_pixels_[i].size()); k++) {
-        // depth_img_.at<float>(hit_pixels_[i][k](1), hit_pixels_[i][k](0)) = 0;
         uint16_t *row_ptr;
         row_ptr = depth_img_.ptr<uint16_t>(hit_pixels_[i][k](1));
         (*(row_ptr+hit_pixels_[i][k](0))) = 0.0;
@@ -186,7 +168,6 @@ void DroneDetector::rcvDepthImgCallback(const sensor_msgs::ImageConstPtr& depth_
     }
   }  
   debug_end_time_ = ros::Time::now();
-  // ROS_WARN("cost_total_time = %lf", (debug_end_time_ - debug_start_time_).toSec()*1000.0);
   out_msg.header = depth_img->header;
   out_msg.encoding = depth_img->encoding;
   out_msg.image = depth_img_.clone();
@@ -198,7 +179,6 @@ void DroneDetector::rcvDepthImgCallback(const sensor_msgs::ImageConstPtr& depth_
     for (int i = 0; i < max_drone_num_; i++) {
       if (in_depth_[i]) {
         // add bound box in colormap
-        // cv::Rect rect(_bbox_lu.x, _bbox_lu.y, _bbox_rd.x, _bbox_rd.y);//左上坐标（x,y）和矩形的长(x)宽(y)
         cv::rectangle(depth_img_, cv::Rect(searchbox_lu_[i], searchbox_rd_[i]), cv::Scalar(0, 0, 0), 5, cv::LINE_8, 0);
         cv::rectangle(depth_img_, cv::Rect(boundingbox_lu_[i], boundingbox_rd_[i]), cv::Scalar(0, 0, 0), 5, cv::LINE_8, 0);
         if (debug_detect_result_[i] == 1) {
@@ -306,15 +286,12 @@ bool DroneDetector::countPixel(int drone_id, Eigen::Vector2i &true_pixel, Eigen:
       tmp_pixel(1) = drone_ref_pixel_[drone_id](1) + i;
       if(tmp_pixel(0) < 0 || tmp_pixel(0) >= img_width_ || tmp_pixel(1) < 0 || tmp_pixel(1) >= img_height_)
         continue;
-      // depth = depth_img_.at<float>(tmp_pixel(1), tmp_pixel(0));
       uint16_t *row_ptr;
       row_ptr = depth_img_.ptr<uint16_t>(tmp_pixel(1));
       depth = (*(row_ptr+tmp_pixel(0))) / 1000.0;
-      // ROS_WARN("depth = %lf", depth);
       // get tmp_pose in cam frame
       tmp_pose_cam = depth2Pos(tmp_pixel(0), tmp_pixel(1), depth);
       double dist2 = getDist2(tmp_pose_cam, drone_pose_cam_[drone_id]);
-      // ROS_WARN("dist2 = %lf", dist2);
       if (dist2 < max_pose_error2_) {
         valid_pixel_cnt_[drone_id]++;
         hit_pixels_[drone_id].push_back(tmp_pixel);
@@ -398,7 +375,6 @@ void DroneDetector::detect(int drone_id, Eigen::Vector2i &true_pixel)
   Eigen::Vector4d true_pose_cam, pose_error;
   bool found = countPixel(drone_id, true_pixel, true_pose_cam); 
   if (found) {
-    // ROS_WARN("FOUND");
     pose_error = cam2world_*true_pose_cam - drone_pose_world_[drone_id];
     debug_detect_result_[drone_id] = 2;
 
@@ -411,7 +387,6 @@ void DroneDetector::detect(int drone_id, Eigen::Vector2i &true_pixel)
     drone_pose_err_pub_[drone_id].publish(out_msg);
 
   } else {
-    // ROS_WARN("NOT FOUND");
     debug_detect_result_[drone_id] = 1;
   }
 }

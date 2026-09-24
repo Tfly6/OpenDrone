@@ -214,8 +214,6 @@ void SlidingMap::globalIndexToLocalIndex(const Vec3i &id_g, Vec3i &id_l) const {
         } else if (id_l(i) < -sc_.half_map_size_i(i)) {
             id_l(i) += sc_.map_size_i(i);
         }
-//        id_l(i) += id_l(i) > sc_.half_map_size_i(i) ? -sc_.map_size_i(i) : 0;
-//        id_l(i) += id_l(i) < -sc_.half_map_size_i(i) ? sc_.map_size_i(i) : 0;
     }
 }
 

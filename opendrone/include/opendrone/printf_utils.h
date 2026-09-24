@@ -8,7 +8,7 @@
 #include <ctime>
 using namespace std;
 
-#define NUM_POINT 2 // 打印小数点
+#define NUM_POINT 2
 
 #define RED "\033[0;1;31m"
 #define GREEN "\033[0;1;32m"
@@ -30,15 +30,10 @@ public:
     Print(float interval = 0, std::string color = TAIL)
         : interval(interval), past_ts(std::chrono::system_clock::now()), color(color)
     {
-        //固定的浮点显示
         std::cout.setf(ios::fixed);
-        // setprecision(n) 设显示小数精度为n位
         std::cout << std::setprecision(2);
-        //左对齐
         std::cout.setf(ios::left);
-        // 强制显示小数点
         std::cout.setf(ios::showpoint);
-        // 强制显示符号
         std::cout.setf(ios::showpos);
     };
 
@@ -56,7 +51,6 @@ public:
 
         if (interval >= 0)
         {
-            // std::cout << this->interval << std::endl;
             if (dt < this->interval * 1000)
                 return;
             std::cout << color << msg << TAIL << std::endl;
@@ -111,22 +105,7 @@ void *Print::s_object_name = nullptr;
 // Example:
 // cout << GREEN << "Test for Green text." << TAIL <<endl;
 
-// 字背景颜色范围:40--49            字颜色: 30--39
-// 40:黑                          30: 黑
-// 41:红                          31: 红
-// 42:绿                          32: 绿
-// 43:黄                          33: 黄
-// 44:蓝                          34: 蓝
-// 45:紫                          35: 紫
-// 46:深绿                        36: 深绿
-// 47:白色                        37: 白色
 
-// 参考资料：https://blog.csdn.net/u014470361/article/details/81512330
-// cout <<  "\033[0;1;31m" << "Hello World, Red color!"  << "\033[0m" << endl;
-// printf(  "\033[0;30;41m color!!! \033[0m Hello \n");
-// ROS_INFO("\033[1;33;41m----> Hightlight color.\033[0m");
-// 其中41的位置代表字的背景色, 30的位置是代表字的颜色，0 是字的一些特殊属性，0代表默认关闭，一些其他属性如闪烁、下划线等。
 
-// ROS_INFO_STREAM_ONCE ("\033[1;32m---->Setting to OFFBOARD Mode....\033[0m");//绿色只打印一次
 
 #endif

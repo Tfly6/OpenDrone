@@ -116,27 +116,19 @@ namespace optimization_utils {
     }
 
     void GcopterWayptS3::setInitial() {
-        // 初始化时间分配直接拉满到速度
         const double allocationSpeed = magnitudeBd[0];
         const double allocationAcc = magnitudeBd[1];
 
         if (waypoints.size() == 0) {
-            // 如果只固定起点和终点，则只有一个自由waypoint
             free_points.resize(3, 1);
-            // 将自由点设置为起点和终点的中间
             free_points = (tailPVA.col(0) + headPVA.col(0)) / 2;
-            // 轨迹内部所有waypoint等于自由点
             points.col(0) = free_points.col(0);
-            // 时间分配为最大速度跑直线
             times(0) = max((tailPVA.col(0) - headPVA.col(0)).norm() / allocationSpeed,
                            (headPVA.col(1) - tailPVA.col(1)).norm() / allocationAcc) / 2;
             times(1) = times(0);
         } else {
-            // 如果有固定的waypoint了
             free_points.resize(3, waypoints.cols() + 1);
-            // 第一个自由点的坐标为第一个waypoint和起点中间
             free_points.col(0) = (waypoints.col(0) + headPVA.col(0)) / 2;
-            // 中间的自由点坐标为两个相邻waypoint。
             for (int i = 0; i < waypoints.cols() - 1; i++) {
                 Vec3f midpt = (waypoints.col(i) + waypoints.col(i + 1)) / 2;
                 free_points.col(i + 1) = midpt;
@@ -144,7 +136,6 @@ namespace optimization_utils {
 
             free_points.rightCols(1) = (waypoints.rightCols(1) + tailPVA.col(0)) / 2;
 
-            // 随后填充所有内部点。
             for (int i = 0; i < waypoints.cols(); i++) {
                 points.col(2 * (i)) = free_points.col(i);
                 points.col(2 * (i) + 1) = waypoints.col(i);
@@ -152,7 +143,6 @@ namespace optimization_utils {
 
             points.rightCols(1) = free_points.rightCols(1);
 
-            // 计算时间分配
             Eigen::Vector3d lastP, curP, delta;
             curP = headPVA.col(0);
             for (int i = 0; i < temporalDim - 1; i++) {
@@ -202,9 +192,7 @@ namespace optimization_utils {
                                 cost, obj.partialGradByTimes, obj.partialGradByCoeffs);
         obj.minco.propogateGrad(obj.partialGradByCoeffs, obj.partialGradByTimes,
                                 obj.gradByPoints, obj.gradByTimes);
-//            print(fg(color::yellow), "MINCO time cost {}\n",  weightT * obj.times.sum());
         cost += weightT * obj.times.sum();
-//            print(fg(color::yellow), "MINCO Internal cost {}\n", cost);
         obj.gradByTimes.array() += weightT;
 
         gcopter::propagateGradientTToTau(tau, obj.gradByTimes, gradTau);
@@ -460,9 +448,7 @@ namespace optimization_utils {
                                 cost, obj.partialGradByTimes, obj.partialGradByCoeffs);
         obj.minco.propogateGrad(obj.partialGradByCoeffs, obj.partialGradByTimes,
                                 obj.gradByPoints, obj.gradByTimes);
-//            print(fg(color::yellow), "MINCO time cost {}\n",  weightT * obj.times.sum());
         cost += weightT * obj.times.sum();
-//            print(fg(color::yellow), "MINCO Internal cost {}\n", cost);
         obj.gradByTimes.array() += weightT;
 
         gcopter::propagateGradientTToTau(tau, obj.gradByTimes, gradTau);
@@ -478,25 +464,17 @@ namespace optimization_utils {
     }
 
     void GcopterWayptS4::setInitial() {
-        // 初始化时间分配直接拉满到速度
         const double allocationSpeed = magnitudeBd[0];
 
         if (waypoints.size() == 0) {
-            // 如果只固定起点和终点，则只有一个自由waypoint
             free_points.resize(3, 1);
-            // 将自由点设置为起点和终点的中间
             free_points = (tailPVAJ.col(0) + headPVAJ.col(0)) / 2;
-            // 轨迹内部所有waypoint等于自由点
             points.col(0) = free_points.col(0);
-            // 时间分配为最大速度跑直线
             times(0) = (tailPVAJ.col(0) - headPVAJ.col(0)).norm() / 2 / allocationSpeed;
             times(1) = times(0);
         } else {
-            // 如果有固定的waypoint了
             free_points.resize(3, waypoints.cols() + 1);
-            // 第一个自由点的坐标为第一个waypoint和起点中间
             free_points.col(0) = (waypoints.col(0) + headPVAJ.col(0)) / 2;
-            // 中间的自由点坐标为两个相邻waypoint。
             for (int i = 0; i < waypoints.cols() - 1; i++) {
                 Vec3f midpt = (waypoints.col(i) + waypoints.col(i + 1)) / 2;
                 free_points.col(i + 1) = midpt;
@@ -504,7 +482,6 @@ namespace optimization_utils {
 
             free_points.rightCols(1) = (waypoints.rightCols(1) + tailPVAJ.col(0)) / 2;
 
-            // 随后填充所有内部点。
             for (int i = 0; i < waypoints.cols(); i++) {
                 points.col(2 * (i)) = free_points.col(i);
                 points.col(2 * (i) + 1) = waypoints.col(i);
@@ -512,7 +489,6 @@ namespace optimization_utils {
 
             points.rightCols(1) = free_points.rightCols(1);
 
-            // 计算时间分配
             Eigen::Vector3d lastP, curP, delta;
             curP = headPVAJ.col(0);
             for (int i = 0; i < temporalDim - 1; i++) {

@@ -98,7 +98,6 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
 
     if (checkOccupancy(Index2Coord(start_idx)))
     {
-        //ROS_WARN("Start point is insdide an obstacle.");
         do
         {
             start_pt = (start_pt - end_pt).normalized() * step_size_ + start_pt;
@@ -109,7 +108,6 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
 
     if (checkOccupancy(Index2Coord(end_idx)))
     {
-        //ROS_WARN("End point is insdide an obstacle.");
         do
         {
             end_pt = (end_pt - start_pt).normalized() * step_size_ + end_pt;
@@ -140,8 +138,6 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
         return false;
     }
 
-    // if ( start_pt(0) > -1 && start_pt(0) < 0 )
-    //     cout << "start_pt=" << start_pt.transpose() << " end_pt=" << end_pt.transpose() << endl;
 
     GridNodePtr startPtr = GridNodeMap_[start_idx(0)][start_idx(1)][start_idx(2)];
     GridNodePtr endPtr = GridNodeMap_[end_idx(0)][end_idx(1)][end_idx(2)];
@@ -171,15 +167,9 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
         current = openSet_.top();
         openSet_.pop();
 
-        // if ( num_iter < 10000 )
-        //     cout << "current=" << current->index.transpose() << endl;
 
         if (current->index(0) == endPtr->index(0) && current->index(1) == endPtr->index(1) && current->index(2) == endPtr->index(2))
         {
-            // ros::Time time_2 = ros::Time::now();
-            // printf("\033[34mA star iter:%d, time:%.3f\033[0m\n",num_iter, (time_2 - time_1).toSec()*1000);
-            // if((time_2 - time_1).toSec() > 0.1)
-            //     ROS_WARN("Time consume in A star path finding is %f", (time_2 - time_1).toSec() );
             gridPath_ = retrievePath(current);
             if (debug_astar_)
             {

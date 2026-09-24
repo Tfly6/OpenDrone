@@ -172,10 +172,6 @@ void BsplineOptimizer::optimize() {
   }
 
   try {
-    // cout << fixed << setprecision(7);
-    // vec_time_.clear();
-    // vec_cost_.clear();
-    // time_start_ = ros::Time::now();
 
     double        final_cost;
     nlopt::result result = opt.optimize(q, final_cost);
@@ -316,7 +312,6 @@ void BsplineOptimizer::calcWaypointsCost(const vector<Eigen::Vector3d>& q, doubl
 
   Eigen::Vector3d q1, q2, q3, dq;
 
-  // for (auto wp : waypoints_) {
   for (int i = 0; i < waypoints_.size(); ++i) {
     Eigen::Vector3d waypt = waypoints_[i];
     int             idx   = waypt_idx_[i];
@@ -434,18 +429,12 @@ void BsplineOptimizer::combineCost(const std::vector<double>& x, std::vector<dou
       for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda7_ * g_waypoints_[i + order_](j);
   }
   /*  print cost  */
-  // if ((cost_function_ & WAYPOINTS) && iter_num_ % 10 == 0) {
-  //   cout << iter_num_ << ", total: " << f_combine << ", acc: " << lambda8_ * f_view
-  //        << ", waypt: " << lambda7_ * f_waypoints << endl;
-  // }
 
-  // if (optimization_phase_ == SECOND_PHASE) {
   //  << ", smooth: " << lambda1_ * f_smoothness
   //  << " , dist:" << lambda2_ * f_distance
   //  << ", fea: " << lambda3_ * f_feasibility << endl;
   // << ", end: " << lambda4_ * f_endpoint
   // << ", guide: " << lambda5_ * f_guide
-  // }
 }
 
 double BsplineOptimizer::costFunction(const std::vector<double>& x, std::vector<double>& grad,
@@ -462,22 +451,6 @@ double BsplineOptimizer::costFunction(const std::vector<double>& x, std::vector<
   }
   return cost;
 
-  // /* evaluation */
-  // ros::Time te1 = ros::Time::now();
-  // double time_now = (te1 - opt->time_start_).toSec();
-  // opt->vec_time_.push_back(time_now);
-  // if (opt->vec_cost_.size() == 0)
-  // {
-  //   opt->vec_cost_.push_back(f_combine);
-  // }
-  // else if (opt->vec_cost_.back() > f_combine)
-  // {
-  //   opt->vec_cost_.push_back(f_combine);
-  // }
-  // else
-  // {
-  //   opt->vec_cost_.push_back(opt->vec_cost_.back());
-  // }
 }
 
 vector<Eigen::Vector3d> BsplineOptimizer::matrixToVectors(const Eigen::MatrixXd& ctrl_pts) {

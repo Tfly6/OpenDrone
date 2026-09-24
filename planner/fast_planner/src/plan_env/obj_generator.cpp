@@ -141,12 +141,6 @@ void updateCallback(const ros::TimerEvent& e) {
   if (dtc > _interval) {
     for (int i = 0; i < obj_num; ++i) {
       /* ---------- use acc input ---------- */
-      // double r, t, z;
-      // r = rand_acc_r(eng);
-      // t = rand_acc_t(eng);
-      // z = rand_acc_z(eng);
-      // Eigen::Vector3d acc(r * cos(t), r * sin(t), z);
-      // obj_models[i].setInput(acc);
 
       /* ---------- use vel input ---------- */
       double vx, vy, vz, yd;

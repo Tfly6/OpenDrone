@@ -98,19 +98,15 @@ class Se3LeeCtrl {
   ros::NodeHandle nh_private_;
   dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig> dyn_config_server_;
   dynamic_reconfigure::Server<se3_lee::GeometricControllerConfig>::CallbackType dyn_config_callback_type_;
-  // ros::Subscriber referenceSub_;
-  // ros::Subscriber flatreferenceSub_;
   ros::Subscriber plannerOutputSub_;
   ros::Subscriber mavstateSub_;
   ros::Subscriber mavposeSub_, gzmavposeSub_;
   ros::Subscriber mavtwistSub_;
-  // ros::Subscriber yawreferenceSub_;
   ros::Publisher rotorVelPub_, angularVelPub_, target_pose_pub_;
   ros::Publisher posehistoryPub_;
   ros::Publisher systemstatusPub_;
   ros::ServiceClient arming_client_;
   ros::ServiceClient set_mode_client_;
-  // ros::ServiceServer ctrltriggerServ_;
   ros::ServiceServer land_service_;
   ros::Timer cmdloop_timer_;
   ros::Time reference_request_now_, reference_request_last_;
@@ -143,10 +139,7 @@ class Se3LeeCtrl {
 
   mavros_msgs::State current_state_;
   mavros_msgs::CommandBool arm_cmd_;
-  // std::vector<geometry_msgs::PoseStamped> posehistory_vector_;
-  // MAV_STATE companion_state_ = MAV_STATE::MAV_STATE_ACTIVE;
 
-  // double initTargetPos_x_, initTargetPos_y_, initTargetPos_z_;
   double takeoff_height_;
   Eigen::Vector3d geo_fence_;
   Eigen::Vector3d targetPos_, targetVel_, targetAcc_, targetJerk_, targetSnap_, targetPos_prev_, targetVel_prev_;
@@ -157,34 +150,21 @@ class Se3LeeCtrl {
   Eigen::Vector4d cmdBodyRate_;  //{wx, wy, wz, Thrust}
   Eigen::Vector3d Kpos_, Kvel_, D_;
   double Kpos_x_, Kpos_y_, Kpos_z_, Kvel_x_, Kvel_y_, Kvel_z_;
-  // int posehistory_window_;
 
-  // void pubMotorCommands();
   void pubRateCommands(const Eigen::Vector4d &cmd, const Eigen::Vector4d &target_attitude);
-  // void pubReferencePose(const Eigen::Vector3d &target_position, const Eigen::Vector4d &target_attitude);
-  // void pubPoseHistory();
-  // void pubSystemStatus();
-  // void appendPoseHistory();
-  // void odomCallback(const nav_msgs::OdometryConstPtr &odomMsg);
-  // void targetCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
-  // void yawtargetCallback(const std_msgs::Float32::ConstPtr &msg);
   void plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &msg);
-  // void keyboardCallback(const geometry_msgs::Twist &msg);
   void cmdloopCallback(const ros::TimerEvent &event);
   void mavstateCallback(const mavros_msgs::State::ConstPtr &msg);
   void mavposeCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
   void mavtwistCallback(const geometry_msgs::TwistStamped::ConstPtr &msg);
   void TrySetOffboard(const ros::Time &now);
   void TryArm(const ros::Time &now);
-  // bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBool::Response &response);
   geometry_msgs::PoseStamped vector3d2PoseStampedMsg(Eigen::Vector3d &position, Eigen::Vector4d &orientation);
   void computeBodyRateCmd(Eigen::Vector4d &bodyrate_cmd, const Eigen::Vector3d &target_acc);
   Eigen::Vector3d controlPosition(const Eigen::Vector3d &target_pos, const Eigen::Vector3d &target_vel,
                                   const Eigen::Vector3d &target_acc);
   Eigen::Vector3d poscontroller(const Eigen::Vector3d &pos_error, const Eigen::Vector3d &vel_error);
-  // Eigen::Vector4d attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc,
-  //                               Eigen::Vector4d &curr_att);
 
   enum FlightState {
     WAITING_FOR_CONNECTED,

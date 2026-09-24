@@ -511,8 +511,6 @@ void KFDisturbanceObserver::systemDynamics(double dt)
   const Eigen::Vector3d new_external_forces = old_external_forces;
   const Eigen::Vector3d new_external_moments = old_external_moments;
 
-  //Eigen::Vector3d new_external_forces = exp(-0.01/2.0 )*old_external_forces; //make external forces decay
-  //Eigen::Vector3d new_external_moments = exp(-0.01/2.0 )*old_external_moments; //make external moments decay
 
   //Update the state vector
 

@@ -58,7 +58,6 @@ class pidCtrl {
         ros::Timer cmdloop_timer_;
         
 
-        // ros::Time last_;
         mavros_msgs::State currState_;
         mavros_msgs::CommandBool arm_cmd;
         vector<geometry_msgs::PoseStamped> waypoints_;
@@ -82,8 +81,6 @@ class pidCtrl {
         double takeoff_height_;
         Eigen::Vector3d init_pose_;
         Eigen::Vector3d currPose_, currVel_;
-        // Eigen::Vector3d kp_, ki_, kd_;
-        // double Kp_x_, Kp_y_, Kp_z_, Ki_x_, Ki_y_, Ki_z_, Kd_x_, Kd_y_, Kd_z_;
         
         Eigen::Vector3d geo_fence_;
         Eigen::Vector3d targetPos_, targetVel_, targetAcc_;

@@ -166,7 +166,6 @@ double Piece::getMaxVelRate() const {
         coeff(i) *= n;
         n--;
     }
-//        print("begin solve poly. {}\n", coeff.head(N - 1).squaredNorm());
     if (coeff.head(N - 1).squaredNorm() < 1e-6) {
         return getVel(0.0).norm();
     } else {

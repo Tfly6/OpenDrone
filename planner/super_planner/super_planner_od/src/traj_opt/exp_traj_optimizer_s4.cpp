@@ -344,7 +344,7 @@ double ExpTrajOpt::costFunctional(void *ptr,
 }
 
 static void truncateToSixDecimals(double &num) {
-    num = std::trunc(num * 1e6) / 1e6; // 直接截断，无四舍五入
+    num = std::trunc(num * 1e6) / 1e6;
 }
 
 /*
@@ -681,14 +681,6 @@ double ExpTrajOpt::optimize(Trajectory &traj, const double &relCostTol) {
 
     cout << std::fixed << std::setprecision(15);
     auto x0 = x;
-    // only for debug
-//    cout << " -- [ExpOpt] Start optimization." << x.transpose() << endl;
-//    cout << " -- [ExpOpt] minCostFunctional: " << minCostFunctional << endl;
-//    cout << " -- [ExpOpt] relCostTol: " << relCostTol << endl;
-//    cout << " -- [ExpOpt] weightAtt: " << opt_vars.penaltyWeights(4) << endl;
-//    cout << " -- [ExpOpt] waypoint_attractor: " << opt_vars.waypoint_attractor << endl;
-//    cout << " -- [ExpOpt] waypoint_attractor_dead_d: " << opt_vars.waypoint_attractor_dead_d.transpose() << endl;
-    // TimeConsuming ttt(" -- [ExpTrajOpt]", false);
     opt_vars.iter_num = 0;
     int ret = lbfgs::lbfgs_optimize(x,
                                     minCostFunctional,
@@ -697,7 +689,6 @@ double ExpTrajOpt::optimize(Trajectory &traj, const double &relCostTol) {
                                     nullptr,
                                     &this->opt_vars,
                                     lbfgs_params);
-    // double dt = ttt.stop();
     gcopter::forwardMapTauToT(tau, opt_vars.times);
     if (cfg_.print_optimizer_log) {
         cout << " -- [ExpOpt] Opt finish, with iter num: " << opt_vars.iter_num << "\n";
@@ -747,14 +738,12 @@ double ExpTrajOpt::optimize(Trajectory &traj, const double &relCostTol) {
                 break;
             }
         }
-//        opt_vars.minco.setConditions(opt_vars.headPVAJ, opt_vars.tailPVAJ, opt_vars.temporalDim);
         opt_vars.minco.setParameters(opt_vars.points, opt_vars.times);
         opt_vars.minco.getTrajectory(traj);
     } else {
         traj.clear();
         minCostFunctional = INFINITY;
         cout << YELLOW << " -- [MINCO] TrajOpt failed, " << lbfgs::lbfgs_strerror(ret) << RESET << endl;
-//        cout << "Init times: " << times_init.transpose() << endl;
     }
     return minCostFunctional + ret;
 }
@@ -762,13 +751,6 @@ double ExpTrajOpt::optimize(Trajectory &traj, const double &relCostTol) {
 ExpTrajOpt::ExpTrajOpt(const traj_opt::Config &cfg, const ros_interface::RosInterface::Ptr &ros_ptr) :
         cfg_(cfg),
         ros_ptr_(ros_ptr) {
-    /// Use time as log file name
-    //    auto now = std::chrono::system_clock::now();
-    //    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    //    std::tm tm = *std::localtime(&t);
-    //    std::stringstream ss;
-    //    ss << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S");
-    //    std::string filename = ss.str() + "_exp_opt_log.csv";
     if(cfg_.save_log_en){
         std::string filename = "exp_opt_log.csv";
         failed_traj_log.open(DEBUG_FILE_DIR(filename), std::ios::out | std::ios::trunc);
@@ -797,73 +779,6 @@ ExpTrajOpt::~ExpTrajOpt() {
 }
 
 
-//bool ExpTrajOpt::optimize(const StatePVAJ &headPVAJ, const StatePVAJ &tailPVAJ,
-//                          PolytopeVec &sfcs,
-//                          Trajectory &out_traj) {
-//    /// Check if SFC is valid
-//    if (sfcs.empty()) {
-//        cout << YELLOW << " -- [TrajOpt] Error, the SFC is empty." << RESET << endl;
-//        return false;
-//    }
-//
-//    if (!SimplifySFC(headPVAJ.col(0), tailPVAJ.col(0), sfcs)) {
-//        cout << YELLOW << " -- [TrajOpt] Cannot simplify sfcs." << RESET << endl;
-//        //        VisualUtils::VisualizePoint(mkr_pub_, headPVAJ.col(0),Color::Pink(),"ill_start",0.5,1);
-//        //        VisualUtils::VisualizePoint(mkr_pub_, tailPVAJ.col(0),Color::Pink(),"ill_end",0.5,2);
-//        //        cout << "headPVAJ: " << headPVAJ.col(0).transpose() << endl;
-//        //        cout << "tailPVAJ: " << tailPVAJ.col(0).transpose() << endl;
-//        //        cout << YELLOW << "Killing the node." << RESET << endl;
-//        //        exit(-1);
-//        return false;
-//    }
-//
-//    for (const auto &poly: sfcs) {
-//        if (std::isnan(poly.GetPlanes().sum())) {
-//            cout << YELLOW << " -- [TrajOpt] Error, the SFC containes NaN." << RESET << endl;
-//            return false;
-//        }
-//    }
-//
-//    bool success{true};
-//
-//    /// Setup optimization problems
-//    opt_vars.default_init = true;
-//    opt_vars.given_init_ts_and_ps = false;
-//    opt_vars.headPVAJ = headPVAJ;
-//    opt_vars.tailPVAJ = tailPVAJ;
-//    opt_vars.guide_path.clear();
-//    opt_vars.guide_t.clear();
-//    opt_vars.hPolytopes.resize(sfcs.size());
-//    for (long i = 0; i < sfcs.size(); i++) {
-//        opt_vars.hPolytopes[i] = sfcs[i].GetPlanes();
-//    }
-//
-//    if (!setupProblemAndCheck()) {
-//        cout << YELLOW << " -- [SUPER] Minco corridor preprocess error." << RESET << endl;
-//        success = false;
-//    }
-//
-//    if (success && std::isinf(optimize(out_traj, cfg_.opt_accuracy))) {
-//        std::cout << YELLOW << " -- [SUPER] in [ExpTrajOpt::optimize]: Optimization failed." << RESET << std::endl;
-//        success = false;
-//    }
-//
-//    if(success){
-//        out_traj.start_WT = ros_ptr_->getSimTime();
-//    }
-//
-//    if (!success && cfg_.save_log_en) {
-//        failed_traj_log << 990419 << endl;
-//        failed_traj_log << headPVAJ << endl;
-//        failed_traj_log << tailPVAJ << endl;
-//        for (long i = 0; i < sfcs.size(); i++) {
-//            failed_traj_log << i << endl;
-//            failed_traj_log << sfcs[i].GetPlanes() << endl;
-//        }
-//    }
-//
-//    return success;
-//}
 
 bool ExpTrajOpt::optimize(const StatePVAJ &headPVAJ, const StatePVAJ &tailPVAJ,
                           const vec_E<Vec3f> &guide_path, const vector<double> &guide_t,

@@ -199,8 +199,6 @@ public:
   inline double getDistance(const Eigen::Vector3i& id);
   inline double getDistWithGradTrilinear(Eigen::Vector3d pos, Eigen::Vector3d& grad);
   void getSurroundPts(const Eigen::Vector3d& pos, Eigen::Vector3d pts[2][2][2], Eigen::Vector3d& diff);
-  // /inline void setLocalRange(Eigen::Vector3d min_pos, Eigen::Vector3d
-  // max_pos);
 
   void updateESDF3d();
   void getSliceESDF(const double height, const double res, const Eigen::Vector4d& range,
@@ -258,10 +256,6 @@ private:
   int setCacheOccupancy(Eigen::Vector3d pos, int occ);
   Eigen::Vector3d closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt);
 
-  // typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // nav_msgs::Odometry> SyncPolicyImageOdom; typedef
-  // message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // geometry_msgs::PoseStamped> SyncPolicyImagePose;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry>
       SyncPolicyImageOdom;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
@@ -337,8 +331,6 @@ inline bool SDFMap::isKnownFree(const Eigen::Vector3i& id) {
   boundIndex(id1);
   int adr = toAddress(id1);
 
-  // return md_.occupancy_buffer_[adr] >= mp_.clamp_min_log_ &&
-  //     md_.occupancy_buffer_[adr] < mp_.min_occupancy_log_;
   return md_.occupancy_buffer_[adr] >= mp_.clamp_min_log_ && md_.occupancy_buffer_inflate_[adr] == 0;
 }
 
@@ -483,22 +475,6 @@ inline void SDFMap::inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eig
   int num = 0;
 
   /* ---------- + shape inflate ---------- */
-  // for (int x = -step; x <= step; ++x)
-  // {
-  //   if (x == 0)
-  //     continue;
-  //   pts[num++] = Eigen::Vector3i(pt(0) + x, pt(1), pt(2));
-  // }
-  // for (int y = -step; y <= step; ++y)
-  // {
-  //   if (y == 0)
-  //     continue;
-  //   pts[num++] = Eigen::Vector3i(pt(0), pt(1) + y, pt(2));
-  // }
-  // for (int z = -1; z <= 1; ++z)
-  // {
-  //   pts[num++] = Eigen::Vector3i(pt(0), pt(1), pt(2) + z);
-  // }
 
   /* ---------- all inflate ---------- */
   for (int x = -step; x <= step; ++x)

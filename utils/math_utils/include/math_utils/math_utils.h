@@ -17,14 +17,12 @@ using namespace std;
 
 using Vector6d = Eigen::Matrix<double, 6, 1>;
 
-// 四元数转欧拉角
 inline Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
 {
     // YPR - ZYX
     return q.toRotationMatrix().eulerAngles(2, 1, 0).reverse();
 }
 
-// 从(roll,pitch,yaw)创建四元数  by a 3-2-1 intrinsic Tait-Bryan rotation sequence
 inline Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 {
     // YPR - ZYX
@@ -37,7 +35,6 @@ inline Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 
 
 
-// 将四元数转换至(roll,pitch,yaw)  by a 3-2-1 intrinsic Tait-Bryan rotation sequence
 // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 // q0 q1 q2 q3
 // w x y z
@@ -56,7 +53,6 @@ inline Eigen::Vector3d quaternion_to_euler(const Eigen::Quaterniond &q)
     return ans;
 }
 
-//旋转矩阵转欧拉角
 inline Eigen::Vector3d rotation_to_euler(Eigen::Matrix3d rotation)
 {
     Eigen::Vector3d euler_angle;
@@ -82,7 +78,6 @@ inline Eigen::Vector3d rotation_to_euler(Eigen::Matrix3d rotation)
     return euler_angle;
 }
 
-//旋转矩阵转四元数
 inline Eigen::Vector4d rot2Quaternion(const Eigen::Matrix3d &R) {
     Eigen::Vector4d quat;
     double tr = R.trace();
@@ -114,7 +109,6 @@ inline Eigen::Vector4d rot2Quaternion(const Eigen::Matrix3d &R) {
     return quat;
 }
 
-// 四元数转旋转矩阵
 inline Eigen::Matrix3d quat2RotMatrix(const Eigen::Vector4d &q) {
   Eigen::Matrix3d rotmat;
   rotmat << q(0) * q(0) + q(1) * q(1) - q(2) * q(2) - q(3) * q(3), 2 * q(1) * q(2) - 2 * q(0) * q(3),
@@ -336,7 +330,7 @@ inline double sign(double data)
 }
 
 inline bool is_arrive(const geometry_msgs::PoseStamped &pos1, const geometry_msgs::PoseStamped &pos2){
-    double distance_threshold = 0.13;  // 到达阈值
+    double distance_threshold = 0.13;
     double dx = pos1.pose.position.x - pos2.pose.position.x;
     double dy = pos1.pose.position.y - pos2.pose.position.y;
     double dz = pos1.pose.position.z - pos2.pose.position.z;
@@ -345,7 +339,7 @@ inline bool is_arrive(const geometry_msgs::PoseStamped &pos1, const geometry_msg
 }
 
 inline bool is_arrive(const Eigen::Vector3d &pos1, const Eigen::Vector3d &pos2){
-    double distance_threshold = 0.13;  // 到达阈值
+    double distance_threshold = 0.13;
     double dx = pos1[0] - pos2[0];
     double dy = pos1[1] - pos2[1];
     double dz = pos1[2] - pos2[2];

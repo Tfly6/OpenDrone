@@ -11,8 +11,6 @@ using namespace Eigen;
 ros::Publisher pos_cmd_pub;
 
 quadrotor_msgs::PositionCommand cmd;
-// double pos_gain[3] = {0, 0, 0};
-// double vel_gain[3] = {0, 0, 0};
 
 #define FLIP_YAW_AT_END 0
 #define TURN_YAW_TO_CENTER_AT_END 0
@@ -101,12 +99,10 @@ std::pair<double, double> calculate_yaw(double t_cur, Eigen::Vector3d &pos, doub
   double d_yaw_max;
   if (fabs(last_yawdot_ + dt * YDDM) <= fabs(YDM))
   {
-    // yawdot = last_yawdot_ + dt * YDDM;
     d_yaw_max = last_yawdot_ * dt + 0.5 * YDDM * dt * dt;
   }
   else
   {
-    // yawdot = YDM;
     double t1 = (YDM - last_yawdot_) / YDDM;
     d_yaw_max = ((dt - t1) + dt) * (YDM - last_yawdot_) / 2.0;
   }
@@ -165,7 +161,6 @@ void cmdCallback(const ros::TimerEvent &e)
   /* no publishing before receive traj_ and have heartbeat */
   if (heartbeat_time_.toSec() <= 1e-5)
   {
-    // ROS_ERROR_ONCE("[traj_server] No heartbeat from the planner received");
     return;
   }
   if (!receive_traj_)
@@ -311,7 +306,6 @@ void cmdCallback(const ros::TimerEvent &e)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "traj_server");
-  // ros::NodeHandle node;
   ros::NodeHandle nh("~");
 
   ros::Subscriber poly_traj_sub = nh.subscribe("planning/trajectory", 10, polyTrajCallback);

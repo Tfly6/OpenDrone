@@ -7,8 +7,6 @@
 
 
 #include "airfar_planner/graph_planner.h"
-// #include "graph_planner.h"
-// #include "graph_planner.h"
 
 /***************************************************************************************/
 
@@ -59,10 +57,8 @@ void GraphPlanner::UpdateGraphTraverability(const NavNodePtr& odom_node_ptr)
         open_set.erase(current->id);
         close_set.insert(current);
         current->is_traversable = true; // reachable from current position
-        // std::cout<<"current connect_nodes size: "<<current->connect_nodes.size()<<std::endl;
         for (const auto& neighbor : current->connect_nodes) {
             if (close_set.count(neighbor)) continue;
-            // if (current->is_inserted) ROS_ERROR("GP: inserted node in open set");
             const float temp_gscore = current->gscore + this->EulerCost(current, neighbor);
             if (temp_gscore < neighbor->gscore) {
                 neighbor->parent = current;
@@ -116,7 +112,6 @@ void GraphPlanner::UpdateGoalNavNodeConnects(const NavNodePtr& goal_node_ptr)
     this->ReEvaluateGoalStatus(goal_node_ptr_, global_graph_);
     for (const auto& node_ptr : global_graph_) {
         if (node_ptr == goal_node_ptr_) continue;
-        // ROS_WARN("GP: Update goal node connect status: %d", this->IsValidConnectToGoal(node_ptr, goal_node_ptr_));
         if (this->IsValidConnectToGoal(node_ptr, goal_node_ptr_)) {
             const bool is_directly_connect = node_ptr->is_odom ? true : false;
             DynamicGraph::RecordPolygonEdge(node_ptr, goal_node_ptr_, gp_params_.votes_size, is_directly_connect);
@@ -137,10 +132,6 @@ void GraphPlanner::UpdateGoalNavNodeConnects(const NavNodePtr& goal_node_ptr)
 }
 
 bool GraphPlanner::IsValidConnectToOdom(const NavNodePtr& node_ptr, const NavNodePtr& odom_node_ptr) {
-    // ROS_WARN("GP: Is valid connect to odom");
-    // cout<<DynamicGraph::IsConnectInVerticalConstrain(node_ptr, odom_node_ptr)<<endl;
-    // cout<<ContourGraph::IsNavToOdomConnectFreePolygon(node_ptr, odom_node_ptr)<<endl;
-    // ROS_WARN("=================================");
     if (DynamicGraph::IsConnectInVerticalConstrain(node_ptr, odom_node_ptr) && 
         ContourGraph::IsNavToOdomConnectFreePolygon(node_ptr, odom_node_ptr))
     {
@@ -150,10 +141,6 @@ bool GraphPlanner::IsValidConnectToOdom(const NavNodePtr& node_ptr, const NavNod
 }
 
 bool GraphPlanner::IsValidConnectToGoal(const NavNodePtr& node_ptr, const NavNodePtr& goal_node_ptr) {
-    // ROS_ERROR("GP: Is valid connect to goal");
-    // cout<<DynamicGraph::IsConnectInVerticalConstrain(node_ptr, goal_node_ptr)<<endl;
-    // cout<<ContourGraph::IsNavToGoalConnectFreePolygon(node_ptr, goal_node_ptr)<<endl;
-    // ROS_ERROR("=================================");
     if (!node_ptr->is_block_to_goal || IsResetBlockStatus(node_ptr)) {
         if (DynamicGraph::IsConnectInVerticalConstrain(node_ptr, goal_node_ptr) && 
             ContourGraph::IsNavToGoalConnectFreePolygon(node_ptr, goal_node_ptr))
@@ -185,10 +172,7 @@ bool GraphPlanner::NextGoalPlanning(PointStack& global_path,
     global_path.clear();
     global_path_ptr.clear();
     
-    // _goal_p = goal_node_ptr_->position;
     _goal_p = origin_goal_pos_;
-    // ROS_WARN("original goal position: %f, %f, %f", _goal_p.x, _goal_p.y, _goal_p.z);
-    // ROS_WARN("goal position: %f, %f, %f", goal_node_ptr_->position.x, goal_node_ptr_->position.y, goal_node_ptr_->position.z);
     if (current_graph_.size() == 1) {
         const Point3D diff_p = (_goal_p - odom_node_ptr_->position).normalize();
         const Point3D next_goal = odom_node_ptr_->position + diff_p * 5.0;
@@ -274,15 +258,11 @@ bool GraphPlanner::NextGoalPlanning(PointStack& global_path,
     }
     if (this->ReconstructPath(goal_node_ptr_, is_free_nav_goal_, global_path, global_path_ptr)) {
         // recheck path
-        // this->recheckPath(odom_node_ptr_, global_path, global_path_ptr);
         if (!is_divided_path) {
             NodePtrStack divided_path_;
             GetDividedPath(global_path_ptr, divided_path_);
-            // cout << "GP: global path size: " << global_path_ptr.size() << endl;
-            // cout << "GP: divided path size: " << divided_path_.size() << endl;  
             is_divided_path = true;          
         } else {
-            // ROS_WARN("GP: global path is already divided, global path size: %d", global_path_ptr.size());
         }
         _nav_goal = this->NextNavWaypointFromPath(global_path);
         this->RecordPathInfo(global_path);
@@ -399,7 +379,6 @@ void GraphPlanner::UpdateGoal(const Point3D& goal, const int& layer_id, const bo
         DynamicGraph::CreateNavNodeFromPoint(goal, layer_id, goal_node_ptr_, false, false, true);
         DynamicGraph::AddNodeToGraph(goal_node_ptr_);
 
-    // ROS_WARN("22222goal position: %f, %f, %f", goal_node_ptr_->position.x, goal_node_ptr_->position.y, goal_node_ptr_->position.z);
     }
     ROS_INFO("GP: *********** new goal updated ***********");
     is_goal_init_ = true;
@@ -454,12 +433,6 @@ void GraphPlanner::ReEvaluateGoalStatus(const NavNodePtr& goal_ptr, const NodePt
             min_layer_id = adjust_layer_id;
         }
     }
-    // if (min_layer_id != goal_ptr->layer_id) {
-    //     goal_ptr->layer_id = min_layer_id;
-    //     goal_ptr->position.z = DPUtil::layerIdx2Height_[min_layer_id];
-    //     ROS_WARN("GP: goal layer adjusted to %d, with absolute height: %f", min_layer_id, goal_ptr->position.z);
-    //     is_position_change = true;
-    // }
     if (is_position_change) {
         for (const auto& node_ptr : graphIn) {
             node_ptr->is_block_to_goal = false;
@@ -479,7 +452,6 @@ void GraphPlanner::InsertNodes(const NavNodePtr& node_ptr1,
 
         for (auto node_ptr : global_graph_[i]->contour_connects) {
             if (std::abs(node_ptr->position.z - global_graph_[i]->position.z) > SameLayerTolerZ) continue;
-            // ROS_WARN("Node insert checklist1111111111: %f", (node_ptr->position - node_ptr1->position).norm());
 
             cv::Point2f node_pos2d(node_ptr->position.x, node_ptr->position.y);
             cv::Point2f top_node2d(global_graph_[i]->position.x, global_graph_[i]->position.y);
@@ -512,14 +484,11 @@ void GraphPlanner::InsertNodes(const NavNodePtr& node_ptr1,
     }
     for (auto node_ptr : insert_nav_nodes) {
         // // connect between contour nodes and insert node
-        // // if (node_ptr->contour_connects.size() == 0) continue;
-        // // cout<<"node_ptr->contour_connects.size():"<<node_ptr->contour_connects.size()<<endl;
 
         // reconnect between insert nodes
         const NodePtrStack cp_insert_nav_nodes = insert_nav_nodes;
         for (auto inode : insert_nav_nodes) {
             if (inode == node_ptr) continue;
-            // if (inode->contour_connects.size() == 0) continue;
 
             if (DPUtil::IsTypeInStack(inode->insert_node_parents.first, node_ptr->connect_nodes) && 
                 DPUtil::IsTypeInStack(inode->insert_node_parents.second, node_ptr->connect_nodes)) {
@@ -533,8 +502,6 @@ void GraphPlanner::InsertNodes(const NavNodePtr& node_ptr1,
         }
         node_ptr->contour_connects.clear();
         global_graph_.push_back(node_ptr);
-        // insert_nav_nodes.push_back(node_ptr);
-        // DynamicGraph::AddNodeToGraph(node_ptr);
     }
     insert_nodes_tmp.clear();
 }
@@ -618,7 +585,6 @@ void GraphPlanner::GetDividedPath(const NodePtrStack& input_path, NodePtrStack& 
 
 void GraphPlanner::UpdateConnectivityBetweenInsertNodes() {
     if (insert_nav_nodes.size() == 0) return;
-    // int N = insert_nav_nodes.size();
     for (auto inode : insert_nav_nodes) {
         for (auto cnode : insert_nav_nodes) {
             if (inode == cnode) continue;
@@ -631,79 +597,3 @@ void GraphPlanner::UpdateConnectivityBetweenInsertNodes() {
         ROS_ERROR("Insert node not inserted");
     }
 }
-
-/****************************** UNUSE CODE ******************************************/
-
-// void GraphPlanner::IterativePathSearch(NodePtrStack& graph,
-//                                        const NavNodePtr& odom_node_ptr,
-//                                        const NavNodePtr& goal_node_ptr)  {
-//     const int M = graph.size();
-//     const PointPair guide_line(odom_node_ptr->position, goal_node_ptr->position);
-//     // cout<<"GP: M: "<<M<<endl;
-//     DPUtil::Timer.start_time("Find_Insert_Nodes");
-//     for (int i = 0; i < M; i++) {
-//         if (!graph[i]->is_top_layer || graph[i]->is_goal || graph[i]->is_odom) continue;
-
-//         for (auto node_ptr : graph[i]->contour_connects) {
-//             if (std::abs(node_ptr->position.z - graph[i]->position.z) > SameLayerTolerZ) continue;
-//             // ROS_WARN("Node insert checklist1111111111: %f", (node_ptr->position - odom_node_ptr->position).norm());
-
-//             cv::Point2f node_pos2d(node_ptr->position.x, node_ptr->position.y);
-//             cv::Point2f top_node2d(graph[i]->position.x, graph[i]->position.y);
-//             const ConnectPair check_edge(top_node2d, node_pos2d);
-
-//             if (ContourGraph::IsEdgeCollideSegment(guide_line, check_edge)) {
-//                 cv::Point2f insert_node2d = ContourGraph::getIntersectionPoint(guide_line, check_edge);
-//                 const Point3D insert_node3d(insert_node2d.x, insert_node2d.y, graph[i]->position.z);
-//                 // check if insert node already exist
-//                 bool is_insert_node_exist = false;
-//                 for (auto inode_ptr : insert_nav_nodes) {
-//                     if ((insert_node3d - inode_ptr->position).norm() < 0.5) {
-//                         // cout << "insert node already exist: " << insert_node3d << endl;
-//                         is_insert_node_exist = true;
-//                         break;
-//                     }
-//                 }
-//                 if (is_insert_node_exist) continue;
-
-//                 NavNodePtr insert_node_ptr = NULL;
-//                 DynamicGraph::CreateNavNodeFromPoint(insert_node3d, graph[i]->layer_id, insert_node_ptr, false, true);
-
-//                 // TODO: parents should be checked.
-//                 // Put connected_nodes of all inserted_wall_nodes between parents as visible nodes of the inserted_node
-//                 const NavNodePair insert_node_parents(graph[i], node_ptr);
-//                 SetInsertNode(insert_node_ptr, insert_node_parents);
-//                 insert_nav_nodes.push_back(insert_node_ptr);
-//             }
-//         }
-//     }
-//     DPUtil::Timer.end_time("Find_Insert_Nodes");
-//     DPUtil::Timer.start_time("Insert_Nodes_Connectivity_Check");
-//     for (auto node_ptr : insert_nav_nodes) {
-//         // connect between contour nodes and insert node
-//         if (node_ptr->contour_connects.size() == 0) continue;
-//         // cout<<"node_ptr->contour_connects.size():"<<node_ptr->contour_connects.size()<<endl;
-
-//         // reconnect between insert nodes
-//         const NodePtrStack cp_insert_nav_nodes = insert_nav_nodes;
-//         for (auto inode : cp_insert_nav_nodes) {
-//             if (inode == node_ptr) continue;
-//             if (inode->contour_connects.size() == 0) continue;
-
-//             if (DPUtil::IsTypeInStack(inode->insert_node_parents.first, node_ptr->connect_nodes) && 
-//                 DPUtil::IsTypeInStack(inode->insert_node_parents.second, node_ptr->connect_nodes)) {
-//                 // ROS_ERROR("GP: insert node connected");
-//                 DynamicGraph::AddEdge(inode, node_ptr);
-//             }
-//             if (inode->is_top_layer && node_ptr->is_top_layer) {
-//                 if (ContourGraph::IsTopLayerNodesConnectFreePolygon(inode, node_ptr, true)) {
-//                     DynamicGraph::AddEdge(inode, node_ptr);
-//                 }
-//             }
-//         }
-//         node_ptr->contour_connects.clear();
-//         graph.push_back(node_ptr);
-//         // DynamicGraph::AddNodeToGraph(node_ptr);
-//     }
-//     DPUtil::Timer.end_time("Insert_Nodes_Connectivity_Check");
-// }

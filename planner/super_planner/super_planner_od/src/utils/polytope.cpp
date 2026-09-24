@@ -59,7 +59,7 @@ Vec3f Polytope::CrossCenter(const Polytope &b) const {
     MatD4f curIH;
     curIH.resize(this->SurfNum() + b.SurfNum(), 4);
     curIH << this->planes, b.GetPlanes();
-    Mat3Df curIV; // 走廊的顶点
+    Mat3Df curIV;
     if (!geometry_utils::enumerateVs(curIH, curIV)) {
         printf(" -- [processCorridor] Failed to get Overlap enumerateVs .\n");
         return Vec3f(-999, -999, -999);
@@ -132,7 +132,6 @@ bool Polytope::PointIsInside(const Vec3f &pt, const double & margin) const {
 }
 
 double Polytope::GetVolume() const {
-    // 首先，我们需要获取多面体的顶点
     Eigen::Matrix<double, 3, -1, Eigen::ColMajor> vPoly;
     MatD4f planes = GetPlanes();
     if (!geometry_utils::enumerateVs(planes, vPoly)) {
@@ -140,32 +139,27 @@ double Polytope::GetVolume() const {
         return 0;
     }
 
-    // 使用QuickHull库计算凸包
     geometry_utils::QuickHull<double> qh;
     const auto convexHull = qh.getConvexHull(vPoly.data(), vPoly.cols(), false, true);
     const auto &indexBuffer = convexHull.getIndexBuffer();
 
-    // 确保我们至少有四个顶点，这样才能构成一个四面体
     if (indexBuffer.size() < 4) {
         printf("Not enough vertices to compute volume.\n");
         return 0;
     }
 
-    // 计算多面体的重心
     Vec3f centroid = Vec3f::Zero();
     for (long int i = 0; i < vPoly.cols(); i++) {
         centroid += vPoly.col(i);
     }
     centroid /= static_cast<double>(vPoly.cols());
 
-    // 对每个三角形面，计算其四面体相对于重心的体积
     double volume = 0.0;
     for (size_t i = 0; i < indexBuffer.size(); i += 3) {
         Vec3f A = vPoly.col(indexBuffer[i]);
         Vec3f B = vPoly.col(indexBuffer[i + 1]);
         Vec3f C = vPoly.col(indexBuffer[i + 2]);
 
-        // 使用标量三重积计算四面体的有向体积
         double tetrahedronVolume = (A - centroid).dot((B - centroid).cross(C - centroid)) / 6.0;
         volume += std::abs(tetrahedronVolume);
     }

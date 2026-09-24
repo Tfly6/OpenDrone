@@ -54,7 +54,6 @@ class cascadePID {
         Eigen::Vector4d compute(const Eigen::Vector3d &currPose, const Eigen::Vector3d &currVel, 
             const Eigen::Vector3d &targetPose, double yaw_ref, double dt) {
 
-            // 位置环输出为速度指令
             Eigen::Vector3d pos_error = targetPose - currPose;
             satura(pos_error, -pos_error_max_, pos_error_max_);
 
@@ -63,12 +62,10 @@ class cascadePID {
             if (target_vel.norm() > maxVel_) {
                 target_vel *= maxVel_ / target_vel.norm();
             }
-            // 速度环输出为加速度指令
 
             Eigen::Vector3d target_acc;
             target_acc = pid(target_vel, currVel, kp_v_, ki_v_, kd_v_, integral_v_, pre_error_v_,
                                 vel_integral_max_ ,vel_error_max_, dt);
-            // target_acc = kp_v_.asDiagonal() * vel_error + ki_v_.asDiagonal() * integral_v_ + kd_v_.asDiagonal() * derivative_v;
             
             if(target_acc.norm() > maxAcc_){
                 target_acc = (maxAcc_ / target_acc.norm()) * target_acc;
@@ -78,12 +75,11 @@ class cascadePID {
 
             Eigen::Vector4d target_att = acc2quaternion(target_acc, yaw_ref);
 
-            // 推力计算
             
             Eigen::Matrix3d R = quat2RotMatrix(target_att);
             thrust_des_ = target_acc.dot(R.col(2));
 
-            thrust_des_ = (thrust_des_ * 0.70) / GRAVITY; // 归一化
+            thrust_des_ = (thrust_des_ * 0.70) / GRAVITY;
 
             return target_att; 
         }
@@ -145,12 +141,6 @@ class cascadePID {
             cout <<"Kp_px : "<< kp_p_[0] << endl;
             cout <<"Kp_py : "<< kp_p_[1] << endl;
             cout <<"Kp_pz : "<< kp_p_[2] << endl;
-            // cout <<"Kd_px : "<< kd_p_[0] << endl;
-            // cout <<"Kd_py : "<< kd_p_[1] << endl;
-            // cout <<"Kd_pz : "<< kd_p_[2] << endl;
-            // cout <<"Ki_px : "<< ki_p_[0] << endl;
-            // cout <<"Ki_py : "<< ki_p_[1] << endl;
-            // cout <<"Ki_pz : "<< ki_p_[2] << endl;
 
             cout <<"Kp_vx : "<< kp_v_[0] << endl;
             cout <<"Kp_vy : "<< kp_v_[1] << endl;

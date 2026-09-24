@@ -9,7 +9,6 @@ using namespace std;
 class LowPassFilter
 {
     public:
-        //构造函数
         LowPassFilter(void)
         {
             T = 0.0f;
@@ -39,7 +38,6 @@ float LowPassFilter::apply(float input, float dt)
 
         Output_prev = output;
 
-        // return the value.
         return output;
 }
 

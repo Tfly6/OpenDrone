@@ -1,7 +1,6 @@
 #ifndef _KINODYNAMIC_ASTAR_H
 #define _KINODYNAMIC_ASTAR_H
 
-// #include <path_searching/matrix_hash.h>
 #include <ros/console.h>
 #include <ros/ros.h>
 #include <Eigen/Eigen>
@@ -15,9 +14,6 @@
 #include "plan_env/edt_environment.h"
 
 namespace fast_planner {
-// #define REACH_HORIZON 1
-// #define REACH_END 2
-// #define NO_PATH 3
 #define IN_CLOSE_SET 'a'
 #define IN_OPEN_SET 'b'
 #define NOT_EXPAND 'c'

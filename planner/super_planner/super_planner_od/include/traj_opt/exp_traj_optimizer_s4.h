@@ -261,7 +261,6 @@ namespace traj_opt {
             }
 
             if (std::isnan(opt_vars.times.sum())) {
-//                cout << YELLOW << " -- [ExpOpt] Init times and point failed." << RESET << endl;
                 return false;
             }
 

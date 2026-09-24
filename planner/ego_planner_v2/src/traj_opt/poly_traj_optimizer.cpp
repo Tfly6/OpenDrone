@@ -45,7 +45,6 @@ namespace ego_planner
     lbfgs_params.mem_size = 16;
     lbfgs_params.max_iterations = 200;
     lbfgs_params.min_step = 1e-32;
-    // lbfgs_params.abs_curv_cond = 0;
     lbfgs_params.past = 3;
     lbfgs_params.delta = 1.0e-2;
     do
@@ -145,7 +144,6 @@ namespace ego_planner
     const double DURATION = durations.sum();
     double t = 0.0, t_step = min(RES / max_vel_, durations.minCoeff() / max(cps_num_prePiece_, 1) / 1.5);
     Eigen::Vector3d pt_last = traj.getPos(0.0);
-    // pts_check[0].push_back(pt_last);
     int id_cps_curr = 0, id_piece_curr = 0;
 
     while (true)
@@ -538,7 +536,6 @@ namespace ego_planner
       else
       {
         // Just ignore, it does not matter ^_^.
-        // ROS_ERROR("Failed to generate direction! segment_id=%d", i);
       }
     }
 
@@ -549,7 +546,6 @@ namespace ego_planner
   bool PolyTrajOptimizer::roughlyCheckConstraintPoints(void)
   {
 
-    // int end_idx = cps_.cp_size - 1;
 
     /*** Check and segment the initial trajectory according to obstacles ***/
     int in_id, out_id;
@@ -886,7 +882,6 @@ namespace ego_planner
         if (occ_start_id == -1 || occ_end_id == -1)
         {
           // It means that the first or the last control points of one segment are in obstacles, which is not allowed.
-          // ROS_WARN("What? occ_start_id=%d, occ_end_id=%d", occ_start_id, occ_end_id);
 
           segments.erase(segments.begin() + i);
           RichInfoSegs.erase(RichInfoSegs.begin() + i);
@@ -1254,11 +1249,8 @@ namespace ego_planner
     double omg;
     int i_dp = 0;
     costs.setZero();
-    // Eigen::MatrixXd constraint_pts(3, N * K + 1);
 
-    // printf("A\n");
 
-    // int innerLoop;
     double t = 0;
     for (int i = 0; i < N; ++i)
     {
@@ -1266,7 +1258,6 @@ namespace ego_planner
       const Eigen::Matrix<double, 6, 3> &c = jerkOpt_.get_b().block<6, 3>(i * 6, 0);
       step = jerkOpt_.get_T1()(i) / K;
       s1 = 0.0;
-      // innerLoop = K;
 
       for (int j = 0; j <= K; ++j)
       {
@@ -1343,7 +1334,6 @@ namespace ego_planner
           costs(2) += omg * step * costj;
         }
 
-        // printf("L\n");
 
         s1 += step;
         if (j != K || (j == K && i == N - 1))
@@ -1358,7 +1348,6 @@ namespace ego_planner
     // quratic variance
     Eigen::MatrixXd gdp;
     double var;
-    // lengthVarianceWithGradCost2p(cps_.points, K, gdp, var);
     distanceSqrVarianceWithGradCost2p(cps_.points, gdp, var);
 
     i_dp = 0;
@@ -1561,9 +1550,7 @@ namespace ego_planner
     int N = ps.cols() - 1;
     Eigen::MatrixXd dps = ps.rightCols(N) - ps.leftCols(N);
     Eigen::VectorXd dsqrs = dps.colwise().squaredNorm().transpose();
-    // double dsqrsum = dsqrs.sum();
     double dquarsum = dsqrs.squaredNorm();
-    // double dsqrmean = dsqrsum / N;
     double dquarmean = dquarsum / N;
     var = wei_sqrvar_ * (dquarmean);
     gdp.resize(3, N + 1);

@@ -48,9 +48,6 @@ Goal3DTool::Goal3DTool()
   topic_property_ = new StringProperty("Topic", "goal",
                                        "The topic on which to publish navigation goals.",
                                        getPropertyContainer(), SLOT(updateTopic()), this);
-  // topic_property_droneID_ = new StringProperty("Topic", "goal_with_id",
-  //                                              "The topic on which to publish navigation goals.",
-  //                                              getPropertyContainer(), SLOT(updateTopic()), this);
 }
 
 void Goal3DTool::onInitialize()

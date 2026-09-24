@@ -70,11 +70,11 @@ _TRANSPORT_KEYS = {'gazebo_px4', 'port', 'environment_dir'}
 
 
 class BatchConfigError(ValueError):
-    """YAML 的结构或值无法构成可运行的批次实验。"""
+    """Raised when YAML structure or values cannot define a runnable batch."""
 
 
 class _BatchTerminationGuard:
-    """把 SIGINT/SIGTERM 变成一次可清理的批次取消。"""
+    """Convert SIGINT or SIGTERM into a cleanly cancellable batch."""
 
     def __init__(self):
         self._original_handlers: Dict[int, Any] = {}
@@ -117,7 +117,7 @@ def _as_list(value: Any, label: str) -> List[Any]:
 
 
 def _deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> Dict[str, Any]:
-    """递归合并 mapping；列表和标量由后者完整替换。"""
+    """Recursively merge mappings while replacing lists and scalars."""
     merged = copy.deepcopy(dict(base))
     for key, value in override.items():
         if isinstance(value, Mapping) and isinstance(merged.get(key), Mapping):
@@ -133,7 +133,7 @@ def _slug(value: str) -> str:
 
 
 def _ros_arg(value: Any) -> str:
-    """ROS launch 参数的确定性文本表示。"""
+    """Return a deterministic text representation of a ROS launch argument."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
     if value is None:
@@ -154,7 +154,7 @@ def _ensure_positive_number(value: Any, label: str, default: float) -> float:
 
 
 def _require_true(value: Any, label: str) -> bool:
-    """批次重启 PX4 时，外部环境必须具备自动重启能力。"""
+    """Require external infrastructure to recover after a PX4 restart."""
     if value is None:
         return True
     if value is not True:
@@ -170,7 +170,7 @@ def _resolve_config_path(path_value: str, config_dir: str) -> str:
 
 
 def _normalise_simulation(raw: Mapping[str, Any], label: str) -> Dict[str, Any]:
-    """支持 simulation.gazebo.*，也支持 world/sensor 这类常用简写。"""
+    """Normalize simulation.gazebo fields and common world/sensor shorthands."""
     simulation = copy.deepcopy(dict(raw))
     unknown_simulation = set(simulation) - _SIMULATION_KEYS
     if unknown_simulation:
@@ -277,7 +277,7 @@ def _normalise_algorithm_items(
 
 @dataclass
 class BatchCase:
-    """YAML matrix 展开后的一条独立 flight_eval 样本。"""
+    """One flight-evaluation case expanded from a YAML matrix."""
 
     index: int
     experiment_name: str
@@ -326,7 +326,7 @@ class BatchDefinition:
 
 
 def load_batch_definition(config_path: str, output_dir: Optional[str] = None) -> BatchDefinition:
-    """读取、验证 YAML，并把 controller/planner/repeat 展开成实验样本。"""
+    """Load and validate YAML, then expand controller, planner, and repeats."""
     if yaml is None:
         raise RuntimeError('批次 YAML 需要 PyYAML，请安装: pip install PyYAML')
 
@@ -567,7 +567,7 @@ def load_batch_definition(config_path: str, output_dir: Optional[str] = None) ->
 
 
 def format_batch_plan(definition: BatchDefinition) -> str:
-    """生成 dry-run 与日志共用的简洁展开结果。"""
+    """Format a compact expanded plan for dry runs and logs."""
     lines = [
         f'批次: {definition.name}',
         f'配置: {definition.config_path}',
@@ -673,7 +673,7 @@ class _MavrosStateObserver:
 
 
 class _SimulationSession:
-    """连接使用者的 Gazebo/MAVROS，并按 case 生命周期运行 PX4。"""
+    """Attach to user-managed Gazebo/MAVROS and manage PX4 per case."""
 
     def __init__(
         self,
@@ -1089,7 +1089,7 @@ class _SimulationSession:
         )
 
     def _wait_for_px4_ready(self) -> None:
-        """等待新的 MAVROS 链路和稳定心跳均就绪。"""
+        """Wait for a new MAVROS link and a stable heartbeat."""
         processes = [self.px4_process]
         self._wait_until(
             self._mavros_connected, self.timeouts['px4'],
@@ -1182,7 +1182,7 @@ class _SimulationSession:
 
 
 class FlightEvalBatchRunner:
-    """执行一份已验证的 YAML 批次配置。"""
+    """Execute a validated YAML batch definition."""
 
     def __init__(
         self,

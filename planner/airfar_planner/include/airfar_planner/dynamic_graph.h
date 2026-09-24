@@ -217,7 +217,6 @@ private:
         const auto it2 = node_ptr2->edge_votes.find(node_ptr1->id);
         if (it1 != node_ptr1->edge_votes.end() && it2 != node_ptr2->edge_votes.end()) {
             if (DPUtil::IsVoteTrue(it1->second)) {
-                // DEBUG
                 if (!DPUtil::IsVoteTrue(it2->second)) ROS_ERROR_THROTTLE(1.0, "DG: Polygon edge vote result are not matched.");
                 return true;
             }
@@ -296,7 +295,6 @@ private:
                 }
             }
         }
-        // this->RedirectContourConnect(node_ptr);
         for (const auto& ct_cnode_ptr : node_ptr->contour_connects) {
             DPUtil::EraseNodeFromStack(node_ptr, ct_cnode_ptr->contour_connects);
         }
@@ -455,7 +453,6 @@ public:
     }
 
     static inline bool IsConnectInVerticalConstrain(const NavNodePtr& node_ptr1, const NavNodePtr& node_ptr2) {
-        // if (DPUtil::IsFreeNavNode(node_ptr1) || DPUtil::IsFreeNavNode(node_ptr2)) return true;
         // check maximum vertical angle
         if (node_ptr1->layer_id != node_ptr2->layer_id) {
             const float v_angle = fabs((node_ptr2->position-node_ptr1->position).norm_dot(Point3D(0,0,1)));
@@ -565,12 +562,3 @@ public:
 
 
 #endif
-
-/************************** UNUSE CODE ****************************/
-
-// inline void ResetGraphContourMatchStatus() {
-//     for (const auto& node_ptr : globalGraphNodes_) {
-//         node_ptr->is_contour_match = false;
-//         node_ptr->ctnode = NULL;
-//     }
-// }

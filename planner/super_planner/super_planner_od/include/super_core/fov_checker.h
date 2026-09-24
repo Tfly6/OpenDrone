@@ -171,7 +171,6 @@ namespace super_planner {
                 const Eigen::Vector3d t,
                 Eigen::MatrixX4d &fov_planes,
                 vec_E<Eigen::Matrix3d> &fov_pts) const {
-            // 只使用上下两个切面来约束。
             fov_planes.resize(2, 4);
             fov_pts.clear();
 

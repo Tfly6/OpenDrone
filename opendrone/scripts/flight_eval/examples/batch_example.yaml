@@ -1,35 +1,35 @@
-# 先执行 --dry-run 检查展开结果：
+# Run --dry-run first to inspect the expanded cases:
 # python3 -m flight_eval batch -f batch_example.yaml --dry-run
 version: 1
 # manifests:
 #   - external_algorithm_manifest.yaml
 name: online_mission_lidar
 
-# 不指定 output_dir 时，会创建 eval_runs/batches/<name>_<timestamp>/。
+# Omitting output_dir creates eval_runs/batches/<name>_<timestamp>/.
 # output_dir: ./results/controller_and_online_planner
 
 defaults:
   simulation:
-    # 必填。不从 ROS_PACKAGE_PATH 或 rospack 推断，因为 source devel/setup.bash 后
-    # rospack find px4 不可靠。请改为本机 PX4-Autopilot 的绝对路径。
+    # Required. ROS_PACKAGE_PATH and rospack are unreliable after sourcing
+    # devel/setup.bash, so use the local PX4-Autopilot absolute path.
     px4:
       source_dir: /home/test/PX4-Autopilot
       # build_dir: /path/to/PX4-Autopilot/build/px4_sitl_default
       sim_model: gazebo-classic_iris
-    # Gazebo 与 PX4 使用可重连的 UDP 链路。先运行 prepare-environment，再 source
-    # 生成的 environment.env 并手动启动 environment.launch。
+    # Gazebo and PX4 use a reconnectable UDP link. Run prepare-environment,
+    # source the generated environment.env, and start environment.launch manually.
     transport:
       gazebo_px4: udp
       port: 14560
       environment_dir: /tmp/flight_eval_udp_environment
     mavros:
       fcu_url: udp://:14540@localhost:14557
-      # batch 每条样本都会重启 PX4，MAVROS 必须能自动恢复。
+      # Each case restarts PX4, so MAVROS must reconnect automatically.
       respawn_mavros: true
     gazebo:
-      # 未指定 gui 时默认 true；批量实验默认显示 Gazebo GUI。
+      # Defaults to true; batch experiments show the Gazebo GUI unless overridden.
       gui: false
-      # batch 每条样本都会重启 PX4，Gazebo 必须能自动恢复。
+      # Each case restarts PX4, so Gazebo must recover automatically.
       respawn_gazebo: true
       x: 0
       y: 0
@@ -38,7 +38,7 @@ defaults:
     takeoff_height: 2.0
     duration: 120
     auto_land: true
-    # 地面接触会被忽略；同一障碍物持续接触只记一次。
+    # Ground contact is ignored; continuous contact with one obstacle counts once.
     max_collision_episodes: 5
     collision_episode_gap: 0.5
 
@@ -146,7 +146,7 @@ experiments:
   #     sensor: none
   #   run:
   #     duration: 40
-  # 两个控制器各做 3 次。planner 未设置时默认 none。
+  # Run each of two controllers three times. An omitted planner defaults to none.
   # - name: hover_repeatability
   #   task: hover
   #   controllers:
@@ -157,9 +157,9 @@ experiments:
   #     world: empty
   #     sensor: none
 
-  # 若要跑 Mid360，请复制为另一份 YAML，并先手动启动 Mid360 对应的
-  # Gazebo + MAVROS 环境；一个 batch 不能切换外部 world/sensor。
-  # controller × planner × repeat 为笛卡尔积；这个实验会产生 2 * 2 * 2 = 8 条样本。
+  # For Mid360, copy this YAML and start the matching Gazebo + MAVROS environment.
+  # A batch cannot switch its external world or sensor.
+  # controller x planner x repeat is a Cartesian product, yielding 2 * 2 * 2 cases.
   - name: online_mission
     task: plan_mission
     controllers:
@@ -188,5 +188,5 @@ experiments:
       use_mpc: 'true'
     # run:
     #   duration: 30
-    # plan_mission 默认使用 finite manual path；如需自定义 launch 参数，
-    # planner_args 会对本 experiment 的所有 planner 生效。
+    # plan_mission defaults to a finite manual path. planner_args applies custom
+    # launch arguments to every planner in this experiment.

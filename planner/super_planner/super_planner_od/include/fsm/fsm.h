@@ -147,7 +147,6 @@ namespace fsm {
             double sin_y = std::sin(half_yaw);
             double cos_y = std::cos(half_yaw);
 
-            // 计算四元数分量
             Eigen::Quaterniond q;
             q.w() = cos_r * cos_p * cos_y + sin_r * sin_p * sin_y;
             q.x() = sin_r * cos_p * cos_y - cos_r * sin_p * sin_y;

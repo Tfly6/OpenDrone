@@ -15,14 +15,6 @@ namespace ego_planner
     failed_list_pub = nh.advertise<visualization_msgs::Marker>("failed_list", 2);
     a_star_list_pub = nh.advertise<visualization_msgs::Marker>("a_star_list", 20);
 
-    // intermediate_pt0_pub = nh.advertise<visualization_msgs::Marker>("pt0_dur_opt", 10);
-    // intermediate_grad0_pub = nh.advertise<visualization_msgs::MarkerArray>("grad0_dur_opt", 10);
-    // intermediate_pt1_pub = nh.advertise<visualization_msgs::Marker>("pt1_dur_opt", 10);
-    // intermediate_grad1_pub = nh.advertise<visualization_msgs::MarkerArray>("grad1_dur_opt", 10);
-    // intermediate_grad_smoo_pub = nh.advertise<visualization_msgs::MarkerArray>("smoo_grad_dur_opt", 10);
-    // intermediate_grad_dist_pub = nh.advertise<visualization_msgs::MarkerArray>("dist_grad_dur_opt", 10);
-    // intermediate_grad_feas_pub = nh.advertise<visualization_msgs::MarkerArray>("feas_grad_dur_opt", 10);
-    // intermediate_grad_swarm_pub = nh.advertise<visualization_msgs::MarkerArray>("swarm_grad_dur_opt", 10);
   }
 
   // // real ids used: {id, id+1000}
@@ -105,7 +97,6 @@ namespace ego_planner
     arrow.type = visualization_msgs::Marker::ARROW;
     arrow.action = visualization_msgs::Marker::ADD;
 
-    // geometry_msgs::Point start, end;
     // arrow.points
 
     arrow.color.r = color(0);
@@ -119,9 +110,6 @@ namespace ego_planner
     geometry_msgs::Point start, end;
     for (int i = 0; i < int(list.size() / 2); i++)
     {
-      // arrow.color.r = color(0) / (1+i);
-      // arrow.color.g = color(1) / (1+i);
-      // arrow.color.b = color(2) / (1+i);
 
       start.x = list[2 * i](0);
       start.y = list[2 * i](1);
@@ -301,7 +289,6 @@ namespace ego_planner
       {
         list.push_back(pt);
       }
-      //Eigen::Vector4d color(0.5,0.5,0,1);
       displayMarkerList(a_star_list_pub, list, scale, color, id + i); // real ids used: [ id ~ id+a_star_paths.size() ]
       i++;
     }

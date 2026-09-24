@@ -70,17 +70,6 @@ namespace ego_planner
       RichInfoOneSeg.second = RichInfoOneSeg_temp;
       RichInfoSegs.push_back(RichInfoOneSeg);
 
-      // cout << "RichInfoOneSeg_temp, out" << endl;
-      // cout << "RichInfoSegs[" << i << "].first" << endl;
-      // for ( int k=0; k<RichInfoOneSeg_temp.size; k++ )
-      //   if ( RichInfoOneSeg_temp.base_point[k].size() > 0 )
-      //   {
-      //     cout << "###" << RichInfoOneSeg_temp.points.col(k).transpose() << endl;
-      //     for (int k2 = 0; k2 < RichInfoOneSeg_temp.base_point[k].size(); k2++)
-      //     {
-      //       cout << "      " << RichInfoOneSeg_temp.base_point[k][k2].transpose() << " @ " << RichInfoOneSeg_temp.direction[k][k2].transpose() << endl;
-      //     }
-      //   }
     }
 
     for (int i = 0; i < seg_upbound; i++)
@@ -98,7 +87,6 @@ namespace ego_planner
           for (double a = 1; a > 0; a -= step_size)
           {
             Eigen::Vector3d pt(a * RichInfoSegs[i].first.points.col(j) + (1 - a) * RichInfoSegs[i].first.points.col(j + 1));
-            //cout << " " << grid_map_->getInflateOccupancy(pt) << " pt=" << pt.transpose() << endl;
             if (grid_map_->getInflateOccupancy(pt))
             {
               occ_start_id = j;
@@ -110,14 +98,11 @@ namespace ego_planner
       exit_multi_loop1:;
         for (int j = RichInfoSegs[i].first.size - 1; j >= 1; j--)
         {
-          //cout << "j=" << j << endl;
-          //cout << "B *" << j << "*" << endl;
           ;
           double step_size = RESOLUTION / (RichInfoSegs[i].first.points.col(j) - RichInfoSegs[i].first.points.col(j - 1)).norm();
           for (double a = 1; a > 0; a -= step_size)
           {
             Eigen::Vector3d pt(a * RichInfoSegs[i].first.points.col(j) + (1 - a) * RichInfoSegs[i].first.points.col(j - 1));
-            //cout << " " << grid_map_->getInflateOccupancy(pt) << " pt=" << pt.transpose() << endl;
             ;
             if (grid_map_->getInflateOccupancy(pt))
             {
@@ -133,7 +118,6 @@ namespace ego_planner
         if (occ_start_id == -1 || occ_end_id == -1)
         {
           // It means that the first or the last control points of one segment are in obstacles, which is not allowed.
-          // ROS_WARN("What? occ_start_id=%d, occ_end_id=%d", occ_start_id, occ_end_id);
 
           segments.erase(segments.begin() + i);
           RichInfoSegs.erase(RichInfoSegs.begin() + i);
@@ -142,18 +126,6 @@ namespace ego_planner
 
           continue;
 
-          // cout << "RichInfoSegs[" << i << "].first" << endl;
-          // for (int k = 0; k < RichInfoSegs[i].first.size; k++)
-          // {
-          //   if (RichInfoSegs[i].first.base_point.size() > 0)
-          //   {
-          //     cout << "###" << RichInfoSegs[i].first.points.col(k).transpose() << endl;
-          //     for (int k2 = 0; k2 < RichInfoSegs[i].first.base_point[k].size(); k2++)
-          //     {
-          //       cout << "      " << RichInfoSegs[i].first.base_point[k][k2].transpose() << " @ " << RichInfoSegs[i].first.direction[k][k2].transpose() << endl;
-          //     }
-          //   }
-          // }
         }
 
         // 1.2 Reverse the vector and find new base points from occ_start_id to occ_end_id.
@@ -206,7 +178,6 @@ namespace ego_planner
             for (; l <= l_upbound; l += RESOLUTION)
             {
               Eigen::Vector3d base_pt_temp = base_pt_reverse + l * base_vec_reverse;
-              //cout << base_pt_temp.transpose() << endl;
               if (!grid_map_->getInflateOccupancy(base_pt_temp))
               {
                 RichInfoSegs[i].second.base_point[j][0] = base_pt_temp;
@@ -281,7 +252,6 @@ namespace ego_planner
           for (; l <= l_upbound; l += RESOLUTION)
           {
             Eigen::Vector3d base_pt_temp = base_pt_reverse + l * base_vec_reverse;
-            //cout << base_pt_temp.transpose() << endl;
             if (!grid_map_->getInflateOccupancy(base_pt_temp))
             {
               RichInfoSegs[i].second.base_point[0][0] = base_pt_temp;
@@ -360,19 +330,6 @@ namespace ego_planner
       int cp_id = 0, seg_id = 0, cp_of_seg_id = 0;
       while (/*seg_id < RichInfoSegs.size() ||*/ cp_id < cps_.size)
       {
-        //cout << "A ";
-        // if ( seg_id >= RichInfoSegs.size() )
-        // {
-        //   cout << "seg_id=" << seg_id << " RichInfoSegs.size()=" << RichInfoSegs.size() << endl;
-        // }
-        // if ( cp_id >= cps_.base_point.size() )
-        // {
-        //   cout << "cp_id=" << cp_id << " cps_.base_point.size()=" << cps_.base_point.size() << endl;
-        // }
-        // if ( cp_of_seg_id >= RichInfoSegs[seg_id].first.base_point.size() )
-        // {
-        //   cout << "cp_of_seg_id=" << cp_of_seg_id << " RichInfoSegs[seg_id].first.base_point.size()=" << RichInfoSegs[seg_id].first.base_point.size() << endl;
-        // }
 
         if (seg_id >= seg_upbound || cp_id < segments[seg_id].first || cp_id > segments[seg_id].second)
         {
@@ -456,9 +413,6 @@ namespace ego_planner
       for (double a = 1.0; a > 0.0; a -= step_size)
       {
         occ = grid_map_->getInflateOccupancy(a * init_points.col(i - 1) + (1 - a) * init_points.col(i));
-        //cout << " " << occ;
-        // cout << setprecision(5);
-        // cout << (a * init_points.col(i-1) + (1-a) * init_points.col(i)).transpose() << " occ1=" << occ << endl;
 
         if (occ && !last_occ)
         {
@@ -499,10 +453,6 @@ namespace ego_planner
     }
     // cout << endl;
 
-    // for (size_t i = 0; i < segment_ids.size(); i++)
-    // {
-    //   cout << "segment_ids=" << segment_ids[i].first << " ~ " << segment_ids[i].second << endl;
-    // }
 
     // return in advance
     if (segment_ids.size() == 0)
@@ -515,7 +465,6 @@ namespace ego_planner
     vector<vector<Eigen::Vector3d>> a_star_pathes;
     for (size_t i = 0; i < segment_ids.size(); ++i)
     {
-      //cout << "in=" << in.transpose() << " out=" << out.transpose() << endl;
       Eigen::Vector3d in(init_points.col(segment_ids[i].first)), out(init_points.col(segment_ids[i].second));
       if (a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ 0.1, in, out))
       {
@@ -561,11 +510,6 @@ namespace ego_planner
       bounds[i] = std::pair<int, int>(id_low_bound, id_up_bound);
     }
 
-    // cout << "+++++++++" << endl;
-    // for ( int j=0; j<bounds.size(); ++j )
-    // {
-    //   cout << bounds[j].first << "  " << bounds[j].second << endl;
-    // }
 
     /*** Adjust segment length ***/
     vector<std::pair<int, int>> adjusted_segment_ids(segment_ids.size());
@@ -575,7 +519,6 @@ namespace ego_planner
     {
       /*** Adjust segment length ***/
       num_points = segment_ids[i].second - segment_ids[i].first + 1;
-      //cout << "i = " << i << " first = " << segment_ids[i].first << " second = " << segment_ids[i].second << endl;
       if (num_points < minimum_points)
       {
         double add_points_each_side = (int)(((minimum_points - num_points) + 1.0f) / 2);
@@ -590,7 +533,6 @@ namespace ego_planner
         adjusted_segment_ids[i].second = segment_ids[i].second;
       }
 
-      //cout << "final:" << "i = " << i << " first = " << adjusted_segment_ids[i].first << " second = " << adjusted_segment_ids[i].second << endl;
     }
     for (size_t i = 1; i < adjusted_segment_ids.size(); i++) // Avoid overlap
     {
@@ -638,7 +580,6 @@ namespace ego_planner
                  (ctrl_pts_law.dot(init_points.col(j) - a_star_pathes[i][Astar_id]) / ctrl_pts_law.dot(a_star_pathes[i][Astar_id] - a_star_pathes[i][last_Astar_id])) // = t
                 );
 
-            //cout << "i=" << i << " j=" << j << " Astar_id=" << Astar_id << " last_Astar_id=" << last_Astar_id << " intersection_point = " << intersection_point.transpose() << endl;
 
             got_intersection_id = j;
             break;
@@ -736,7 +677,6 @@ namespace ego_planner
       else
       {
         // Just ignore, it does not matter ^_^.
-        // ROS_ERROR("Failed to generate direction! segment_id=%d", i);
       }
     }
 
@@ -746,8 +686,6 @@ namespace ego_planner
   int BsplineOptimizer::earlyExit(void *func_data, const double *x, const double *g, const double fx, const double xnorm, const double gnorm, const double step, int n, int k, int ls)
   {
     BsplineOptimizer *opt = reinterpret_cast<BsplineOptimizer *>(func_data);
-    // cout << "k=" << k << endl;
-    // cout << "opt->flag_continue_to_optimize_=" << opt->flag_continue_to_optimize_ << endl;
     return (opt->force_stop_type_ == STOP_FOR_ERROR || opt->force_stop_type_ == STOP_FOR_REBOUND);
   }
 
@@ -841,7 +779,6 @@ namespace ego_planner
       {
         Eigen::Vector3d obj_prid = moving_objs_->evaluateConstVel(id, t_now + time);
         double dist = (cps_.points.col(i) - obj_prid).norm();
-        //cout /*<< "cps_.points.col(i)=" << cps_.points.col(i).transpose()*/ << " moving_objs_=" << obj_prid.transpose() << " dist=" << dist << endl;
         double dist_err = CLEARANCE - dist;
         Eigen::Vector3d dist_grad = (cps_.points.col(i) - obj_prid).normalized();
 
@@ -855,10 +792,7 @@ namespace ego_planner
           gradient.col(i) += -2.0 * dist_err * dist_grad;
         }
       }
-      // cout << "time=" << time << " i=" << i << " order_=" << order_ << " end_idx=" << end_idx << endl;
-      // cout << "--" << endl;
     }
-    // cout << "---------------" << endl;
   }
 
   void BsplineOptimizer::calcDistanceCostRebound(const Eigen::MatrixXd &q, double &cost,
@@ -995,7 +929,6 @@ namespace ego_planner
                                              Eigen::MatrixXd &gradient)
   {
 
-    //#define SECOND_DERIVATIVE_CONTINOUS
 
 #ifdef SECOND_DERIVATIVE_CONTINOUS
 
@@ -1121,8 +1054,6 @@ namespace ego_planner
     cost = 0.0;
     /* abbreviation */
     double ts, /*vm2, am2, */ ts_inv2;
-    // vm2 = max_vel_ * max_vel_;
-    // am2 = max_acc_ * max_acc_;
 
     ts = bspline_interval_;
     ts_inv2 = 1 / ts / ts;
@@ -1132,13 +1063,10 @@ namespace ego_planner
     {
       Eigen::Vector3d vi = (q.col(i + 1) - q.col(i)) / ts;
 
-      //cout << "temp_v * vi=" ;
       for (int j = 0; j < 3; j++)
       {
         if (vi(j) > max_vel_)
         {
-          // cout << "zx-todo VEL" << endl;
-          // cout << vi(j) << endl;
           cost += pow(vi(j) - max_vel_, 2) * ts_inv2; // multiply ts_inv3 to make vel and acc has similar magnitude
 
           gradient(j, i + 0) += -2 * (vi(j) - max_vel_) / ts * ts_inv2;
@@ -1163,13 +1091,10 @@ namespace ego_planner
     {
       Eigen::Vector3d ai = (q.col(i + 2) - 2 * q.col(i + 1) + q.col(i)) * ts_inv2;
 
-      //cout << "temp_a * ai=" ;
       for (int j = 0; j < 3; j++)
       {
         if (ai(j) > max_acc_)
         {
-          // cout << "zx-todo ACC" << endl;
-          // cout << ai(j) << endl;
           cost += pow(ai(j) - max_acc_, 2);
 
           gradient(j, i + 0) += 2 * (ai(j) - max_acc_) * ts_inv2;
@@ -1477,7 +1402,6 @@ namespace ego_planner
           result == lbfgs::LBFGS_ALREADY_MINIMIZED ||
           result == lbfgs::LBFGS_STOP)
       {
-        //ROS_WARN("Solver error in planning!, return = %s", lbfgs::lbfgs_strerror(result));
         flag_force_return = false;
 
         /*** collision check, phase 1 ***/
@@ -1503,14 +1427,12 @@ namespace ego_planner
           flag_occ = grid_map_->getInflateOccupancy(traj.evaluateDeBoorT(t));
           if (flag_occ)
           {
-            //cout << "hit_obs, t=" << t << " P=" << traj.evaluateDeBoorT(t).transpose() << endl;
 
             if (t <= bspline_interval_) // First 3 control points in obstacles!
             {
               // cout << cps_.points.col(1).transpose() << "\n"
               //      << cps_.points.col(2).transpose() << "\n"
               //      << cps_.points.col(3).transpose() << "\n"
-              //      << cps_.points.col(4).transpose() << endl;
               ROS_WARN("First 3 control points in obstacles! return false, t=%f", t);
               return false;
             }
@@ -1519,10 +1441,8 @@ namespace ego_planner
           }
         }
 
-        // cout << "XXXXXX" << ((cps_.points.col(cps_.points.cols()-1) + 4*cps_.points.col(cps_.points.cols()-2) + cps_.points.col(cps_.points.cols()-3))/6 - local_target_pt_).norm() << endl;
 
         /*** collision check, phase 3 ***/
-//#define USE_SECOND_CLEARENCE_CHECK
 #ifdef USE_SECOND_CLEARENCE_CHECK
         bool flag_cls_xyp, flag_cls_xyn, flag_cls_zp, flag_cls_zn;
         Eigen::Vector3d start_end_vec = traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm);
@@ -1590,7 +1510,6 @@ namespace ego_planner
       else
       {
         ROS_WARN("Solver error. Return = %d, %s. Skip this planning.", result, lbfgs::lbfgs_strerror(result));
-        // while (ros::ok());
       }
 
     } while (
@@ -1644,7 +1563,6 @@ namespace ego_planner
       {
         if (grid_map_->getInflateOccupancy(traj.evaluateDeBoorT(t)))
         {
-          // cout << "Refined traj hit_obs, t=" << t << " P=" << traj.evaluateDeBoorT(t).transpose() << endl;
 
           Eigen::MatrixXd ref_pts(ref_pts_.size(), 3);
           for (size_t i = 0; i < ref_pts_.size(); i++)
@@ -1665,17 +1583,12 @@ namespace ego_planner
 
     lambda4_ = origin_lambda4;
 
-    //cout << "iter_num_=" << iter_num_ << endl;
 
     return flag_safe;
   }
 
   void BsplineOptimizer::combineCostRebound(const double *x, double *grad, double &f_combine, const int n)
   {
-    // cout << "drone_id_=" << drone_id_ << endl;
-    // cout << "cps_.points.size()=" << cps_.points.size() << endl;
-    // cout << "n=" << n << endl;
-    // cout << "sizeof(x[0])=" << sizeof(x[0]) << endl;
 
     memcpy(cps_.points.data() + 3 * order_, x, n * sizeof(x[0]));
 
@@ -1685,23 +1598,18 @@ namespace ego_planner
     Eigen::MatrixXd g_smoothness = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_distance = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_feasibility = Eigen::MatrixXd::Zero(3, cps_.size);
-    // Eigen::MatrixXd g_mov_objs = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_swarm = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_terminal = Eigen::MatrixXd::Zero(3, cps_.size);
 
     calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
     calcDistanceCostRebound(cps_.points, f_distance, g_distance, iter_num_, f_smoothness);
     calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
-    // calcMovingObjCost(cps_.points, f_mov_objs, g_mov_objs);
     calcSwarmCost(cps_.points, f_swarm, g_swarm);
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 
     f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_swarm + lambda2_ * f_terminal;
-    //f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_mov_objs;
-    //printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_combine);
 
     Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_swarm + lambda2_ * g_terminal;
-    //Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_mov_objs;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
   }
 
@@ -1717,7 +1625,6 @@ namespace ego_planner
     Eigen::MatrixXd g_fitness = Eigen::MatrixXd::Zero(3, cps_.points.cols());
     Eigen::MatrixXd g_feasibility = Eigen::MatrixXd::Zero(3, cps_.points.cols());
 
-    //time_satrt = ros::Time::now();
 
     calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
     calcFitnessCost(cps_.points, f_fitness, g_fitness);
@@ -1725,7 +1632,6 @@ namespace ego_planner
 
     /* ---------- convert to solver format...---------- */
     f_combine = lambda1_ * f_smoothness + lambda4_ * f_fitness + lambda3_ * f_feasibility;
-    // printf("origin %f %f %f %f\n", f_smoothness, f_fitness, f_feasibility, f_combine);
 
     Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + lambda4_ * g_fitness + lambda3_ * g_feasibility;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));

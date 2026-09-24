@@ -452,7 +452,6 @@ namespace ros_interface {
             }
 
 
-            /// 接下来遍历选择定点属于哪些面
             vec_E<Vec3f> edges;
 
             for (long int i = 0; i < planes.rows(); i++) {
@@ -581,10 +580,9 @@ namespace ros_interface {
 
 
             line_strip.color = color;
-            line_strip.color.a = alpha; //不透明度，设0则全透明
+            line_strip.color.a = alpha;
             geometry_msgs::Point p[8];
 
-            //vis_pos_world是目标物的坐标
             p[0].x = vis_pos_world(0) - width;
             p[0].y = vis_pos_world(1) + length;
             p[0].z = vis_pos_world(2) + hight;
@@ -609,11 +607,9 @@ namespace ros_interface {
             p[7].x = vis_pos_world(0) + width;
             p[7].y = vis_pos_world(1) + length;
             p[7].z = vis_pos_world(2) + hight;
-            //LINE_STRIP类型仅仅将line_strip.points中相邻的两个点相连，如0和1，1和2，2和3
             for (int i = 0; i < 8; i++) {
                 line_strip.points.push_back(p[i]);
             }
-            //为了保证矩形框的八条边都存在：
             line_strip.points.push_back(p[0]);
             line_strip.points.push_back(p[3]);
             line_strip.points.push_back(p[2]);

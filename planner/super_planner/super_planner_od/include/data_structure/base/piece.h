@@ -68,14 +68,6 @@ namespace geometry_utils {
 
     class Piece {
     public:
-        // [ t^5 t^4 t^3 t^2 t 1]
-        //  typedef Eigen::Matrix<double, 3, 5 + 1> CoefficientMat5;
-        //  typedef Eigen::Matrix<double, 3, 5> VelCoefficientMat5;
-        //  typedef Eigen::Matrix<double, 3, 5 - 1> AccCoefficientMat5;
-        //
-        //  typedef Eigen::Matrix<double, 3, 7 + 1> CoefficientMat7;
-        //  typedef Eigen::Matrix<double, 3, 7> VelCoefficientMat7;
-        //  typedef Eigen::Matrix<double, 3, 7 - 1> AccCoefficientMat7;
         template <class Archive>
         void serialize(Archive& archive) {
             archive(duration, D, coeffMat);

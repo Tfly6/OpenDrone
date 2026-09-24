@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""为外部 Gazebo/MAVROS 环境生成与指定 PX4 版本匹配的 UDP 模型覆盖。"""
+"""Generate PX4-version-matched UDP model overrides for external Gazebo/MAVROS."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _write_text(path: str, contents: str) -> None:
 
 
 def _ensure_contact_plugin(model: ET.Element) -> None:
-    """向整机 model 注入一次轻量 contact 插件配置。"""
+    """Inject one lightweight contact plugin into a vehicle model."""
     contact_plugin = next(
         (
             plugin for plugin in model.findall('plugin')
@@ -56,7 +56,7 @@ def _ensure_contact_plugin(model: ET.Element) -> None:
 
 
 def _patch_iris_udp(source_model_dir: str, output_model_dir: str, port: int) -> str:
-    """复制当前 PX4 的完整 Iris 模型，切为 UDP 并注入轻量碰撞插件。"""
+    """Copy the current PX4 Iris model, switch it to UDP, and add contact sensing."""
     source_sdf = os.path.join(source_model_dir, 'iris.sdf')
     source_config = os.path.join(source_model_dir, 'model.config')
     if not os.path.isfile(source_sdf) or not os.path.isfile(source_config):
@@ -98,7 +98,7 @@ def _patch_iris_udp(source_model_dir: str, output_model_dir: str, port: int) -> 
 
 
 def _patch_vehicle_sdf_udp(source_sdf: str, output_sdf: str, port: int) -> Tuple[str, bool]:
-    """复制自定义整机 SDF 并改为 UDP，同时返回是否使用 Iris 覆盖。"""
+    """Copy a custom vehicle SDF, switch it to UDP, and report Iris override use."""
     try:
         tree = ET.parse(source_sdf)
     except ET.ParseError as exc:
@@ -139,7 +139,7 @@ def _patch_vehicle_sdf_udp(source_sdf: str, output_sdf: str, port: int) -> Tuple
 
 
 def prepare_environment(definition: BatchDefinition) -> Dict[str, Any]:
-    """生成用户 source 后用于手动启动 Gazebo/MAVROS 的环境文件。"""
+    """Generate environment files for manually starting Gazebo and MAVROS."""
     if not definition.cases:
         raise BatchConfigError('batch 没有可准备的样本')
     case = definition.cases[0]

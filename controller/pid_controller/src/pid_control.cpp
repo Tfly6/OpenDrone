@@ -55,14 +55,7 @@ pidCtrl::pidCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &private_nh)
     targetVel_.setZero();
     targetPos_.setZero();
     targetAtt_.setZero();
-    // targetVel_ << 0.0, 0.0, 0.0;
-    // targetPos_ << 0, 0, takeoff_height_;
 
-    // kp_ << Kp_x_, Kp_y_, Kp_z_;
-    // ki_ << Ki_x_, Ki_y_, Ki_z_;
-    // kd_ << Kd_x_, Kd_y_, Kd_z_;
-    // pre_error_ << 0.0, 0.0, 0.0;
-    // integral_ << 0.0, 0.0, 0.0;
 
     
     yaw_ref_ = 0.0;
@@ -115,7 +108,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
             } else {
                 flightState_ = MISSION_EXECUTION;
             }
-            // last_ = ros::Time::now();
         }
         break;
     }
@@ -151,7 +143,6 @@ void pidCtrl::controlLoop(const ros::TimerEvent &event)
         }
         break;
     case EMERGENCY:
-        // pubLocalPose(Eigen::Vector3d(0.0, 0.0, 2.0));
         flightState_ = LANDING;
         ROS_WARN_STREAM_THROTTLE(2.0, "emergency! please switch to land");
         break;
@@ -165,12 +156,10 @@ void pidCtrl::computeTarget(const double dt)
 {
     if(pid_type_ == SIMPLE_PID){
             
-        // simpleController.printf_param();
         Eigen::Vector3d pose = simpleController.compute(currPose_, targetPos_, dt);
         pubLocalPose(pose);
     }
     else if (pid_type_ == CASCADE_PID){
-        // cascadeController.printf_param();
         targetAtt_ = cascadeController.compute(currPose_, currVel_, targetPos_, yaw_ref_, dt);
         pubAttitudeTarget(targetAtt_, cascadeController.getDesiredThrust());
     }
@@ -247,13 +236,13 @@ void pidCtrl::pubLocalPose(const Eigen::Vector3d &pose)
     msg.pose.position.x = pose[0];
     msg.pose.position.y = pose[1];
     msg.pose.position.z = pose[2];
-    // 设置单位四元数，避免 MAVROS 提取 yaw 时产生 NaN
+    // Keep the orientation valid even though this publisher controls position only.
     msg.pose.orientation.w = 1.0;
     msg.pose.orientation.x = 0.0;
     msg.pose.orientation.y = 0.0;
     msg.pose.orientation.z = 0.0;
 
-    // 保护：确保发布的坐标不含 NaN/Inf
+    // Do not propagate invalid setpoints to MAVROS.
     if (std::isfinite(pose[0]) && std::isfinite(pose[1]) && std::isfinite(pose[2])) {
         local_pos_pub_.publish(msg);
     } else {
@@ -286,7 +275,7 @@ bool pidCtrl::landCallback(std_srvs::SetBool::Request &request, std_srvs::SetBoo
 }
 
 void pidCtrl::simpleWaypoint_cb(const nav_msgs::Path::ConstPtr& msg){
-    waypoints_.clear();  // 清空之前的航点
+    waypoints_.clear();
     for(int i=0; i<msg->poses.size(); i++){
         waypoints_.push_back(msg->poses[i]);
     }
@@ -300,10 +289,7 @@ void pidCtrl::plannerOutputCallback(const opendrone::PlannerOutput::ConstPtr &ms
         return;
     }
     const opendrone::PlannerOutputPoint &pt = msg->points[0];
-    // reference_request_last_ = reference_request_now_;
   
-    // reference_request_now_ = ros::Time::now();
-    // reference_request_dt_ = (reference_request_now_ - reference_request_last_).toSec();
   
     targetPos_ = opendrone::planner_output::SelectPosition(pt, targetPos_);
     targetVel_ = opendrone::planner_output::SelectVelocity(pt);

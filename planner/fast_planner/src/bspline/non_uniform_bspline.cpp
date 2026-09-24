@@ -89,7 +89,6 @@ Eigen::VectorXd NonUniformBspline::evaluateDeBoor(const double& u) {
   vector<Eigen::VectorXd> d;
   for (int i = 0; i <= p_; ++i) {
     d.push_back(control_points_.row(k - p_ + i));
-    // cout << d[i].transpose() << endl;
   }
 
   for (int r = 1; r <= p_; ++r) {
@@ -140,7 +139,6 @@ void NonUniformBspline::setPhysicalLimits(const double& vel, const double& acc) 
 
 bool NonUniformBspline::checkFeasibility(bool show) {
   bool fea = true;
-  // SETY << "[Bspline]: total points size: " << control_points_.rows() << endl;
 
   Eigen::MatrixXd P         = control_points_;
   int             dimension = control_points_.cols();
@@ -218,8 +216,6 @@ double NonUniformBspline::checkRatio() {
 }
 
 bool NonUniformBspline::reallocateTime(bool show) {
-  // SETY << "[Bspline]: total points size: " << control_points_.rows() << endl;
-  // cout << "origin knots:\n" << u_.transpose() << endl;
   bool fea = true;
 
   Eigen::MatrixXd P         = control_points_;
@@ -368,10 +364,6 @@ void NonUniformBspline::parameterizeToBspline(const double& ts, const vector<Eig
   A.block(K + 3, K - 1, 1, 3) = (1 / ts / ts) * arow.transpose();
   // cout << "A:\n" << A << endl;
 
-  // A.block(0, 0, K, K + 2) = (1 / 6.0) * A.block(0, 0, K, K + 2);
-  // A.block(K, 0, 2, K + 2) = (1 / 2.0 / ts) * A.block(K, 0, 2, K + 2);
-  // A.row(K + 4) = (1 / ts / ts) * A.row(K + 4);
-  // A.row(K + 5) = (1 / ts / ts) * A.row(K + 5);
 
   // write b
   Eigen::VectorXd bx(K + 4), by(K + 4), bz(K + 4);
@@ -398,7 +390,6 @@ void NonUniformBspline::parameterizeToBspline(const double& ts, const vector<Eig
   ctrl_pts.col(1) = py;
   ctrl_pts.col(2) = pz;
 
-  // cout << "[B-spline]: parameterization ok." << endl;
 }
 
 double NonUniformBspline::getTimeSum() {

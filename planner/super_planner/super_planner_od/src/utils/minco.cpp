@@ -332,7 +332,6 @@ void MINCO_S3NU::getEnergyPartialGradByTimes(Eigen::VectorXd &gdT) const {
 
 void MINCO_S3NU::propogateGrad(const Eigen::MatrixX3d &partialGradByCoeffs, const Eigen::VectorXd &partialGradByTimes,
                                Eigen::Matrix3Xd &gradByPoints, Eigen::VectorXd &gradByTimes, bool free_end) {
-    // 更新增加终点
     gradByTimes.resize(N);
     Eigen::MatrixX3d adjGrad = partialGradByCoeffs; // [3] x [6 * N]
     A.solveAdj(adjGrad);
@@ -701,7 +700,6 @@ void MINCO_S4NU::getEnergyPartialGradByTimes(Eigen::VectorXd &gdT) const {
 
 void MINCO_S4NU::propogateGrad(const Eigen::MatrixX3d &partialGradByCoeffs, const Eigen::VectorXd &partialGradByTimes,
                                Eigen::Matrix3Xd &gradByPoints, Eigen::VectorXd &gradByTimes, bool free_end) {
-    // 更新增加终点
     gradByTimes.resize(N);
     Eigen::MatrixX3d adjGrad = partialGradByCoeffs; // [3] x [6 * N]
     A.solveAdj(adjGrad);

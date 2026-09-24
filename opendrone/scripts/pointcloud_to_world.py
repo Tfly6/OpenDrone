@@ -43,7 +43,7 @@ class PointCloudToWorld:
         self.last_msg_time = rospy.Time.now()
         self.last_cloud_stamp = msg.header.stamp
         frame_id = msg.header.frame_id.strip('/') if msg.header.frame_id else self.source_frame
-        # 处理 Gazebo 命名空间（例如 "Mid360::livox_link" -> "livox_link"）
+        # Strip the Gazebo namespace (for example, "Mid360::livox_link" -> "livox_link").
         if '::' in frame_id:
             frame_id = frame_id.split('::')[-1]
         stamp = msg.header.stamp if msg.header.stamp != rospy.Time() else rospy.Time(0)
@@ -100,7 +100,7 @@ class PointCloudToWorld:
         self.pub.publish(filtered_cloud)
 
     def _transform_cloud_with_fields(self, cloud_msg, transform):
-        """手动变换点云，保留所有字段（如 intensity）"""
+        """Transform the point cloud while preserving fields such as intensity."""
         t = transform.transform.translation
         q = transform.transform.rotation
         R = np.array([

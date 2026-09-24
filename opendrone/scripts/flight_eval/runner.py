@@ -36,11 +36,11 @@ RUN_METADATA_FILENAME = 'run_metadata.json'
 
 
 class RunInterrupted(Exception):
-    """运行被 ROS shutdown 或用户中断取消。"""
+    """Raised when ROS shutdown or user input cancels a run."""
 
 
 class RunnerState(str, Enum):
-    """一次 flight_eval 运行的编排状态，不等同于 controller 的 flight_state。"""
+    """Orchestration state for one run, distinct from controller flight state."""
 
     PREPARING = 'preparing'
     RECORDING = 'recording'
@@ -81,7 +81,7 @@ _RUNNER_TRANSITIONS = {
 
 
 class FlightRunner:
-    """飞行评估运行器"""
+    """Orchestrate a flight-evaluation run."""
 
     def __init__(
         self,
@@ -207,12 +207,12 @@ class FlightRunner:
 
     @property
     def runner_state(self) -> RunnerState:
-        """返回当前编排状态；供运行元数据和诊断使用。"""
+        """Return the orchestration state for metadata and diagnostics."""
         with self._state_condition:
             return self._runner_state
 
     def _transition(self, next_state: RunnerState, reason: str = ''):
-        """执行唯一的生命周期状态迁移，并唤醒等待中的主流程。"""
+        """Apply the sole lifecycle transition and wake the waiting main flow."""
         with self._state_condition:
             current_state = self._runner_state
             if current_state == next_state:
@@ -246,7 +246,7 @@ class FlightRunner:
             self._state_condition.notify_all()
 
     def _on_flight_state(self, state_code: int):
-        """将 controller 状态事件映射为 Runner 生命周期迁移。"""
+        """Map controller state events to runner lifecycle transitions."""
         with self._state_condition:
             self._last_flight_state = int(state_code)
             if state_code == 6:  # EMERGENCY
@@ -276,7 +276,7 @@ class FlightRunner:
                 self._transition(RunnerState.CAPTURING_ARTIFACTS, 'controller reported LANDED')
 
     def _on_mission_path(self, msg):
-        """向通用任务 evaluator 提交原始 mission Path。"""
+        """Submit the raw mission path to the task evaluator."""
         points = [
             (
                 pose.pose.position.x,
@@ -333,7 +333,7 @@ class FlightRunner:
                 self._state_condition.notify_all()
 
     def _on_contact_pulse(self, msg, now: Optional[float] = None):
-        """累计碰撞事件；连续 contact 心跳不重复计数。"""
+        """Count collision episodes without duplicating continuous contact pulses."""
         received_at = time.monotonic() if now is None else float(now)
         self_collision = str(getattr(msg, 'self_collision', '') or '')
         other_collision = str(getattr(msg, 'other_collision', '') or '')
@@ -418,7 +418,7 @@ class FlightRunner:
         label: str,
         timeout_state: RunnerState = RunnerState.FAILED,
     ) -> bool:
-        """等待状态机迁移，统一处理 emergency、ROS shutdown 与超时。"""
+        """Wait for a state transition while handling emergencies and timeouts."""
         deadline = time.monotonic() + timeout
         with self._state_condition:
             while self._runner_state != expected_state:
@@ -439,7 +439,7 @@ class FlightRunner:
         return True
 
     def _wait_for_task_end(self, rospy) -> str:
-        """等待定时窗口结束或有限任务到达语义终点。"""
+        """Wait for the timed window or a finite task's semantic endpoint."""
         deadline = self._task_now() + self.task.duration
         last_task_time = self._task_now()
         last_task_progress_wall = time.monotonic()
@@ -505,7 +505,7 @@ class FlightRunner:
             }
 
     def _resolve_record_topics(self) -> List[str]:
-        """根据控制器、规划器和任务契约组装录包话题。"""
+        """Build bag topics from controller, planner, and task contracts."""
         topics = (
             BASE_RECORD_TOPICS
             + self.ctrl_info['record_topics']
@@ -516,7 +516,7 @@ class FlightRunner:
         return list(dict.fromkeys(topics))
 
     def _capture_runtime_parameter_snapshot(self) -> Dict[str, object]:
-        """保存本次实际启动的 launch 所属参数。"""
+        """Save parameters owned by the launch files used for this run."""
         snapshot_path = os.path.join(self.record_dir, ROSPARAM_SNAPSHOT_FILENAME)
         inspections = []
         errors = []
@@ -655,7 +655,7 @@ class FlightRunner:
             )
 
     def _start_rosbag(self) -> str:
-        """启动 rosbag 录制并返回文件前缀。"""
+        """Start rosbag recording and return the output prefix."""
         os.makedirs(self.record_dir, exist_ok=True)
 
         topics = self._resolve_record_topics()
@@ -674,7 +674,7 @@ class FlightRunner:
         return prefix
 
     def _start_controller(self):
-        """启动控制器节点"""
+        """Start the controller node."""
         launch_file = self.ctrl_info['launch_file']
         launch_pkg = self.ctrl_info['launch_pkg']
         args = dict(self.ctrl_info.get('launch_args', {}))
@@ -700,7 +700,7 @@ class FlightRunner:
         })
 
     def _start_planner(self):
-        """启动规划器节点"""
+        """Start the planner node."""
         if self.planner_name == 'none':
             return
 
@@ -739,7 +739,7 @@ class FlightRunner:
         launch_file: Optional[str],
         extra_args: Optional[List[str]] = None,
     ) -> List[str]:
-        """构造 roslaunch 命令，优先使用可直接定位的 launch 绝对路径。"""
+        """Build a roslaunch command, preferring a resolvable absolute path."""
         if not launch_file:
             raise ValueError("launch_file 不能为空")
 
@@ -761,7 +761,7 @@ class FlightRunner:
         launch_pkg: Optional[str],
         launch_file: str,
     ) -> Optional[str]:
-        """解析 launch 文件绝对路径，避免 roslaunch 对子目录查找失败。"""
+        """Resolve an absolute launch path to support files in subdirectories."""
         candidate_paths = []
 
         if os.path.isabs(launch_file):
@@ -775,7 +775,7 @@ class FlightRunner:
         return None
 
     def _send_land_command(self):
-        """发送降落指令"""
+        """Send the landing command."""
         try:
             subprocess.run(
                 ['rosservice', 'call', '/land', 'true'],
@@ -787,7 +787,7 @@ class FlightRunner:
 
     @staticmethod
     def _signal_process_group(process, sig: int) -> bool:
-        """向一个由 runner 创建的独立进程组发送信号。"""
+        """Signal a process group created by the runner."""
         if not process:
             return False
         try:
@@ -809,7 +809,7 @@ class FlightRunner:
 
     @classmethod
     def _wait_processes(cls, processes, timeout: float) -> List:
-        """等待一批进程组退出；返回超时的进程组。"""
+        """Wait for process groups and return those that time out."""
         deadline = time.monotonic() + timeout
         remaining = list(processes)
         while remaining and time.monotonic() < deadline:
@@ -825,7 +825,7 @@ class FlightRunner:
         ]
 
     def _write_run_metadata(self, result: Dict) -> str:
-        """保存与 bag 绑定的运行元数据，供独立 analyze 复现任务配置。"""
+        """Save bag-linked metadata so standalone analysis can reproduce the task."""
         path = os.path.join(self.record_dir, RUN_METADATA_FILENAME)
         try:
             os.makedirs(self.record_dir, exist_ok=True)
@@ -880,13 +880,13 @@ class FlightRunner:
         return result
 
     def _find_bag_file(self, prefix: str) -> Optional[str]:
-        """查找录制的 bag 文件"""
+        """Find the recorded bag file."""
         import glob
         files = sorted(glob.glob(f'{prefix}*.bag'))
         return files[-1] if files else None
 
     def run(self) -> Optional[Dict]:
-        """执行飞行评估。"""
+        """Run the flight evaluation."""
         print("=" * 60)
         print(f"  飞行评估: {self.controller_name}")
         print(f"  指标集合: {self.task.metric_profile}")
@@ -907,7 +907,7 @@ class FlightRunner:
         try:
             self._transition(RunnerState.RECORDING, 'starting rosbag recording')
             prefix = self._start_rosbag()
-            time.sleep(1)  # 等待 rosbag 启动
+            time.sleep(1)
 
             self._start_controller()
             start_time = time.time()
@@ -1078,7 +1078,7 @@ class FlightRunner:
 
             if self.runner_state == RunnerState.CAPTURING_ARTIFACTS:
                 parameter_snapshot = self._capture_runtime_parameter_snapshot()
-                time.sleep(2)  # 让 rosbag 收到最后一批状态和参数相关数据
+                time.sleep(2)
                 self._transition(RunnerState.COMPLETED, 'artifacts captured')
 
         except ImportError:
@@ -1150,7 +1150,7 @@ class FlightRunner:
         return result
 
     def _cleanup(self):
-        """一次性停止所有由 runner 创建的进程组。"""
+        """Stop all process groups created by the runner exactly once."""
         if self._cleaned_up:
             return
         processes = [

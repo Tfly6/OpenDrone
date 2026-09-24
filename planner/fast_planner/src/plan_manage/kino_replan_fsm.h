@@ -84,7 +84,6 @@ private:
   /* parameters */
   int target_type_;  // 1 mannual select, 2 hard code
   double no_replan_thresh_, replan_thresh_;
-  // double waypoints_[50][3];
   vector<Eigen::Vector3d> waypointList_;
   int waypoint_num_;
 

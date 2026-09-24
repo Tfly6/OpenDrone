@@ -92,24 +92,18 @@ template<typename EIGENVEC>
 void Gcopter<EIGENVEC>::mapIntervalToInf(const double &lower_bound, const double &upper_bound, const double &inter,
                                          double &inf) {
     inf = asin((inter - (lower_bound + upper_bound) / 2) / ((upper_bound - lower_bound) / 2));
-//    inf = tan(2 * (inter - lower_bound)/ (upper_bound - lower_bound) - 1);
-//    inf = atanh((inter - lower_bound)/(upper_bound - lower_bound));
 }
 
 template<typename EIGENVEC>
 void Gcopter<EIGENVEC>::mapInfToInterval(const double &lower_bound, const double &upper_bound, const double &inf,
                                          double &inter) {
     inter = (upper_bound - lower_bound) / 2 * sin(inf) + (lower_bound + upper_bound) / 2;
-//    inter = (atan(inf) + 1) * (upper_bound - lower_bound) / 2 + lower_bound;
-//    inter = tanh(inf) * (upper_bound - lower_bound) + lower_bound;
 }
 
 template<typename EIGENVEC>
 void Gcopter<EIGENVEC>::propagateGradIntervalToInf(const double &lower_bound, const double &upper_bound,
                                                    const double &inf, const double &grad_inter, double &grad_inf) {
     grad_inf = grad_inter * (upper_bound - lower_bound) / 2 * cos(inf);
-//    grad_inf = (upper_bound - lower_bound) / 2.0 * (1.0 / (1 + inf * inf)) * grad_inter;
-//    grad_inf = (1-tanh(inf)*tanh(inf)) * (upper_bound - lower_bound) * grad_inter;
 }
 
 template<typename EIGENVEC>
@@ -187,9 +181,7 @@ void Gcopter<EIGENVEC>::backwardGradP(const Eigen::VectorXd &xi,
 
 template<typename EIGENVEC>
 void Gcopter<EIGENVEC>::backwardP(const Eigen::Matrix3Xd &points, const PolyhedronV &vPoly, EIGENVEC &xi) {
-    // 所有需要优化的点大小
     const long sizeP = points.cols();
-    // 最小的平方距离
     double minSqrD;
     lbfgs::lbfgs_parameter_t tiny_nls_params;
     tiny_nls_params.past = 0;
@@ -200,25 +192,20 @@ void Gcopter<EIGENVEC>::backwardP(const Eigen::Matrix3Xd &points, const Polyhedr
     Eigen::Matrix3Xd ovPoly;
     for (long i = 0, j = 0, k; i < sizeP; i++, j += k) {
         k = vPoly.cols();
-        // ovPoly的尺寸为顶点数+1
         ovPoly.resize(3, k + 1);
-        // 增加了一个该点本身
         ovPoly.col(0) = points.col(i);
-        // 其余的都各自顶点
         ovPoly.rightCols(k) = vPoly;
-        // 优化的xi维度等于顶点的个数
         Eigen::VectorXd x(k);
-        // x设置为面分之一
         x.setConstant(sqrt(1.0 / static_cast<double>(k)));
-        lbfgs::lbfgs_optimize(x,           // 优化变量
-                              minSqrD,  // 代价
-                              &Gcopter<EIGENVEC>::costTinyNLS, // 代价函数
+        lbfgs::lbfgs_optimize(x,
+                              minSqrD,
+                              &Gcopter<EIGENVEC>::costTinyNLS,
                               nullptr,
                               nullptr,
                               &ovPoly,
                               tiny_nls_params);
 
-        xi.segment(j, k) = x; // 优化出来的xi放进去
+        xi.segment(j, k) = x;
     }
 }
 

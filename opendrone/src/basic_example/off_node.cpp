@@ -11,7 +11,7 @@
 using namespace std;
 
 mavros_msgs::State current_state;
-geometry_msgs::PoseStamped curr_pos;   // 无人机当前位置
+geometry_msgs::PoseStamped curr_pos;
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    int count = 0;  // 计时
+    int count = 0;
     
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&
@@ -98,7 +98,6 @@ int main(int argc, char **argv)
                 if(set_mode_client.call(land_set_mode) && land_set_mode.response.mode_sent){
                     ROS_INFO("land enabled");
                 }
-                //任务结束,关闭该节点
                 ros::shutdown();
             }  
         }

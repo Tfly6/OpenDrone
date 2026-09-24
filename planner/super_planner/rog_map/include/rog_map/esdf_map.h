@@ -25,7 +25,6 @@
 
 #include <rog_map/rog_map_core/counter_map.h>
 
-//#define ESDF_MAP_DEBUG
 
 namespace rog_map {
 
@@ -102,4 +101,3 @@ namespace rog_map {
     };
 
 }
-

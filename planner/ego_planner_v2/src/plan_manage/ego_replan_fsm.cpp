@@ -22,13 +22,6 @@ namespace ego_planner
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
     nh.param("fsm/ground_height_measurement", enable_ground_height_measurement_, false);
 
-    // nh.param("fsm/waypoint_num", waypoint_num_, -1);
-    // for (int i = 0; i < waypoint_num_; i++)
-    // {
-    //   nh.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-    //   nh.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-    //   nh.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-    // }
 
 
     /* initialize main modules */
@@ -45,7 +38,6 @@ namespace ego_planner
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
-    // waypoint_list_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<quadrotor_msgs::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -68,17 +60,8 @@ namespace ego_planner
     else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
     {
       goal_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointListCallback, this);
-      // trigger_sub_ = nh.subscribe("/traj_start_trigger", 1, &EGOReplanFSM::triggerCallback, this);
 
-      // ROS_INFO("Wait for 2 second.");
-      // int count = 0;
-      // while (ros::ok() && count++ < 2000)
-      // {
-      //   ros::spinOnce();
-      //   ros::Duration(0.001).sleep();
-      // }
 
-      // readGivenWpsAndPlan();
     }
     else
       cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
@@ -223,7 +206,6 @@ namespace ego_planner
       {
         changeFSMExecState(REPLAN_TRAJ, "FSM");
       }
-      // ROS_ERROR("AAAA");
 
       break;
     }
@@ -525,7 +507,6 @@ namespace ego_planner
         odom_pos_, odom_vel_, Eigen::Vector3d::Zero(),
         one_pt_wps, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
-    // visualization_->displayGoalPoint(next_wp, Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, 0);
 
     if (success)
     {
@@ -554,7 +535,6 @@ namespace ego_planner
         changeFSMExecState(REPLAN_TRAJ, "TRIG");
       }
 
-      // visualization_->displayGoalPoint(final_goal_, Eigen::Vector4d(1, 0, 0, 1), 0.3, 0);
       visualization_->displayGlobalPathList(gloabl_traj, 0.1, 0);
     }
     else

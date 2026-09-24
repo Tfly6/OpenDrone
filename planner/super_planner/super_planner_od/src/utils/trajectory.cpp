@@ -255,11 +255,8 @@ bool Trajectory::getPartialTrajectoryByTime(const double &start_TT, const double
 
     out_traj.clear();
     if (start_TT == 0) {
-        // 只需要修改终点时间即可
-//            print("Only change end time.\n");
         double t0 = end_TT;
         int pieceIdx = locatePieceIdx(t0);
-//            print("pieceIdx = {}, t0 = {}.\n",pieceIdx,t0);
         if (pieceIdx == 0) {
             Piece new_pie = pieces[pieceIdx];
             new_pie.setDuration(t0);

@@ -97,24 +97,18 @@ namespace super_planner {
                                              Eigen::Vector4d &outter_plane);
 
         static double distancePointToSegment(const Eigen::Vector3d& P, const Eigen::Vector3d& A, const Eigen::Vector3d& B) {
-            // 计算向量 AB 和 AP
             Eigen::Vector3d AB = B - A;
             Eigen::Vector3d AP = P - A;
 
-            // 计算 t（即点 Q 在 AB 上的位置）
-            double AB_AB = AB.dot(AB);  // AB·AB
-            double AP_AB = AP.dot(AB);  // AP·AB
+            double AB_AB = AB.dot(AB);
+            double AP_AB = AP.dot(AB);
             double t = AP_AB / AB_AB;
 
-            // 判断 t 是否在线段范围内
             if (t < 0.0f) {
-                // t 小于 0，最近点是 A
                 return (P - A).norm();
             } else if (t > 1.0f) {
-                // t 大于 1，最近点是 B
                 return (P - B).norm();
             } else {
-                // t 在 0 到 1 之间，最近点是 Q(t)
                 Eigen::Vector3d Q = A + t * AB;
                 return (P - Q).norm();
             }
@@ -125,8 +119,6 @@ namespace super_planner {
 
         CIRI(const ros_interface::RosInterface::Ptr & ros_ptr):ros_ptr_(ros_ptr){
             debug_en = true;
-            // const std::string failed_log_path = DEBUG_FILE_DIR("ciri_failed_log.csv");
-            // failed_log.open(failed_log_path, std::ios::out | std::ios::trunc);
         }
 
         ~CIRI() = default;

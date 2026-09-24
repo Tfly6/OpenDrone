@@ -166,13 +166,10 @@ void DPMaster::Loop() {
       DPUtil::Timer.start_time("Graph_mapping");
       /* Extract Vertices and new nodes */
       PointCloudPtr layer_cloud_ptr(new pcl::PointCloud<PCLPoint>());
-      // ROS_ERROR("layer_idxs size: %ld", cur_layer_idxs_.size());
       for (const int& layer_idx : cur_layer_idxs_) {
         std::vector<PointStack> realworld_contour;
         map_handler_.GetSurroundObsCloud(layer_cloud_ptr, layer_idx);
-        // DPUtil::Timer.start_time("Image_operation");        
         contour_detector_.BuildTerrianImgAndExtractContour(odom_node_ptr_, DPUtil::layerIdx2Height_[layer_idx], layer_cloud_ptr, realworld_contour);
-        // DPUtil::Timer.end_time("Image_operation");
         if (realworld_contour.size() == 0) {
           ROS_WARN("DPMaster: No contour detected in layer %d", layer_idx);
           continue;
@@ -186,9 +183,6 @@ void DPMaster::Loop() {
       wide_nav_graph_ = graph_manager_.GetWideNavGraph();
       contour_graph_.MatchContourWithNavGraph(wide_nav_graph_, cur_layer_idxs_, new_ctnodes_);
 
-      // DPUtil::ConvertCTNodeStackToPCL(new_ctnodes_, new_vertices_ptr_);
-      // ROS_INFO("DPMaster: Vertices detected, number of vertices: %ld", new_vertices_ptr_->size());
-      // planner_viz_.VizPointCloud(vertices_PCL_pub_, new_vertices_ptr_);
       
       // /* update planner graph */
       if (graph_manager_.ExtractGraphNodes(new_ctnodes_)) {
@@ -231,8 +225,6 @@ void DPMaster::Loop() {
 
       // /* Graph Planning */
       graph_planner_.UpdateGraphTraverability(odom_node_ptr_);
-      // std::cout << "DPMaster: Graph traverability updated." << std::endl;
-      // cout<<"ContourGraph::multi_contour_graph_: "<<ContourGraph::multi_contour_graph_.size()<<endl;
       PointStack global_path;
       Point3D last_nav_goal, current_free_goal;
       bool is_planning_fails = false;
@@ -289,13 +281,9 @@ void DPMaster::Loop() {
       planner_viz_.VizNodes(graph_planner_.insert_nav_nodes, "insert_nav_nodes", VizColor::GREEN);
       
       // Viz Navigation Graph
-      // planner_viz_.VizPoint3D(DPUtil::free_odom_p, "free_odom_position", VizColor::ORANGE, 1.0);
       nav_graph_ = graph_planner_.GetNavGraph();
       planner_viz_.VizGraph(nav_graph_);
 
-      // if (goal_node_ptr_ != NULL && DPUtil::IsTypeInStack(graph_planner_.insert_nav_nodes[0], graph_planner_.insert_nav_nodes[1]->connect_nodes)) {
-      //   ROS_ERROR("DPMaster: Insert node is connected!");
-      // }
 
       planner_viz_.VizContourGraph(ContourGraph::multi_contour_graph_, ContourGraph::multi_global_contour_, cur_layer_idxs_);
       graph_planner_.ClearInsertNodes(graph_planner_.insert_nav_nodes);
@@ -574,9 +562,6 @@ void DPMaster::ScanCallBack(const sensor_msgs::PointCloud2ConstPtr& scan_pc) {
 void DPMaster::TerrainLocalCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {
   if (!master_params_.is_inter_navpoint || !master_params_.is_trajectory_edge) return;
   this->PrcocessCloud(pc, local_terrian_ptr_, false);
-  // DPUtil::ExtractFreeAndObsCloud(local_terrian_ptr_,
-  //                                DPUtil::local_terrain_free_,
-  //                                DPUtil::local_terrain_obs_);
 }
 
 void DPMaster::TerrainCallBack(const sensor_msgs::PointCloud2ConstPtr& pc) {

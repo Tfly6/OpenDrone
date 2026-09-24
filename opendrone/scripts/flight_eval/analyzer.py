@@ -52,7 +52,7 @@ ROSPARAM_SNAPSHOT_FILENAME = 'rosparams.json'
 
 
 class NumpyEncoder(json.JSONEncoder):
-    """JSON 编码器: 自动转换 numpy 类型为 Python 原生类型"""
+    """JSON encoder that converts NumPy values to native Python types."""
     def default(self, obj):
         if isinstance(obj, np.bool_):
             return bool(obj)
@@ -66,7 +66,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 class BagAnalyzer:
-    """Bag 文件分析器"""
+    """Analyze recorded ROS bag files."""
 
     def __init__(self, bag_file: str, controller_name: str,
                  task_name: str = 'hover',
@@ -382,7 +382,7 @@ class BagAnalyzer:
 
     @staticmethod
     def _deduplicate_planner_trajectories(windows: List[Dict]) -> List[Dict]:
-        """按 trajectory_id 和绝对期望时刻去除 rolling-horizon 重叠点。"""
+        """Deduplicate rolling-horizon points by trajectory ID and absolute target time."""
         trajectories = {}
         for window in windows:
             trajectory_id = int(window['trajectory_id'])
@@ -414,7 +414,7 @@ class BagAnalyzer:
 
     @staticmethod
     def _quat_to_euler(w: float, x: float, y: float, z: float) -> Tuple[float, float, float]:
-        """四元数转欧拉角 (roll, pitch, yaw)"""
+        """Convert a quaternion to roll, pitch, and yaw."""
         sinr_cosp = 2.0 * (w * x + y * z)
         cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
         roll = math.atan2(sinr_cosp, cosr_cosp)
@@ -435,7 +435,7 @@ class BagAnalyzer:
     def _rotate_vector_by_quaternion(
         w: float, x: float, y: float, z: float, vector: np.ndarray,
     ) -> np.ndarray:
-        """把 child/body frame 向量旋转到 odometry pose 的世界坐标系。"""
+        """Rotate a child/body-frame vector into the odometry world frame."""
         quaternion = np.asarray([w, x, y, z], dtype=float)
         norm = float(np.linalg.norm(quaternion))
         if norm <= 1e-12:
@@ -793,7 +793,7 @@ class BagAnalyzer:
             elif len(hover_data['positions']) > 0:
                 self.hover_height = float(np.mean(hover_data['positions'][:, 2]))
             else:
-                self.hover_height = 2.0  # 默认
+                self.hover_height = 2.0
 
         self.task.takeoff_height = self.hover_height
         self.calculator.hover_height = self.hover_height
@@ -861,7 +861,7 @@ class BagAnalyzer:
         phase_data: Dict,
         task_outcome: TaskOutcome,
     ) -> List[MetricResult]:
-        """补充整链路系统级兜底指标。"""
+        """Add fallback system-level metrics for the complete pipeline."""
         metrics = [
             self.calculator.compute_emergency_status(
                 emergency_occurred=phase_data.get('emergency_occurred', False),
@@ -953,7 +953,7 @@ class BagAnalyzer:
         task_outcome: TaskOutcome,
         hover_data: Optional[Dict] = None,
     ) -> str:
-        """生成摘要文字"""
+        """Generate the report summary."""
         lines = [
             f"  run_status: {run_status.get('status', 'unknown')}",
             f"  task_outcome: {task_outcome.status.value} ({task_outcome.reason})",
@@ -1030,7 +1030,7 @@ class BagAnalyzer:
 
     @staticmethod
     def _format_metric_value(metric: MetricResult) -> str:
-        """把指标值格式化为适合 Markdown 表格阅读的文本。"""
+        """Format a metric value for a compact Markdown table."""
         if not metric.available:
             return 'N/A'
         if metric.name == 'emergency_status':
@@ -1039,7 +1039,7 @@ class BagAnalyzer:
         return f'{value} {metric.unit}'.strip()
 
     def _save_agent_summary(self, report: AnalysisReport, filepath: str) -> str:
-        """保存单次运行的紧凑 Markdown 摘要。"""
+        """Save a compact Markdown summary for one run."""
         output_dir = os.path.dirname(filepath) or '.'
         run_name = os.path.basename(os.path.abspath(output_dir))
         parameter_manifest_path = os.path.join(output_dir, PARAMETER_SNAPSHOT_MANIFEST_FILENAME)
@@ -1151,7 +1151,7 @@ class BagAnalyzer:
         return filepath
 
     def print_report(self, report: AnalysisReport):
-        """打印分析报告到终端"""
+        """Print the analysis report to the terminal."""
         print("\n" + "=" * 70)
         print(f"  飞行评估报告 - {report.controller} - {report.task}")
         print("=" * 70)

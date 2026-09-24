@@ -1,4 +1,3 @@
-// #include <fstream>
 #include <plan_manage/planner_manager.h>
 #include <thread>
 #include "visualization_msgs/Marker.h" // zx-todo
@@ -41,9 +40,6 @@ namespace ego_planner
     grid_map_->initMap(nh);
     ROS_INFO_STREAM("grid_map init complete");
 
-    // obj_predictor_.reset(new fast_planner::ObjPredictor(nh));
-    // obj_predictor_->init();
-    // obj_pub_ = nh.advertise<visualization_msgs::Marker>("/dynamic/obj_prdi", 10); // zx-todo
 
     bspline_optimizer_.reset(new BsplineOptimizer);
     bspline_optimizer_->setParam(nh);
@@ -64,9 +60,6 @@ namespace ego_planner
   {
     static int count = 0;
     printf("\033[47;30m\n[drone %d replan %d]==============================================\033[0m\n", pp_.drone_id, count++);
-    // cout.precision(3);
-    // cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << "\ngoal:" << local_target_pt.transpose() << ", " << local_target_vel.transpose()
-    //      << endl;
 
     if ((start_pt - local_target_pt).norm() < 0.2)
     {
@@ -294,7 +287,6 @@ namespace ego_planner
       flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, ts);
       last_replan_terminal_in_obstacle_ = bspline_optimizer_->isTerminalInObstacleAbort();
       t_opt = ros::Time::now() - t_start;
-      //static int vis_id = 0;
       visualization_->displayInitPathList(point_set, 0.2, 0);
     }
 
@@ -446,10 +438,6 @@ namespace ego_planner
 
     inter_points.push_back(points.back());
 
-    // for ( int i=0; i<inter_points.size(); i++ )
-    // {
-    //   cout << inter_points[i].transpose() << endl;
-    // }
 
     // write position matrix
     int pt_num = inter_points.size();
@@ -557,7 +545,6 @@ namespace ego_planner
 
     Eigen::MatrixXd ctrl_pts; // = traj.getControlPoint()
 
-    // std::cout << "ratio: " << ratio << std::endl;
     reparamBspline(traj, start_end_derivative, ratio, ctrl_pts, ts, t_inc);
 
     traj = UniformBspline(ctrl_pts, 3, ts);
@@ -588,8 +575,6 @@ namespace ego_planner
   {
     double time_origin = bspline.getTimeSum();
     int seg_num = bspline.getControlPoint().cols() - 3;
-    // double length = bspline.getLength(0.1);
-    // int seg_num = ceil(length / pp_.ctrl_pt_dist);
 
     bspline.lengthenTime(ratio);
     double duration = bspline.getTimeSum();

@@ -75,15 +75,11 @@ struct MappingParameters
 struct MappingData
 {
   Eigen::Vector3i center_last3i_;
-  // Eigen::Vector3d ringbuffer_origin3d_;
   Eigen::Vector3i ringbuffer_origin3i_;
-  // Eigen::Vector3d ringbuffer_division3d_;
-  // Eigen::Vector3i ringbuffer_division3i_;
   Eigen::Vector3d ringbuffer_lowbound3d_;
   Eigen::Vector3i ringbuffer_lowbound3i_;
   Eigen::Vector3d ringbuffer_upbound3d_;
   Eigen::Vector3i ringbuffer_upbound3i_;
-  // Eigen::Vector3d ringbuffer_size3d_;
   Eigen::Vector3i ringbuffer_size3i_;
   Eigen::Vector3i ringbuffer_inf_origin3i_;
   Eigen::Vector3d ringbuffer_inf_lowbound3d_;
@@ -204,10 +200,6 @@ private:
   bool checkDepthOdomNeedupdate();
   void initMapBoundary();
 
-  // typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // nav_msgs::Odometry> SyncPolicyImageOdom; typedef
-  // message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // geometry_msgs::PoseStamped> SyncPolicyImagePose;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry>
       SyncPolicyImageOdom;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>

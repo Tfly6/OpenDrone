@@ -134,7 +134,6 @@ private:
   vector<RayCaster> casters_;
   Eigen::Vector3d offset_;
 
-  // parameter
   double max_sample_time_;
   int max_sample_num_;
   int max_raw_path_, max_raw_path2_;

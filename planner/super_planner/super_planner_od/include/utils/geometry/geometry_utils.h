@@ -197,7 +197,6 @@ namespace geometry_utils {
 
     Eigen::Matrix3d RotationFromVec3(const Eigen::Vector3d& v);
 
-    // 通过三点获得一个平面
     void FromPointsToPlane(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, const Eigen::Vector3d& p3,
                            Eigen::Vector4d& hPoly);
 
