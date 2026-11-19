@@ -13,20 +13,23 @@
   <arg name="num_points" default="30" />
   <arg name="closure_points" default="1" />
 
-  <!-- manual waypoints -->
-  <arg name="waypoint_num" default="3" />
+  <arg name="waypoint_num" default="1" />
+  <!-- dynamic -->
+  <arg name="waypoint0_x" default="12.3" />
+  <arg name="waypoint0_y" default="12.0" />
+  <arg name="waypoint0_z" default="3.0" />
 
-  <arg name="waypoint0_x" default="4.0" />
-  <arg name="waypoint0_y" default="0.0" />
-  <arg name="waypoint0_z" default="1.5" />
+  <!-- <arg name="waypoint0_x" default="38.5" />
+  <arg name="waypoint0_y" default="13.5" />
+  <arg name="waypoint0_z" default="3.5" /> -->
 
-  <arg name="waypoint1_x" default="8.0" />
-  <arg name="waypoint1_y" default="4.0" />
-  <arg name="waypoint1_z" default="1.5" />
+  <!-- <arg name="waypoint0_x" default="24.0" />
+  <arg name="waypoint0_y" default="-7.0" />
+  <arg name="waypoint0_z" default="3.0" /> -->
 
-  <arg name="waypoint2_x" default="12.0" />
-  <arg name="waypoint2_y" default="0.0" />
-  <arg name="waypoint2_z" default="1.5" />
+  <arg name="waypoint1_x" default="3.5" />
+  <arg name="waypoint1_y" default="-29.5" />
+  <arg name="waypoint1_z" default="2.5" />
 
   <node pkg="waypoint_generator" type="waypoint_generator" name="waypoint_generator" output="screen">
     <remap from="~odom" to="$(arg odom_topic)" />
@@ -49,9 +52,9 @@
     <param name="waypoint1_x" value="$(arg waypoint1_x)" />
     <param name="waypoint1_y" value="$(arg waypoint1_y)" />
     <param name="waypoint1_z" value="$(arg waypoint1_z)" />
-    <param name="waypoint2_x" value="$(arg waypoint2_x)" />
+    <!-- <param name="waypoint2_x" value="$(arg waypoint2_x)" />
     <param name="waypoint2_y" value="$(arg waypoint2_y)" />
-    <param name="waypoint2_z" value="$(arg waypoint2_z)" />
+    <param name="waypoint2_z" value="$(arg waypoint2_z)" /> -->
   </node>
 
 </launch>

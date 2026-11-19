@@ -23,7 +23,7 @@
 
             <param name="geo_fence/x" value="100"/>
             <param name="geo_fence/y" value="100"/>
-            <param name="geo_fence/z" value="7"/>
+            <param name="geo_fence/z" value="11"/>
 
             <!-- <param name="debug" value="true"/> -->
     </node>

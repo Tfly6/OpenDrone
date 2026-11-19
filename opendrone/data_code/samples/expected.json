@@ -1,0 +1,6 @@
+{
+  "evidence_level": "synthetic_demo",
+  "sample_count": 10,
+  "rmse_m": 0.1,
+  "p95_m": 0.1
+}
