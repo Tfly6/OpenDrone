@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "corpus_status": "candidate corpus reconstructed from local reports",
+  "batches": [
+    "hover_20260804_225859",
+    "test_20260806_224533",
+    "test_depth_cylinders_20260827_192730",
+    "test_depth_forest_20260826_221540",
+    "test_mid360_cylinders_20260828_005906",
+    "test_mid360_forest_20260828_164501",
+    "dynamic_depth_20260828_222921",
+    "dynamic_mid360_20260829_145016"
+  ],
+  "tolerances_m": [0.5, 1.0, 2.0],
+  "frame_aliases": {"world": "map"},
+  "frame_alias_evidence": "OpenDrone sitl planner launch files declare an identity static world-to-map transform; no world-to-local origin correction is assumed for ground truth."
+}

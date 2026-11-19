@@ -1,0 +1,10 @@
+# Same final goal as task_single; explicitly visit the intermediate goal first.
+frame: map
+waypoint_type: manual
+waypoint_num: 2
+waypoint0_x: 8.0
+waypoint0_y: 4.0
+waypoint0_z: 3.0
+waypoint1_x: 12.0
+waypoint1_y: 8.0
+waypoint1_z: 3.0

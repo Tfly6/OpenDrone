@@ -15,7 +15,7 @@
     <param name="takeoff_height" value="$(arg takeoff_height)" />
     <param name="geo_fence/x" value="50.0"/>
     <param name="geo_fence/y" value="50.0"/>
-    <param name="geo_fence/z" value="6.0"/>
+    <param name="geo_fence/z" value="11.0"/>
   </node>
 
   <group if="$(arg use_dynamic_reconfigure)">

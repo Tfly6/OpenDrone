@@ -1,0 +1,7 @@
+# World-independent absolute ENU task instance; do not edit between worlds.
+frame: map
+waypoint_type: manual
+waypoint_num: 1
+waypoint0_x: 12.0
+waypoint0_y: 8.0
+waypoint0_z: 3.0
