@@ -161,7 +161,7 @@ experiments:
   # A batch cannot switch its external world or sensor.
   # controller x planner x repeat is a Cartesian product, yielding 2 * 2 * 2 cases.
   - name: online_mission
-    task: plan_mission
+    task: sequential_goal_mission
     controllers:
       # - px4_position_baseline
       # - se3_hopf
@@ -188,5 +188,5 @@ experiments:
       use_mpc: 'true'
     # run:
     #   duration: 30
-    # plan_mission defaults to a finite manual path. planner_args applies custom
+    # sequential_goal_mission uses a finite manual path. planner_args applies custom
     # launch arguments to every planner in this experiment.

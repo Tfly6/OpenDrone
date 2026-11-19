@@ -1,363 +1,297 @@
-[EN](./README.md)|[简体中文](./README_CN.md)
+[English](README.md) | [简体中文](README_CN.md)
 
 # OpenDrone
-[![ROS Noetic Catkin Build](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml/badge.svg?branch=main)](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml)  
-ROS1-based PX4 UAV simulation. This project references multiple open-source projects and integrates them into PX4 SITL, including:
 
-## Project Tree
+[![ROS Noetic Catkin Build](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml/badge.svg?branch=main)](https://github.com/Tfly6/OpenDrone/actions/workflows/catkin-build.yml)
+
+OpenDrone is a ROS 1 integration workspace for PX4 multicopter simulation. It brings controllers, trajectory generators, online planners, Gazebo Classic assets, and a reproducible flight-evaluation pipeline behind a common set of launch files and messages.
+
+The repository is intended for simulation, algorithm integration, and research benchmarking. It is not a flight-certified stack; validate every controller and planner in simulation before using it on real hardware.
+
+## Highlights
+
+- Six controller backends: PID, LQR, linear MPC, nonlinear MPC, and two geometric controllers.
+- Seven trajectory-generation and online-planning integrations.
+- A unified planner output, `opendrone/PlannerOutput`, consumed by compatible controllers.
+- Depth-camera and Livox Mid-360 simulation configurations.
+- Repeatable single-run and batch evaluation with rosbag capture, metrics, plots, and 3D replay.
+- Category-oriented benchmark launch wrappers that keep upstream algorithm launches intact.
+
+## Architecture
+
+```text
+waypoint / mission / sensor data
+               |
+               v
+     trajectory generator or planner
+               |
+       planner_adapter.py
+               |
+      /planner/output
+      (PlannerOutput)
+               |
+               v
+           controller
+               |
+     MAVROS attitude/thrust setpoints
+               |
+               v
+          PX4 SITL + Gazebo
+```
+
+`planner_adapter.py` normalizes native planner messages such as `PositionCommand`, `Bspline`, `PolynomialTrajectory`, and `PolyTraj`. Each output point uses `valid_mask` to declare which position, velocity, acceleration, jerk, snap, yaw, yaw-rate, and angular-velocity fields are valid. Local trajectory lifecycle and mission completion are deliberately separate concepts.
+
+## Included algorithms
+
+### Controllers
+
+| Controller | Package | Launch file | Origin |
+|---|---|---|---|
+| Geometric control (Lee) | `se3_lee` | `sitl_se3_lee.launch` | [mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers) |
+| Geometric control (Hopf) | `se3_hopf` | `sitl_se3_hopf.launch` | [se3_controller](https://github.com/HITSZ-MAS/se3_controller) |
+| PID / cascade PID | `pid_controller` | `sitl_pid_controller.launch` | OpenDrone integration |
+| LQR | `lqr_controller` | `sitl_lqr_controller.launch` | [lqr-tracking](https://github.com/llanesc/lqr-tracking) |
+| Linear MPC | `mav_linear_mpc` | `sitl_mpc_controller.launch` | [mav_control_rw](https://github.com/ethz-asl/mav_control_rw) |
+| Nonlinear MPC | `mav_nonlinear_mpc` | `sitl_nmpc_controller.launch` | [mav_control_rw](https://github.com/ethz-asl/mav_control_rw) |
+
+### Trajectory generators and online planners
+
+| Integration | Launch file | Sensor requirement | Origin |
+|---|---|---|---|
+| MAV trajectory generation | `sitl_mav_trajectory_planner.launch` | None | [mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation) |
+| RPG polynomial trajectory | `sitl_rpg_trajectory.launch` | None | [rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control) |
+| Fast-Planner | `sitl_fast_planner.launch` | Depth camera | [Fast-Planner](https://github.com/HKUST-Aerial-Robotics/Fast-Planner) |
+| EGO-Planner | `sitl_ego_planner.launch` | Depth camera | [ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) |
+| EGO-Planner + Mid-360 | `sitl_ego_planner_mid360.launch` | 3D LiDAR | [ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm) |
+| EGO-Planner v2 | `sitl_ego_planner_v2.launch` | Depth camera | [EGO-Planner-v2](https://github.com/ZJU-FAST-Lab/EGO-Planner-v2) |
+| Air-FAR | `sitl_airfar_planner.launch` | Depth camera | [Air-FAR](https://github.com/Bottle101/Air-FAR) |
+| Air-FAR + Mid-360 | `sitl_airfar_planner_mid360.launch` | 3D LiDAR | [Air-FAR](https://github.com/Bottle101/Air-FAR) |
+| SUPER | `sitl_super_planner_od.launch` | 3D LiDAR | [SUPER](https://github.com/hku-mars/SUPER) |
+
+Polynomial generators do not provide obstacle avoidance. Sensor topics, frames, maps, and planner parameters must match the selected simulated vehicle.
+
+## Repository layout
 
 ```text
 OpenDrone/
-├── cmake/                # CMake modules and dependency finder scripts for third-party libs such as glog, gflags, and OpenBLAS
-│   └── Modules/
-├── controller/           # Controller collection, packaged as ROS packages for easy switching in PX4 SITL
-├── opendrone/            # Main ROS package
-│   ├── include/          # Public header files
-│   ├── launch/           # One-click launch files for SITL, controllers, planners, and tests
-│   ├── msg/              # Custom ROS messages (PlannerOutput, PlannerOutputPoint)
-│   ├── rviz/             # RViz configurations
-│   ├── scripts/          # Python helper scripts (planner_adapter for unified planner output, message conversion, etc.)
-│   ├── sitl_config/      # Models, worlds, plugin lists, and simulation settings for PX4/Gazebo SITL
-│   └── src/              # Basic examples and unified controller base (base node)
-├── planner/              # Planner collection integrating multiple excellent planning algorithms
-├── shell/                # Common scripts
-├── utils/                # Shared dependencies, message definitions, math tools, visualization, and utility libraries reused by controllers and planners
-│   ├── opendrone_gazebo_plugins/  # Gazebo simulation plugins (contact detection, etc.)
-│   └── ...               # Other shared utility packages
-├── CMakeLists_Template.txt
-├── LICENSE
-└── README.md
+|-- controller/                    controller packages
+|-- planner/                       trajectory generators and online planners
+|-- opendrone/
+|   |-- launch/                    integration launch files
+|   |   `-- benchmarks/            evaluation-oriented launch wrappers
+|   |-- msg/                       unified planner messages
+|   |-- rviz/                      RViz configurations
+|   |-- scripts/
+|   |   `-- flight_eval/           experiment and analysis framework
+|   |-- sitl_config/               PX4/Gazebo assets (Git submodule)
+|   `-- src/                       base nodes and basic examples
+|-- utils/                         shared messages, libraries, and plugins
+|-- shell/                         setup, recording, and landing helpers
+|-- cmake/Modules/                 CMake dependency finders
+`-- .github/workflows/             ROS Noetic build verification
 ```
 
-> Note: Most ROS packages in this repository follow a similar structure, e.g., **cfg/** for dynamic parameter config (with `dynamic_reconfigure` support), **include/** for headers, **launch/** for launch files, **src/** for source code.
+## Supported environment
 
-## Core Architecture
+The continuously tested target is:
 
-```
-[Planner]  -->  planner_adapter.py  -->  /planner/output (PlannerOutput)
-                                              |
-                        [Any Controller]  -->  PX4                      
-```
+| Component | Tested target |
+|---|---|
+| Operating system | Ubuntu 20.04 |
+| ROS | ROS Noetic |
+| Simulator | PX4 SITL with Gazebo Classic |
+| Build system | catkin tools |
 
-- **planner_adapter** (`opendrone/scripts/planner_adapter.py`): Converts various planner output formats (Bspline, PolynomialTrajectory, PositionCommand, etc.) into a unified `opendrone/PlannerOutput` message, decoupling planners from controllers.
-- **Custom messages** (`opendrone/msg/`): `PlannerOutput` and `PlannerOutputPoint` define a unified trajectory point format with optional fields for position, velocity, acceleration, yaw, etc. (valid fields are marked via `valid_mask`).
+Some upstream packages may also build on ROS Melodic, but the current repository CI does not verify that configuration.
 
-**Controllers (controller folder)**
+## Installation
 
-- **geometric_controller**:
+### 1. Prepare PX4 and ROS
 
-  - **se3_lee**: Referenced from [Jaeyoung-Lim/mavros_controllers](https://github.com/Jaeyoung-Lim/mavros_controllers).
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_se3_lee.launch # default Nonlinear GeometricControl
-  # land
-  # ./shell/trigger_land.sh
-  ```
-
-  - **se3_hopf**: Referenced from [HITSZ-MAS/se3_controller](https://github.com/HITSZ-MAS/se3_controller). (**Recommended**)
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_se3_hopf.launch
-  # land
-  # ./shell/trigger_land.sh
-  ```
-
-- **pid_controller**: Includes simple PID (for learning only) and cascade PID.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_pid_controller.launch # default cascade PID
-  # land
-  # ./shell/trigger_land.sh
-  ```
-
-- **lqr_controller**: Referenced from [llanesc/lqr-tracking](https://github.com/llanesc/lqr-tracking). An LQR controller.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_lqr_controller.launch
-  ```
-
-- **mpc_controller**: Referenced from [ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw), including linear MPC and nonlinear MPC.
-
-  Launch:
-
-  ```bash
-  # linear MPC
-  roslaunch opendrone sitl_mpc_controller.launch
-  # nonlinear MPC
-  roslaunch opendrone sitl_nmpc_controller.launch
-  ```
-
-**Planners (planner folder)**
-
-- **polynomial trajectory generation**: Referenced from [ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_mav_trajectory_planner.launch
-  ```
-
-- **fast_planner**: Referenced from [HKUST-Aerial-Robotics/Fast-Planner](https://github.com/HKUST-Aerial-Robotics/Fast-Planner). Requires a UAV with a depth camera.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_fast_planner.launch
-  ```
-
-- **ego_planner**: Referenced from [ZJU-FAST-Lab/ego-planner-swarm](https://github.com/ZJU-FAST-Lab/ego-planner-swarm). Requires a UAV with a depth camera or 3D LiDAR. (**Recommended**)
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_ego_planner.launch # depth camera
-  roslaunch opendrone sitl_ego_planner_mid360.launch # LiDAR
-  ```
-
-- **ego_plannerV2**: Referenced from [ZJU-FAST-Lab/EGO-Planner-v2](https://github.com/ZJU-FAST-Lab/EGO-Planner-v2). Requires a UAV with a depth camera.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_ego_planner_v2.launch # depth camera
-  ```
-
-- **airfar_planner**: Referenced from [Bottle101/Air-FAR](https://github.com/Bottle101/Air-FAR). Requires a UAV with a depth camera or 3D LiDAR. Includes terrain analysis nodes (`terrain_analysis`) and reference bridge (`airfar_reference_bridge`).
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_airfar_planner.launch # depth camera
-  roslaunch opendrone sitl_airfar_planner_mid360.launch # LiDAR
-  ```
-
-- **rpg_polynomial_trajectory**: Referenced from [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control). This is an optimization-based polynomial trajectory generator and cannot avoid obstacles.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_rpg_trajectory.launch
-  ```
-
-- **super_planner**: Referenced from [hku-mars/SUPER](https://github.com/hku-mars/SUPER). Requires a UAV with 3D LiDAR.
-
-  Launch:
-
-  ```bash
-  roslaunch opendrone sitl_super_planner_od.launch
-  ```
-
-> Supported on Ubuntu 18.04 + ROS Melodic, and Ubuntu 20.04 + ROS Noetic.
-
-## 1. Preparation
-
-- **Before use, you must set up** the [PX4 UAV simulation environment](https://docs.px4.io/main/zh/sim_gazebo_classic/)
-
-- **Create a workspace**
-If you have not created a workspace yet, run the following commands. Skip this step if your workspace is already set up.
-
-```bash
-sudo apt-get install python-catkin-tools python-rosinstall-generator -y
-
-# For ROS Noetic:
-# sudo apt install python3-catkin-tools python3-rosinstall-generator python3-osrf-pycommon -y
-```
-
-```bash
-mkdir -p ~/catkin_ws/src
-cd ~/catkin_ws && catkin init # initialize workspace
-catkin build
-```
-
-- **Install dependencies**
-
-```bash
-sudo apt install libgoogle-glog-dev libgflags-dev libeigen3-dev libarmadillo-dev liblapacke-dev libdw-dev
-sudo apt install ros-$ROS_DISTRO-pcl-ros ros-$ROS_DISTRO-tf2-geometry-msgs ros-$ROS_DISTRO-laser-geometry ros-$ROS_DISTRO-tf2-sensor-msgs ros-$ROS_DISTRO-roslint ros-$ROS_DISTRO-tf-conversions ros-$ROS_DISTRO-rviz
-```
-
-**Install the NLopt library**
-
-```bash
-git clone -b v2.7.1 https://github.com/stevengj/nlopt.git
-cd nlopt
-mkdir build
-cd build
-cmake ..
-make
-sudo make install
-```
-
-## 2. Build
-
-```bash
-cd ~/catkin_ws/src
-git clone --recursive https://github.com/Tfly6/OpenDrone.git
-cd ~/catkin_ws
-# Building MPC-related packages may take more than 10 minutes.
-# If you do not need MPC, you can add them to the build skiplist (same idea for other unused packages).
-# catkin config --skiplist mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
-catkin build
-```
-
-## 3. Run
-
-- **Configure simulation**
-
-```bash
-cd ~/catkin_ws/src/OpenDrone/shell
-./gazeboSetup.bash ${YOUR_PX4_PATH}
-```
-
-### Example 1: Official basic example
-
-(The [opendrone/src/basic_example](opendrone/src/basic_example) directory contains basic examples only, without controllers or planners.)
-
-- Terminal 1: start Gazebo simulation
+Install ROS Noetic, MAVROS, and a PX4-Autopilot version that provides Gazebo Classic SITL. Confirm that the standard PX4 launch works before integrating OpenDrone:
 
 ```bash
 roslaunch px4 mavros_posix_sitl.launch
 ```
 
-- Terminal 2: start the official example, take off to 2 meters, then hover
+Follow the [PX4 ROS 1 / MAVROS documentation](https://docs.px4.io/main/en/ros/mavros_installation) for the base environment.
+
+### 2. Create a catkin workspace and clone recursively
 
 ```bash
+sudo apt update
+sudo apt install -y python3-catkin-tools python3-rosdep git
+
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+git clone --recursive https://github.com/Tfly6/OpenDrone.git
+```
+
+If the repository was cloned without `--recursive`, initialize its required submodules:
+
+```bash
+cd ~/catkin_ws/src/OpenDrone
+git submodule update --init --recursive
+```
+
+The required submodules are `utils/catkin_simple`, `utils/mav_comm`, and `opendrone/sitl_config`.
+
+### 3. Install native and ROS dependencies
+
+```bash
+sudo apt install -y \
+  libgoogle-glog-dev libgflags-dev libeigen3-dev \
+  libarmadillo-dev liblapacke-dev liblapack-dev libopenblas-dev \
+  libdw-dev libopencv-dev libyaml-cpp-dev
+
+sudo rosdep init || true
+rosdep update
 cd ~/catkin_ws
-source ./devel/setup.bash
+rosdep install --from-paths src/OpenDrone --ignore-src --rosdistro noetic -r -y
+```
+
+Install NLopt 2.7.1, which is used by the polynomial trajectory packages:
+
+```bash
+cd /tmp
+git clone --branch v2.7.1 --depth 1 https://github.com/stevengj/nlopt.git
+cmake -S nlopt -B nlopt/build
+cmake --build nlopt/build -j"$(nproc)"
+sudo cmake --install nlopt/build
+```
+
+### 4. Build
+
+```bash
+source /opt/ros/noetic/setup.bash
+cd ~/catkin_ws
+catkin init
+catkin build
+source devel/setup.bash
+```
+
+MPC packages can significantly increase build time. Skip them when they are not needed:
+
+```bash
+catkin config --skiplist mav_disturbance_observer mav_linear_mpc mav_nonlinear_mpc
+catkin build
+```
+
+### 5. Deploy the simulation assets
+
+After PX4 SITL has been built, copy OpenDrone's models, worlds, launch files, and available plugins into the detected PX4 Gazebo Classic layout:
+
+```bash
+cd ~/catkin_ws/src/OpenDrone
+./shell/gazeboSetup.bash /absolute/path/to/PX4-Autopilot
+```
+
+The script supports both `Tools/sitl_gazebo` and `Tools/simulation/gazebo-classic/sitl_gazebo-classic`. It copies files into the PX4 tree, so keep local PX4 customizations under version control or back them up first.
+
+## Quick start
+
+Every terminal below must source both ROS and the workspace.
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+```
+
+### Basic PX4 offboard example
+
+Terminal 1:
+
+```bash
+roslaunch px4 mavros_posix_sitl.launch
+```
+
+Terminal 2:
+
+```bash
 rosrun opendrone offb_node
 ```
 
-### Example 2: geometric_controller + polynomial trajectory generation
+The example arms in offboard mode, climbs to approximately 2 m, and holds position.
 
-Fly a circle.
+### Geometric controller with a polynomial trajectory
 
-- Terminal 1: start Gazebo simulation
-
-```bash
-roslaunch px4 mavros_posix_sitl.launch
-```
-
-- Terminal 2: start geometric_controller
+Start PX4 SITL in terminal 1, then run:
 
 ```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
 roslaunch opendrone sitl_se3_hopf.launch
 ```
 
-- Terminal 3: start polynomial trajectory generation
+In another terminal:
 
 ```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
 roslaunch opendrone sitl_mav_trajectory_planner.launch
 ```
 
-Demo video:
+### EGO-Planner with a depth camera
 
-[bilibili](https://www.bilibili.com/video/BV1EZTszKEtJ/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
-
-### Example 3: geometric_controller + ego_planner + depth camera
-
-Real-time planning and obstacle avoidance.
-
-- Terminal 1: start Gazebo simulation
+Start a depth-camera PX4 vehicle/world in terminal 1:
 
 ```bash
-roslaunch px4 outdoor_depth_camera.launch # or use your own world/launch
+roslaunch px4 outdoor_depth_camera.launch
 ```
 
-- Terminal 2: start geometric_controller
+Then start the controller and planner in separate terminals:
 
 ```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
 roslaunch opendrone sitl_se3_hopf.launch
 ```
 
-- Terminal 3: start ego-planner
-
 ```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
 roslaunch opendrone sitl_ego_planner.launch
 ```
 
-Demo video:
+For Mid-360 examples, first install the simulation model described by [Mid360_px4_sim_plugin](https://github.com/Tfly6/Mid360_px4_sim_plugin), then use `outdoor_mid360.launch` with a `*_mid360.launch` planner entry.
 
-[bilibili](https://www.bilibili.com/video/BV17ZTszKEea/?share_source=copy_web&vd_source=649164de6e400405dc9e781456725af7)
-
-### Example 4: geometric_controller + ego_planner + Mid360
-
-Real-time planning and obstacle avoidance.
-
-- Configure Mid360 simulation according to this repository:
-
-[Tfly6/Mid360_px4_sim_plugin: Plugin for the simulation of the Livox Mid-360 in Gazebo](https://github.com/Tfly6/Mid360_px4_sim_plugin)
-
-- Terminal 1: start Gazebo simulation
+To request landing:
 
 ```bash
-roslaunch px4 outdoor_mid360.launch # or use your own world/launch
+cd ~/catkin_ws/src/OpenDrone
+./shell/trigger_land.sh
 ```
 
-- Terminal 2: start geometric_controller
+## Evaluation and benchmarking
+
+OpenDrone includes `flight_eval`, which can run controller, trajectory-generation, and online-planning tasks; record bags; recompute metrics; create plots; and execute YAML experiment matrices.
 
 ```bash
 cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch opendrone sitl_se3_hopf.launch
+source devel/setup.bash
+export PYTHONPATH=$PWD/src/OpenDrone/opendrone/scripts:$PYTHONPATH
+
+python3 -m flight_eval list-controllers
+python3 -m flight_eval list-planners
+python3 -m flight_eval list-tasks
 ```
 
-- Terminal 3: start ego-planner
+Start with the [flight evaluation README](opendrone/scripts/flight_eval/README.md). Its user and developer guides cover environment preparation, experiment operation, task semantics, metrics, and external algorithm manifests. Benchmark wrappers are organized directly under `opendrone/launch/benchmarks/` by category.
 
-```bash
-cd ~/catkin_ws
-source ./devel/setup.bash
-roslaunch opendrone sitl_ego_planner_mid360.launch
-```
+## Integrating another algorithm
 
-Demo video:
+For a planner, publish `opendrone/PlannerOutput` on `/planner/output`, or add a conversion path to `planner_adapter.py`. Observe these interface rules:
 
-[Mid360 + ego-planner PX4 UAV Gazebo simulation demo (bilibili)](https://www.bilibili.com/video/BV1dHFsz5EEh/?spm_id_from=333.1387.homepage.video_card.click&vd_source=d59e7d5891b69289e548bcfb7a4948a0)
+- Set `header.frame_id` to the local ENU frame used by MAVROS odometry.
+- Set `valid_mask` for every populated derivative or yaw field.
+- Keep `trajectory_id` stable across windows from the same active trajectory.
+- Use `trajectory_status` only for local trajectory lifecycle, not waypoint or mission completion.
+- Publish mission progress separately on `/planner/mission_state` when the task requires it.
 
-## Related Papers
+For benchmark integration, add a wrapper under `opendrone/launch/benchmarks/` and an algorithm manifest entry. The detailed contract is in the [flight evaluation developer guide](opendrone/scripts/flight_eval/docs/developer-guide.md).
 
-[1] Lee, Taeyoung, Melvin Leoky, and N. Harris McClamroch. "**Geometric tracking control of a quadrotor UAV on SE (3).**" Decision and Control (CDC), 2010 49th IEEE Conference on. IEEE, 2010.
+## Troubleshooting
 
-[2] Faessler, Matthias, Antonio Franchi, and Davide Scaramuzza. "**Differential flatness of quadrotor dynamics subject to rotor drag for accurate tracking of high-speed trajectories.**" IEEE Robot. Autom. Lett 3.2 (2018): 620-626.
+- **A package is missing during configuration:** verify `git submodule status`; each required entry should have a checked-out commit rather than a leading `-`.
+- **PX4 models or worlds are missing:** build PX4 SITL, then rerun `shell/gazeboSetup.bash` with the correct PX4 root.
+- **MAVROS does not connect:** confirm the FCU URL and UDP/TCP ports match the PX4 and Gazebo configuration.
+- **A planner receives no sensor data:** check topic names and TF frames in its launch arguments and RViz configuration.
+- **The full build is too slow:** use the catkin skiplist shown above and enable only the packages needed for the experiment.
 
-[3] D. Mellinger and V. Kumar, "**Minimum snap trajectory generation and control for quadrotors,**" in Proc. of the IEEE Intl. Conf. on Robot. and Autom. (ICRA), Shanghai, China, May 2011, pp. 2520-2525.
+## Upstream projects and license
 
-[4] X. Zhou, Z. Wang, H. Ye, C. Xu, and F. Gao, "**EGO-Planner: An ESDFfree gradient-based local planner for quadrotors,**" IEEE Robotics and Automation Letters, vol. 6, no. 2, pp. 478-485, 2021.
+OpenDrone integrates and adapts work from the projects linked in the algorithm tables. Their source files and dependencies may carry their own licenses and citation requirements; consult the corresponding directories and upstream repositories before redistribution or publication.
 
-[5] **Model Predictive Control for Trajectory Tracking of Unmanned Aerial Vehicles Using Robot Operating System.** Mina Kamel, Thomas Stastny, Kostas Alexis and Roland Siegwart. Robot Operating System (ROS) The Complete Reference Volume 2. Springer 2017.
-
-[6] **Linear vs Nonlinear MPC for Trajectory Tracking Applied to Rotary Wing Micro Aerial Vehicles.** Mina Kamel, Michael Burri and Roland Siegwart. arXiv:1611.09240.
-
-[7] B. He, G. Chen, C. Fermuller, Y. Aloimonos and J. Zhang, "**Air-FAR: Fast and Adaptable Routing for Aerial Navigation in Large-Scale Complex Unknown Environments,**" 2025 IEEE International Conference on Robotics and Automation (ICRA).
-
-[8] Xin Zhou et al., **Swarm of micro flying robots in the wild.** *Sci. Robot.* 7, eabm5954 (2022).
-
-[9] Foehn, Philipp & Scaramuzza, Davide. (2018). **Onboard State Dependent LQR for Agile Quadrotors.** 10.1109/ICRA.2018.8460885.
-
-[10] B. Zhou, F. Gao, L. Wang, C. Liu and S. Shen, "**Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight,**" in *IEEE Robotics and Automation Letters*, vol. 4, no. 4, pp. 3529-3536, Oct. 2019.
-
-[11] M. Faessler, D. Falanga, and D. Scaramuzza, "**Thrust Mixing, Saturation, and Body-Rate Control for Accurate Aggressive Quadrotor Flight,**" IEEE Robot. Autom. Lett. (RA-L), vol. 2, no. 2, pp. 476-482, Apr. 2017.
-
-[12] Ren Y, Zhu F, Lu G, et al. **Safety-assured high-speed navigation for MAVs.** *Science Robotics*, 2025, 10(98). DOI:10.1126/scirobotics.ado6187.
-
-[13] Lu G, Ren Y, Zhu F, et al. **Autonomous Tail-Sitter Flights in Unknown Environments.** *IEEE Trans. on Robotics*, 2025. DOI:10.1109/TRO.2025.3526102.
-
-[14] Ren Y, Cai Y, Zhu F, et al. **ROG-Map: An Efficient Robocentric Occupancy Grid Map for Large-scene and High-resolution LiDAR-based Motion Planning.** *2024 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*, 2024:8119-8125. DOI:10.1109/iros58592.2024.10802303.
-
-[15] M. Watterson, and V. Kumar, "**Control of Quadrotors Using the Hopf Fibration on SO(3),**" Robotics Research., pp. 199-215, 2020.
-
+OpenDrone's own top-level code is provided under the [MIT License](LICENSE).
