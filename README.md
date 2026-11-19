@@ -6,12 +6,16 @@
 
 OpenDrone is a ROS 1 integration workspace for PX4 multicopter simulation. It brings controllers, trajectory generators, online planners, Gazebo Classic assets, and a reproducible flight-evaluation pipeline behind a common set of launch files and messages.
 
+This repository contains the code used to run and analyze the paper experiments. See the [paper experiment code README](opendrone/data_code/README.md) for the experiment design, run instructions, and analysis workflow; the complete results are distributed separately in the paper's data package.
+
 The repository is intended for simulation, algorithm integration, and research benchmarking. It is not a flight-certified stack; validate every controller and planner in simulation before using it on real hardware.
+
+**Contents:** [Architecture](#architecture) · [Algorithms](#included-algorithms) · [Environment](#supported-environment) · [Installation](#installation) · [Quick start](#quick-start) · [Evaluation](#evaluation-and-benchmarking) · [Integration](#integrating-another-algorithm) · [Troubleshooting](#troubleshooting)
 
 ## Highlights
 
 - Six controller backends: PID, LQR, linear MPC, nonlinear MPC, and two geometric controllers.
-- Seven trajectory-generation and online-planning integrations.
+- Seven trajectory-generation and online-planning families across nine launch configurations.
 - A unified planner output, `opendrone/PlannerOutput`, consumed by compatible controllers.
 - Depth-camera and Livox Mid-360 simulation configurations.
 - Repeatable single-run and batch evaluation with rosbag capture, metrics, plots, and 3D replay.
@@ -39,7 +43,7 @@ waypoint / mission / sensor data
           PX4 SITL + Gazebo
 ```
 
-`planner_adapter.py` normalizes native planner messages such as `PositionCommand`, `Bspline`, `PolynomialTrajectory`, and `PolyTraj`. Each output point uses `valid_mask` to declare which position, velocity, acceleration, jerk, snap, yaw, yaw-rate, and angular-velocity fields are valid. Local trajectory lifecycle and mission completion are deliberately separate concepts.
+[`opendrone/scripts/planner_adapter.py`](opendrone/scripts/planner_adapter.py) normalizes native planner messages such as `PositionCommand`, `Bspline`, `PolynomialTrajectory`, and `PolyTraj`. Each output point uses `valid_mask` to declare which position, velocity, acceleration, jerk, snap, yaw, yaw-rate, and angular-velocity fields are valid. Local trajectory lifecycle and mission completion are deliberately separate concepts.
 
 ## Included algorithms
 
@@ -144,7 +148,9 @@ sudo apt install -y \
   libarmadillo-dev liblapacke-dev liblapack-dev libopenblas-dev \
   libdw-dev libopencv-dev libyaml-cpp-dev
 
-sudo rosdep init || true
+if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
+  sudo rosdep init
+fi
 rosdep update
 cd ~/catkin_ws
 rosdep install --from-paths src/OpenDrone --ignore-src --rosdistro noetic -r -y
@@ -272,7 +278,7 @@ Start with the [flight evaluation README](opendrone/scripts/flight_eval/README.m
 
 ## Integrating another algorithm
 
-For a planner, publish `opendrone/PlannerOutput` on `/planner/output`, or add a conversion path to `planner_adapter.py`. Observe these interface rules:
+For a planner, publish `opendrone/PlannerOutput` on `/planner/output`, or add a conversion path to [`planner_adapter.py`](opendrone/scripts/planner_adapter.py). Observe these interface rules:
 
 - Set `header.frame_id` to the local ENU frame used by MAVROS odometry.
 - Set `valid_mask` for every populated derivative or yaw field.

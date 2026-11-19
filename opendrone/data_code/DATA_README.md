@@ -1,26 +1,26 @@
-# 结果数据与复算
+# Results Data and Reproduction
 
-`samples/tracking_state.csv`、`samples/tracking_reference.csv` 是各含十个采样点的合成示例，用于快速验证跟踪误差计算：
+`samples/tracking_state.csv` and `samples/tracking_reference.csv` are synthetic examples with ten samples each, intended for quickly verifying tracking-error calculations:
 
 ```bash
 python3 verify_example.py
 ```
 
-论文随附数据包包含逐试次结果、测量信号和配置快照。下表路径相对于解压后的 `data/` 目录：
+The accompanying paper data package contains per-trial results, measured signals, and configuration snapshots. The paths in the table below are relative to the extracted `data/` directory:
 
-| 材料 | 作用 |
+| File | Purpose |
 | --- | --- |
-| `revision_audit/trials.csv` | 每次实验的状态、跟踪指标、纳入决定和原始归档映射 |
-| `revision_audit/plan_to_result.csv` | 核对计划中的试次是否有实际配置、bag、报告 |
-| `revision_audit/joint_outcomes.csv` | 原生成功、几何完成与接触的联合计数 |
-| `tracking_sensitivity.csv`、`coverage_sensitivity.csv` | 覆盖率门槛变化时保留哪些试次、指标如何变化 |
-| `online_combinations.csv`、`planner_summary.csv` | 完整在线组合与规划器汇总 |
-| `revision_review_20261116/` | 固定任务跨场景对照中的里程计/真值及窗口复核 |
-| `worked_example/` | 一个实际飞行案例的原始状态、参考点、接触及复算结果 |
-| `configuration_records.zip` | 646 次尝试的完整配置、参数、报告和运行元数据快照 |
-| `replay_source_snapshot.zip` | 生成归档审计结果的实现快照 |
+| `revision_audit/trials.csv` | Per-trial status, tracking metrics, inclusion decisions, and mappings to original archives |
+| `revision_audit/plan_to_result.csv` | Checks whether each planned trial has an actual configuration, bag, and report |
+| `revision_audit/joint_outcomes.csv` | Joint counts of native success, geometric completion, and contact |
+| `tracking_sensitivity.csv`, `coverage_sensitivity.csv` | Retained trials and metric changes under different coverage thresholds |
+| `online_combinations.csv`, `planner_summary.csv` | Complete online combinations and planner summaries |
+| `revision_review_20261116/` | Odometry/ground-truth and evaluation-window review for controlled cross-scenario comparisons |
+| `worked_example/` | Raw states, reference points, contact data, and reproduced results for one actual flight |
+| `configuration_records.zip` | Complete configuration, parameters, reports, and run-metadata snapshots for 646 attempts |
+| `replay_source_snapshot.zip` | Implementation snapshot used to generate the archive audit results |
 
-复算论文数值时，将 `OPENDRONE_DATA_DIR` 指向数据包的 `data/` 目录：
+To reproduce the paper's values, set `OPENDRONE_DATA_DIR` to the data package's `data/` directory:
 
 ```bash
 export OPENDRONE_DATA_DIR=/path/to/extracted_package/data
@@ -29,6 +29,6 @@ python3 verify_release.py
 python3 build_evidence.py
 ```
 
-前两项统计复算使用 Python 标准库；图表生成所需依赖见 `requirements.txt`。数据包中的完整说明给出信号、时钟、任务窗口、纳入条件及各列定义。
+The first two statistical reproduction scripts use only the Python standard library; see `requirements.txt` for dependencies required to generate figures. The complete documentation in the data package describes the signals, clocks, task windows, inclusion criteria, and column definitions.
 
-从原始 rosbag 重新计算时，归档按 `OPENDRONE_WORKSPACE/eval_runs/batches/<batch>/cases/<case>/` 放置。运行方法见 [README.md](README.md) 的“分析与复算”。
+To recompute results from raw rosbags, place the archives under `OPENDRONE_WORKSPACE/eval_runs/batches/<batch>/cases/<case>/`. See [README.md](README.md), under "Analysis and Reproduction," for instructions.

@@ -146,7 +146,7 @@ experiments:
       sensor: none
     run:
       duration: 40
-  # 两个控制器各做 3 次。planner 未设置时默认 none。
+  # Run each controller three times. If no planner is specified, it defaults to none.
   # - name: hover
   #   task: hover
   #   controllers:
@@ -164,9 +164,9 @@ experiments:
   #   run:
   #     duration: 20
 
-  # 若要跑 Mid360，请复制为另一份 YAML，并先手动启动 Mid360 对应的
-  # Gazebo + MAVROS 环境；一个 batch 不能切换外部 world/sensor。
-  # controller × planner × repeat 为笛卡尔积；这个实验会产生 2 * 2 * 2 = 8 条样本。
+  # To run Mid360, copy this to another YAML file and manually start the corresponding
+  # Gazebo + MAVROS environment first; a batch cannot switch external worlds or sensors.
+  # controller × planner × repeat forms a Cartesian product; this experiment produces 2 * 2 * 2 = 8 samples.
   # - name: online_mission
   #   task: sequential_goal_mission
   #   controllers:
@@ -194,10 +194,10 @@ experiments:
     #   publish_horizon_reference: 'true'
     # run:
     #   duration: 30
-    # sequential_goal_mission 默认使用 finite manual path；如需自定义 launch 参数，
-    # planner_args 会对本 experiment 的所有 planner 生效。
+    # sequential_goal_mission uses a finite manual path by default. To customize launch arguments,
+    # planner_args applies to every planner in this experiment.
 
-  # Fast Topo 保留完整 Path 前瞻，只参与 reference_path_mission。
+  # Fast Topo preserves the complete Path lookahead and is only used for reference_path_mission.
   # - name: topo_reference_path
   #   task: reference_path_mission
   #   controllers: [mav_linear_mpc]

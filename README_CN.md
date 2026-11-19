@@ -6,12 +6,16 @@
 
 OpenDrone 是一个面向 PX4 多旋翼仿真的 ROS 1 集成工作空间。项目将控制器、轨迹生成器、在线规划器、Gazebo Classic 仿真资源和可复现的飞行评测流程统一到一套 launch 文件与消息接口中。
 
+本仓库也包含论文实验的运行与分析代码。实验设计、运行方法和分析流程见[论文实验代码说明（英文）](opendrone/data_code/README.md)；完整实验结果另行随论文数据包提供。
+
 本仓库主要用于仿真、算法集成和科研评测，并非经过飞行认证的系统。将任何控制器或规划器用于真机前，请先完成充分的仿真验证。
+
+**目录：** [系统架构](#系统架构) · [已集成算法](#已集成算法) · [支持环境](#支持环境) · [安装](#安装) · [快速开始](#快速开始) · [评测与基准实验](#评测与基准实验) · [接入新算法](#接入新算法) · [常见问题](#常见问题)
 
 ## 项目特点
 
 - 集成 6 类控制器：PID、LQR、线性 MPC、非线性 MPC，以及两种几何控制器。
-- 集成 7 个轨迹生成与在线规划项目。
+- 涵盖 7 类轨迹生成与在线规划算法，共提供 9 个对应的 launch 配置。
 - 使用统一的 `opendrone/PlannerOutput` 连接规划器和兼容控制器。
 - 提供深度相机和 Livox Mid-360 仿真配置。
 - 支持可复现的单次与批量评测，包括 rosbag、指标、图表和三维回放。
@@ -39,7 +43,7 @@ OpenDrone 是一个面向 PX4 多旋翼仿真的 ROS 1 集成工作空间。项�
        PX4 SITL + Gazebo
 ```
 
-`planner_adapter.py` 将 `PositionCommand`、`Bspline`、`PolynomialTrajectory`、`PolyTraj` 等原生规划消息转换为统一输出。每个轨迹点通过 `valid_mask` 声明位置、速度、加速度、jerk、snap、偏航、偏航角速度和角速度等字段是否有效。局部轨迹生命周期与整项任务完成状态在接口中保持分离。
+[`opendrone/scripts/planner_adapter.py`](opendrone/scripts/planner_adapter.py) 将 `PositionCommand`、`Bspline`、`PolynomialTrajectory`、`PolyTraj` 等原生规划消息转换为统一输出。每个轨迹点通过 `valid_mask` 声明位置、速度、加速度、jerk、snap、偏航、偏航角速度和角速度等字段是否有效。局部轨迹生命周期与整项任务完成状态在接口中保持分离。
 
 ## 已集成算法
 
@@ -144,7 +148,9 @@ sudo apt install -y \
   libarmadillo-dev liblapacke-dev liblapack-dev libopenblas-dev \
   libdw-dev libopencv-dev libyaml-cpp-dev
 
-sudo rosdep init || true
+if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
+  sudo rosdep init
+fi
 rosdep update
 cd ~/catkin_ws
 rosdep install --from-paths src/OpenDrone --ignore-src --rosdistro noetic -r -y
@@ -272,7 +278,7 @@ python3 -m flight_eval list-tasks
 
 ## 接入新算法
 
-接入规划器时，可以直接向 `/planner/output` 发布 `opendrone/PlannerOutput`，也可以在 `planner_adapter.py` 中增加转换路径。接口需要满足以下约定：
+接入规划器时，可以直接向 `/planner/output` 发布 `opendrone/PlannerOutput`，也可以在 [`planner_adapter.py`](opendrone/scripts/planner_adapter.py) 中增加转换路径。接口需要满足以下约定：
 
 - `header.frame_id` 使用与 MAVROS 里程计一致的局部 ENU 坐标系。
 - 为每个实际填充的导数或偏航字段设置 `valid_mask`。
